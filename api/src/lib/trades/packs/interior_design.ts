@@ -1,0 +1,79 @@
+// Trade Knowledge Pack — interior_design (Interior Design). Wave 22, SERVICES pattern:
+// permit_trade null → no gates, no code_refs, no recipes. The pack carries identity, deliverable QA
+// (programming → space plan → finish schedule → FF&E spec/procurement → RCP coordination → finish
+// fire-rating documentation → accessible furniture layout → punch walk), on-site hazards for a designer
+// walking an active interior fit-out, and descriptive owner checkpoints.
+// FF&E receiving/installation is furniture_ffe — the designer specifies and tracks it, the installer
+// installs it. Structural, MEP and envelope design belong to the architect/engineer (Wis. Stat. 443.01(5m)).
+// IBC Chapter 8 and ASTM E84 are proprietary — cited by section / designation only, no class numbers.
+// Dossier: docs/trade-packs/dossiers/interior_design.md. Sources: Wis. Stat. ch. 443, CIDQ (NCIDQ exam),
+// 2010 ADA Standards (DOJ / Access Board text), ICC IBC (ref), ASTM E84 (ref), 29 CFR 1926 C, E, M, X.
+import { definePack, PENDING_ES } from './schema.js';
+
+const D = '2026-10-08';
+const wi = (note?: string) => ({ src: ['interior_design-wi-ch443'], confidence: 'verified' as const, last_verified: D, ...(note ? { note } : {}) });
+const ada = (note?: string) => ({ src: ['millwork-access-board-ada', 'plumbing-ada-2010'], confidence: 'verified' as const, last_verified: D, ...(note ? { note } : {}) });
+const finishRef = (note?: string) => ({ src: ['icc-pa', 'interior_design-astm-e84'], confidence: 'derived' as const, last_verified: D, ...(note ? { note } : {}) });
+const osha = (sub: string, note?: string) => ({ src: [`ecfr-1926-${sub}`], confidence: 'verified' as const, last_verified: D, ...(note ? { note } : {}) });
+const tr = (text: string) => ({ status: 'translated' as const, text });
+
+export default definePack({
+  key: 'interior_design',
+  schema_version: 1,
+  pack_version: '1.0.0',
+  status: 'draft',
+  identity: {
+    summary: 'Designs interior spaces for an interior alteration or fit-out: programming, space planning, finish selections and schedules, FF&E specification and procurement tracking, lighting/reflected-ceiling coordination, finish fire-rating documentation and accessible furniture layouts, then walks the punch list. Structural, MEP and building-envelope design stay with the architect or engineer.',
+    summary_es: 'Diseña espacios interiores en remodelaciones y adecuaciones: programa de necesidades, distribución, cédulas de acabados, especificación y compras de mobiliario y equipo (FF&E), coordinación de plafones e iluminación, clasificación al fuego de acabados y mobiliario accesible; cierra con la lista de pendientes. Estructura, instalaciones y envolvente quedan con el arquitecto o ingeniero.',
+    glossary: [
+      { term: 'Programming', term_es: 'Programa de necesidades', def: 'Early phase where the designer gathers what the owner needs — head counts, room types, adjacencies, storage, equipment — into a written program the space plan must meet.', def_es: 'Fase inicial donde el diseñador reúne lo que necesita el dueño — número de personas, tipos de espacio, relaciones entre áreas, guardado, equipo — en un programa escrito que la distribución debe cumplir.' },
+      { term: 'Space plan', term_es: 'Plano de distribución', def: 'Floor plan showing partitions, rooms, circulation and furniture placement that satisfies the program.', def_es: 'Plano de planta con muros divisorios, locales, circulaciones y ubicación del mobiliario que cumple el programa.' },
+      { term: 'Finish schedule', term_es: 'Cédula de acabados', def: 'Table listing, room by room, the floor, base, wall and ceiling finish with product, color and code-rating data, keyed to the drawings.', def_es: 'Tabla que indica, local por local, el acabado de piso, zoclo, muro y plafón con producto, color y datos de clasificación, referenciada a los planos.' },
+      { term: 'Material board', term_es: 'Muestrario de materiales', def: 'Physical or digital board with actual finish samples so the owner approves color and texture before ordering.', def_es: 'Tablero físico o digital con muestras reales de acabados para que el dueño apruebe color y textura antes de pedir.' },
+      { term: 'FF&E specification', term_es: 'Especificación de FF&E', def: 'Item-by-item list of furniture, fixtures and equipment with manufacturer, model, finish, quantity, location tag and lead time.', def_es: 'Lista partida por partida de mobiliario, accesorios y equipo con fabricante, modelo, acabado, cantidad, clave de ubicación y tiempo de entrega.' },
+      { term: 'Procurement schedule', term_es: 'Programa de compras', def: 'Tracker of each FF&E item from approval through purchase order, ship date, delivery and installation.', def_es: 'Control de cada partida de FF&E desde la aprobación hasta la orden de compra, fecha de embarque, entrega e instalación.' },
+      { term: 'Reflected ceiling plan (RCP)', term_es: 'Plano de plafones reflejado', def: 'Ceiling plan drawn as if seen in a mirror on the floor, showing ceiling heights, light fixtures, diffusers, sprinklers and soffits.', def_es: 'Plano del plafón dibujado como si se viera en un espejo en el piso; muestra alturas, luminarias, difusores, rociadores y plafones bajos.' },
+      { term: 'Flame-spread classification', term_es: 'Clasificación de propagación de flama', def: 'Class rating of an interior wall or ceiling finish from a standard tunnel test; the building code sets the class each room type needs.', def_es: 'Clasificación de un acabado de muro o plafón según una prueba de túnel normalizada; el código de construcción fija la clase que requiere cada tipo de local.' },
+      { term: 'Clear floor space', term_es: 'Espacio libre de piso', def: 'Unobstructed floor area a wheelchair user needs at a work surface, seat or control; furniture layouts must keep it open.', def_es: 'Área de piso sin obstrucciones que necesita un usuario en silla de ruedas frente a una superficie de trabajo, asiento o control; la distribución del mobiliario debe dejarla libre.' },
+      { term: 'Wisconsin registered interior designer', term_es: 'Diseñador de interiores registrado en Wisconsin', def: 'Protected title in Wisconsin; registration requires an approved exam and allows sealing interior technical submissions. Practicing interior design does not itself require registration.', def_es: 'Título protegido en Wisconsin; el registro exige un examen aprobado y permite sellar documentos técnicos de interiores. Ejercer el diseño de interiores no requiere registro por sí mismo.' },
+    ],
+  },
+  est_bucket: 'general',
+  recipes: [],
+  hazards: [
+    { id: 'housekeeping_trip', hazard: 'Tripping on debris, cords, packaging and stacked materials while walking an active fit-out for site visits and the punch walk', hazard_es: PENDING_ES, controls: ['Walk only cleared passageways and stairs; report blocked routes to the superintendent', 'Watch the floor, not the drawings, while moving; stop to read plans'], controls_es: PENDING_ES, osha_ref: '1926.25(a)', severity: 2, prov: osha('c') },
+    { id: 'floor_openings', hazard: 'Falling through uncovered floor openings, shafts or loose hole covers on floors still under construction', hazard_es: PENDING_ES, controls: ['Never lift or step on an unsecured cover; treat unmarked plywood on the floor as a possible hole', 'Ask the contractor for an escorted route on floors with open shafts or stairs'], controls_es: PENDING_ES, osha_ref: '1926.501(b)(4)(i)', severity: 4, prov: osha('m') },
+    { id: 'overhead_work', hazard: 'Head injury from tools or material dropped by ceiling, lighting and sprinkler crews working overhead', hazard_es: PENDING_ES, controls: ['Wear a hard hat in all active work areas', 'Do not stand under lifts or ladders while crews work above; review the RCP from outside the work zone'], controls_es: PENDING_ES, osha_ref: '1926.100(a)', severity: 3, ppe: ['hard hat'], prov: osha('e') },
+    { id: 'stepladder_misuse', hazard: 'Fall from a stepladder used to check ceiling heights, light fixture trims or finish samples up high', hazard_es: PENDING_ES, controls: ['Never stand on the top or top step of a stepladder', 'Ask the trade to verify or measure from their lift instead of borrowing a ladder'], controls_es: PENDING_ES, osha_ref: '1926.1053(b)(13)', severity: 3, prov: osha('x') },
+  ],
+  qa_checklist: [
+    { id: 'program_signed', item: 'Written program signed off by the owner — head counts, room list, adjacencies, storage and special equipment — before space planning starts.', item_es: tr('Programa de necesidades por escrito aprobado por el dueño — número de personas, lista de locales, relaciones, guardado y equipo especial — antes de iniciar la distribución.'), prov: { src: ['interior_design-cidq-exams'], confidence: 'derived' as const, last_verified: D, note: 'Programming is a core NCIDQ content area; deliverable form is platform practice.' } },
+    { id: 'space_plan_ada', item: 'Space plan and furniture layout keep 36 in. clear routes, 60 in. turning spaces and 30 x 48 in. clear floor space at accessible seats and work surfaces.', item_es: tr('La distribución y el acomodo del mobiliario dejan circulaciones libres de 36 in., espacios de giro de 60 in. y espacio libre de 30 x 48 in. en asientos y superficies de trabajo accesibles.'), prov: ada('2010 ADA 403.5.1, 304.3, 305.3 — public-domain federal standard text.') },
+    { id: 'accessible_surfaces', item: 'At least 5% of dining and work-surface seating is accessible, with work surfaces 28–34 in. high and knee clearance, marked on the furniture plan.', item_es: tr('Al menos el 5 % de los lugares en superficies de comedor y de trabajo son accesibles, con superficies de 28 a 34 in. de altura y espacio para rodillas, indicados en el plano de mobiliario.'), prov: ada('2010 ADA 226.1, 902.3, 306.') },
+    { id: 'finish_schedule_complete', item: 'Finish schedule covers every room — floor, base, wall, ceiling — with product, color and data-sheet flame-spread class; owner approves the material board before ordering.', item_es: tr('La cédula de acabados cubre todos los locales — piso, zoclo, muro, plafón — con producto, color y la clase de propagación de flama de la ficha técnica; el dueño aprueba el muestrario antes de pedir.'), prov: finishRef('IBC Ch. 8 (803 wall/ceiling, 804 floor) and ASTM E84 cited by number only; class values not stored.') },
+    { id: 'finish_rating_backup', item: 'Fire-test data sheet for each wall and ceiling finish (and treated fabrics, wallcoverings, decorative materials) filed with the submittals for the building official.', item_es: PENDING_ES, safety: true, prov: finishRef('IBC 803.1 / 806 (decorative materials) — ref only.') },
+    { id: 'ffe_spec_tagged', item: 'FF&E specification lists each item with maker, model, finish, quantity, location tag and lead time; tags match the furniture plan so the installer can place it.', item_es: tr('La especificación de FF&E indica cada partida con fabricante, modelo, acabado, cantidad, clave de ubicación y tiempo de entrega; las claves coinciden con el plano de mobiliario para que el instalador la ubique.'), prov: { src: ['interior_design-wi-ch443', 'furniture_ffe-ufgs-12-59-00'], confidence: 'derived' as const, last_verified: D, note: 'FF&E documents are named in 443.01(5m); installation hand-off per the furniture_ffe pack.' } },
+    { id: 'procurement_tracked', item: 'Procurement schedule updated at least every two weeks with PO, ship and delivery dates; long-lead items flagged against the move-in date.', item_es: tr('Programa de compras actualizado al menos cada dos semanas con fechas de orden, embarque y entrega; las partidas de entrega larga se señalan contra la fecha de mudanza.'), prov: { src: ['platform-baseline'], confidence: 'estimate' as const, last_verified: D, note: 'Update cadence is a platform default — tune per project.' } },
+    { id: 'rcp_coordinated', item: 'Reflected ceiling plan coordinated with electrical, HVAC and sprinkler drawings — fixtures, diffusers and heads do not clash with soffits or ceiling heights.', item_es: tr('El plano de plafones reflejado está coordinado con los planos eléctricos, de aire acondicionado y de rociadores — luminarias, difusores y rociadores no chocan con plafones bajos ni alturas.'), prov: { src: ['interior_design-cidq-exams'], confidence: 'derived' as const, last_verified: D, note: 'Building systems integration / project coordination (NCIDQ content areas).' } },
+    { id: 'sealed_submissions', item: 'Wisconsin: interior technical submissions to the AHJ are signed and sealed by a Wisconsin registered interior designer (or by the architect/engineer of record).', item_es: tr('Wisconsin: los documentos técnicos de interiores para la autoridad los firma y sella un diseñador de interiores registrado en Wisconsin (o el arquitecto/ingeniero responsable).'), prov: wi('443.175 — registered interior designers may seal interior technical submissions and local governments accept them.') },
+    { id: 'punch_walk', item: 'Punch walk held against the approved samples and FF&E plan; each item logged with location, photo and responsible trade, and closed before final acceptance.', item_es: tr('Recorrido de pendientes contra las muestras aprobadas y el plano de FF&E; cada pendiente se registra con ubicación, foto y gremio responsable, y se cierra antes de la aceptación final.'), prov: { src: ['furniture_ffe-ufgs-12-59-00'], confidence: 'derived' as const, last_verified: D, note: 'Clean, repair or replace damage before acceptance (UFGS 3.2).' } },
+  ],
+  inspection_checklists: {
+    owner_design_approval: [
+      { item: 'Program, space plan and furniture plan approved in writing by the owner', item_es: tr('Programa, distribución y plano de mobiliario aprobados por escrito por el dueño') },
+      { item: 'Accessible routes, turning spaces and clear floor spaces checked on the furniture plan', item_es: tr('Circulaciones accesibles, espacios de giro y espacios libres de piso revisados en el plano de mobiliario'), ref: '2010 ADA 304, 305, 403' },
+      { item: 'Finish schedule shows the required flame-spread class for each room and each product meets it', item_es: tr('La cédula de acabados indica la clase de propagación de flama requerida por local y cada producto la cumple'), ref: 'IBC 803' },
+      { item: 'Work outside interior design scope (structure, MEP, envelope) assigned to the architect or engineer', item_es: tr('El trabajo fuera del alcance de diseño de interiores (estructura, instalaciones, envolvente) asignado al arquitecto o ingeniero'), ref: 'Wis. Stat. 443.01(5m)' },
+    ],
+    ffe_handoff: [
+      { item: 'Every FF&E item has a location tag matching the furniture plan', item_es: tr('Cada partida de FF&E tiene una clave de ubicación que coincide con el plano de mobiliario') },
+      { item: 'Delivery dates confirmed against the installation window and move-in', item_es: tr('Fechas de entrega confirmadas contra el periodo de instalación y la mudanza') },
+      { item: 'Powered furniture feed locations coordinated with the electrical drawings', item_es: tr('Ubicaciones de alimentación del mobiliario con corriente coordinadas con los planos eléctricos') },
+    ],
+    final_punch: [
+      { item: 'Installed finishes match the approved samples', item_es: tr('Los acabados instalados coinciden con las muestras aprobadas') },
+      { item: 'Furniture placed per plan with accessible clearances kept open', item_es: tr('Mobiliario colocado según el plano con los espacios accesibles libres'), ref: '2010 ADA 305' },
+      { item: 'Punch log shows zero open items; attic stock and maintenance data handed to the owner', item_es: tr('El registro de pendientes no tiene partidas abiertas; material de reserva y datos de mantenimiento entregados al dueño') },
+    ],
+  },
+});

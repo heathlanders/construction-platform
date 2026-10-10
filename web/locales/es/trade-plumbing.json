@@ -1,0 +1,27 @@
+{
+  "plumbing": {
+    "title": "Plomería",
+    "systems_title": "Sistemas de Plomería",
+    "new_system": "Nuevo Sistema",
+    "no_systems": "No hay sistemas de plomería.",
+    "system_name": "Nombre del Sistema",
+    "system_type": "Tipo de Sistema",
+    "system_types": {
+      "supply": "Suministro",
+      "drain": "Drenaje",
+      "gas": "Gas",
+      "fire": "Contra Incendios"
+    },
+    "fixtures_title": "Accesorios",
+    "new_fixture": "Nuevo Accesorio",
+    "no_fixtures": "No hay accesorios.",
+    "fixture_type": "Tipo de Accesorio",
+    "location": "Ubicación",
+    "fixture_status": {
+      "planned": "Planeado",
+      "rough_in": "Instalación Preliminar",
+      "trimmed": "Acabado",
+      "complete": "Completado"
+    }
+  }
+}

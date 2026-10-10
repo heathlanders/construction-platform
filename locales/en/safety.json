@@ -1,0 +1,50 @@
+{
+  "incidents": {
+    "title": "Safety Incidents",
+    "report": "Report Incident",
+    "date": "Incident Date",
+    "description": "Description",
+    "severity": {
+      "near_miss": "Near Miss",
+      "first_aid": "First Aid",
+      "recordable": "Recordable",
+      "lost_time": "Lost Time",
+      "fatality": "Fatality"
+    },
+    "status": {
+      "open": "Open",
+      "under_investigation": "Under Investigation",
+      "closed": "Closed"
+    },
+    "required_note": "All incidents must be reported immediately to the Safety Officer."
+  },
+  "jsa": {
+    "title": "Job Safety Analysis",
+    "conduct": "Conduct JSA",
+    "hazards": "Identified Hazards",
+    "attendees": "Attendees",
+    "sign_off": "Sign Off"
+  },
+  "certifications": {
+    "title": "Safety Certifications",
+    "add": "Add Certification",
+    "expires": "Expires {{date}}",
+    "expired": "EXPIRED",
+    "expiring_soon": "Expiring in {{days}} days"
+  },
+  "ppe": {
+    "title": "PPE Requirements",
+    "hard_hat": "Hard Hat Required",
+    "safety_vest": "Safety Vest Required",
+    "safety_glasses": "Safety Glasses Required",
+    "steel_toed_boots": "Steel-Toed Boots Required",
+    "gloves": "Gloves Required",
+    "harness": "Fall Protection Required"
+  },
+  "emergency": {
+    "title": "Emergency Procedures",
+    "call_911": "Call 911 for life-threatening emergencies",
+    "contact_supervisor": "Contact your supervisor immediately",
+    "do_not_move": "Do not move an injured worker unless in immediate danger"
+  }
+}

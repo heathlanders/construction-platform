@@ -1,0 +1,16 @@
+# Prime the roofing + framing caches ONLINE and prove both, before the radio goes off.
+appId: com.thejobsite.app
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+- scrollUntilVisible:
+    element: 'Structural'
+    direction: DOWN
+- tapOn: 'Structural'
+- extendedWaitUntil:
+    visible: 'Asphalt Shingle'
+    timeout: 45000
+- tapOn: 'Framing'
+- extendedWaitUntil:
+    visible: 'Exterior Walls'
+    timeout: 30000

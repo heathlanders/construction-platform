@@ -1,0 +1,31 @@
+{
+  "name": "construction-platform",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "build": "pnpm --filter api build && pnpm --filter web build",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx --require dotenv/config prisma/seed.ts",
+    "demo-seed": "tsx --require dotenv/config prisma/demo-seed.ts",
+    "seed:rich": "tsx --require dotenv/config prisma/rich-seed.ts",
+    "seed:dp": "tsx --require dotenv/config prisma/design-partner-seed.ts",
+    "seed:tc": "tsx --require dotenv/config prisma/timecard-seed.ts",
+    "seed:all": "pnpm demo-seed && pnpm seed:rich && pnpm seed:dp && pnpm seed:tc",
+    "db:studio": "prisma studio",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "pg": "^8.11.0",
+    "prisma": "^5.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  }
+}

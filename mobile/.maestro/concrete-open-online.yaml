@@ -1,0 +1,18 @@
+# Prime the pour cache ONLINE and prove it, before the radio goes off.
+#
+# `clearState` in login also drops the downloaded OTA bundle, so the app spends the next
+# launch re-downloading it — a fixed sleep raced that and cut the radio before the first
+# pull ever ran. Asserting here means a later offline failure is about the offline path,
+# not about an empty cache.
+appId: com.thejobsite.app
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+- scrollUntilVisible:
+    element: 'Structural'
+    direction: DOWN
+- tapOn: 'Structural'
+- tapOn: 'Concrete'
+- extendedWaitUntil:
+    visible: 'Slab'
+    timeout: 45000

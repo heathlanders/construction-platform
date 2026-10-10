@@ -1,0 +1,280 @@
+// Trade Knowledge Pack — metal_stud_framing (Metal Stud Framing). Wave 11 — NEW-TRADE pattern (no hand
+// recipe). Covers non-load-bearing interior partitions + furring (CSI 09 22), structural cold-formed
+// steel / exterior curtain-wall studs (CSI 05 40) and framed drywall ceilings / soffits.
+// Dossier: docs/trade-packs/dossiers/metal_stud_framing.md. Sources: UFGS 09 22 00 (Aug 2024),
+// UFGS 05 40 00 (May 2015 chg 1), SFIA Technical Product Guide (Mar 2026), 2010 ADA Standards 609.8,
+// 29 CFR 1926 (E, H, I, J, L, M, X, Z), IBC 2211 / 715, IRC R603 (reference only). ASTM C754/C1007,
+// AISI S200/S220/S240 and AWS D1.3 are reference-only (cited through UFGS, never copied).
+// Head-of-wall FIRESTOP joints are the firestopping pack (B-FS-HOW-LF); this pack only frames the
+// deflection track the listed joint needs.
+import { definePack, PENDING_ES } from './schema.js';
+
+const D = '2026-10-08';
+const u0922 = { src: ['metal_stud_framing-ufgs-09-22-00'], confidence: 'verified' as const, last_verified: D };
+const u0540 = { src: ['metal_stud_framing-ufgs-05-40-00'], confidence: 'verified' as const, last_verified: D };
+const sfia = { src: ['metal_stud_framing-sfia-tpg'], confidence: 'verified' as const, last_verified: D };
+const osha = (sub: string) => ({ src: [`ecfr-1926-${sub}`], confidence: 'verified' as const, last_verified: D });
+const est = (note: string) => ({ src: ['platform-baseline'], confidence: 'estimate' as const, last_verified: D, note });
+const icc = { src: ['icc-pa'], confidence: 'verified' as const, last_verified: D };
+const ada = { src: ['plumbing-ada-2010'], confidence: 'verified' as const, last_verified: D };
+const tr = (text: string) => ({ status: 'translated' as const, text });
+
+const COM = ['commercial', 'industrial'] as const;
+
+export default definePack({
+  key: 'metal_stud_framing',
+  schema_version: 1,
+  pack_version: '1.0.0',
+  status: 'draft',
+  identity: {
+    summary: 'Frames walls and ceilings with cold-formed steel: non-load-bearing interior partitions and furring, deflection head-of-wall track under floors and roofs, backing for grab bars and wall-hung items, framed drywall ceilings and soffits, and structural cold-formed steel / exterior curtain-wall studs built to engineered shop drawings.',
+    summary_es: 'Estructura muros y plafones con acero formado en frío: particiones interiores no portantes y enrasados, canal de deflexión en la parte superior del muro bajo losas y techos, refuerzos para barras de apoyo y elementos colgados, plafones y faldones de tablaroca, y postes estructurales de acero formado en frío / muros cortina exteriores según planos de taller de ingeniería.',
+    glossary: [
+      { term: 'Stud', term_es: 'Poste (montante)', def: 'C-shaped vertical steel member with lips; walls are built from studs set in tracks.', def_es: 'Perfil vertical de acero en forma de C con pestañas; los muros se arman con postes dentro de canales.' },
+      { term: 'Track (runner)', term_es: 'Canal (riel)', def: 'U-shaped steel channel at the floor and top of the wall that holds the stud ends.', def_es: 'Canal de acero en forma de U en el piso y en la parte superior del muro que sujeta los extremos de los postes.' },
+      { term: 'Deflection track', term_es: 'Canal de deflexión', def: 'Deep-leg or slotted top track that lets the floor or roof above move down without crushing the wall.', def_es: 'Canal superior de alas largas o ranurado que permite que la losa o techo de arriba baje sin aplastar el muro.' },
+      { term: 'Mils', term_es: 'Milésimas (mils)', def: 'Steel thickness in thousandths of an inch; the stamped number that matters, not the gauge name.', def_es: 'Espesor del acero en milésimas de pulgada; es el número marcado que cuenta, no el nombre del calibre.' },
+      { term: 'Designator', term_es: 'Designación', def: 'Code like 362S162-33: depth, style (S stud, T track, U channel, F furring), flange width, thickness in mils.', def_es: 'Código como 362S162-33: peralte, tipo (S poste, T canal, U canal rolado, F enrasado), ancho de patín, espesor en mils.' },
+      { term: 'Punchout', term_es: 'Perforación de fábrica', def: 'Factory hole in the stud web for bridging channel, conduit and pipe.', def_es: 'Agujero de fábrica en el alma del poste para el canal de arriostre, tubería conduit y tubo.' },
+      { term: 'Bridging', term_es: 'Arriostre horizontal', def: 'Cold-rolled channel or blocking run through the studs to keep them from twisting.', def_es: 'Canal rolado en frío o bloqueo que pasa por los postes para que no se tuerzan.' },
+      { term: 'Backing', term_es: 'Refuerzo (respaldo)', def: 'Steel plate, strap or fire-treated wood in the wall so grab bars, cabinets and fixtures can be screwed into something solid.', def_es: 'Placa, fleje de acero o madera ignífuga dentro del muro para atornillar barras de apoyo, gabinetes y accesorios a algo sólido.' },
+      { term: 'Slide clip (bypass clip)', term_es: 'Clip deslizante', def: 'Clip that ties exterior studs to the building frame sideways while letting the frame move up and down.', def_es: 'Clip que fija los postes exteriores a la estructura lateralmente pero permite que la estructura se mueva verticalmente.' },
+      { term: 'Hanger wire', term_es: 'Alambre colgante', def: 'Wire tied to the structure above that carries a framed ceiling.', def_es: 'Alambre amarrado a la estructura de arriba que carga un plafón armado.' },
+    ],
+  },
+  est_bucket: 'building',
+  recipes: [
+    {
+      id: 'interior_partitions',
+      example_title: 'Interior metal stud framing — all floors',
+      when: { title_re: '\\b(?:metal|steel|light[- ]gauge)\\s+stud|\\bstud\\s+(?:framing|partitions?|walls?)\\b|\\bpartitions?\\b|\\bfurring\\b|\\bdemising\\s+walls?\\b' },
+      steps: [
+        {
+          title: 'Lay out walls and set the floor and ceiling tracks',
+          instruction: 'Snap wall lines from the partition plan and check door openings, rated walls and wall types before fastening. Lay a sealer gasket under the bottom track on slabs. Fasten the bottom track with powder-actuated pins or concrete screws at the spacing on the drawings, keeping fasteners at least 3 in. from slab edges. Laser the top track plumb over the bottom track.',
+          tools: ['chalk line', 'rotary laser or plumb laser', 'powder-actuated tool', 'hammer drill', 'aviation snips'],
+          materials: ['floor and ceiling track per wall type', 'sill sealer gasket', 'powder-actuated pins or concrete screws'],
+          safety_ids: ['pat_tool', 'silica_drilling', 'eye_flying', 'ladder_top_step'],
+          qa_ids: ['layout_tolerance', 'track_set'],
+        },
+        {
+          title: 'Install deflection track where walls run to the deck',
+          instruction: 'Where a wall runs to the floor or roof deck above, install the deep-leg or slotted deflection track shown on the head-of-wall detail and leave the deflection gap it calls for. Do not screw studs to deep-leg track flanges; with slotted track, fasten only through the slots as the detail shows. On rated walls, the track and gap must match the listed head-of-wall joint system — leave the joint open for the firestop installer.',
+          tools: ['scissor lift or rolling scaffold', 'drill/driver', 'tape measure'],
+          materials: ['deep-leg or slotted deflection track', 'deck fasteners or anchors per detail'],
+          safety_ids: ['lift_scaffold_fall', 'falling_objects', 'pat_tool', 'eye_flying'],
+          qa_ids: ['deflection_gap', 'rated_track_listing'],
+          code_refs: [{ section: '715', code_type: 'IBC', note: 'Rated head-of-wall joints use a listed joint system; framing must match it' }],
+        },
+        {
+          title: 'Stand studs to the wall schedule',
+          instruction: 'Check the stamped designator on each bundle against the wall schedule — thickness is read in mils, so 20 ga drywall stud (30 mil) is not 20 ga structural (33 mil). Cut studs square to full height with no splices, seat each end in the track with at least 1 in. of bearing, set them at the scheduled spacing and line up the punchouts for bridging and MEP. Fasten to the tracks the way the wall type requires.',
+          detail: 'Composite (board-braced) partitions often need no stud-to-track screws, but full-height board on both flanges is then required — follow the wall type and the maker’s limiting-height table.',
+          tools: ['chop saw or aviation snips', 'screw gun', 'level', 'tape measure'],
+          materials: ['studs per wall schedule (size / mils / spacing)', 'self-drilling framing screws'],
+          safety_ids: ['sharp_edges', 'noise', 'eye_flying', 'material_stack'],
+          qa_ids: ['stud_designation', 'stud_spacing_bearing', 'screws_three_threads'],
+        },
+        {
+          title: 'Frame door and duct openings',
+          instruction: 'At openings 2 ft wide or more set at least two studs at each jamb, or the heavier jamb studs the door-frame detail calls for. Cap the opening with a header of track and studs, add cripple and jack studs to keep the stud spacing above and below, and anchor hollow-metal frames to the jamb studs with the frame maker’s anchors.',
+          tools: ['screw gun', 'aviation snips', 'level', 'framing square'],
+          materials: ['jamb studs', 'header track', 'cripple studs', 'frame anchors'],
+          safety_ids: ['sharp_edges', 'eye_flying'],
+          qa_ids: ['opening_jambs'],
+        },
+        {
+          title: 'Install backing for grab bars and wall-hung items',
+          instruction: 'Walk the backing plan and the plumbing, casework and accessory drawings. Install steel backing plates, flat strap or fire-treated wood blocking at every grab bar, wall-hung lavatory and toilet, handrail, cabinet, TV / whiteboard mount and toilet accessory, screwed to at least two studs at the height shown. Grab-bar backing must let the bar carry the code test load.',
+          tools: ['screw gun', 'tape measure', 'laser level'],
+          materials: ['steel backing plate or flat strap', 'fire-retardant-treated wood blocking where allowed', 'framing screws'],
+          safety_ids: ['sharp_edges', 'ladder_top_step'],
+          qa_ids: ['backing_located', 'grab_bar_backing'],
+          code_refs: [{ section: '609.8', code_type: 'ADA 2010', note: 'Grab bars and their mounting carry a 250 lb load at any point' }],
+        },
+        {
+          title: 'Bridge, square up and pass the framing check',
+          instruction: 'Run cold-rolled bridging through the punchouts, or blocking, at the rows the wall height and stud size call for. Check every wall for plumb and plane and fix studs out of tolerance. Leave one side open for MEP rough-in, then call the framing (in-wall) inspection before any board goes on.',
+          tools: ['screw gun', '8 ft level or straightedge', 'laser'],
+          materials: ['cold-rolled bridging channel', 'bridging clips'],
+          safety_ids: ['sharp_edges', 'lift_scaffold_fall'],
+          qa_ids: ['bridging_rows', 'plumb_plane'],
+          gating_inspection_type: 'framing',
+          code_refs: [{ section: '2211', code_type: 'IBC', note: 'Cold-formed steel light-frame construction — design and install standards' }],
+        },
+      ],
+    },
+    {
+      id: 'structural_cfs',
+      example_title: 'Exterior cold-formed steel stud walls and curtain-wall framing',
+      priority: 10,
+      when: { title_re: 'cold[- ]formed|\\bcfs\\b|load[- ]bearing\\s+(?:metal|steel)|exterior\\s+(?:metal|steel)\\s+stud|curtain[- ]?wall\\s+(?:studs?|framing)|structural\\s+(?:steel\\s+)?studs?|light[- ]gauge\\s+(?:steel\\s+)?(?:truss|trusses|joists?)' },
+      steps: [
+        {
+          title: 'Check shop drawings, labels and stored steel',
+          instruction: 'Keep the engineer-stamped shop drawings and calculations on site. Check each bundle’s designator, mils and yield-strength label (heavier members come in two strengths) against the drawings. Store bundles flat on dunnage, off the ground, covered and stacked so they cannot slide.',
+          tools: ['tape measure', 'micrometer or thickness gauge'],
+          materials: ['shop drawings + calculations', 'dunnage', 'tarps'],
+          safety_ids: ['material_stack', 'sharp_edges'],
+          qa_ids: ['stud_designation', 'shop_drawings_onsite'],
+        },
+        {
+          title: 'Set tracks and anchors to the structure',
+          instruction: 'Set bottom and top tracks aligned with the wall line on a sealer gasket. Install anchors of the type, size and spacing on the calculations, at least 3 in. from slab edges. At floor edges, keep the guardrail or fall arrest in place while working.',
+          tools: ['hammer drill', 'powder-actuated tool', 'torque wrench', 'laser'],
+          materials: ['tracks per shop drawings', 'anchors per calculations', 'sealer gasket'],
+          safety_ids: ['edge_fall', 'pat_tool', 'silica_drilling', 'eye_flying'],
+          qa_ids: ['track_set'],
+        },
+        {
+          title: 'Erect studs, clips and headers',
+          instruction: 'Cut studs square and seat them tight against both track webs; never splice studs. In bearing walls, line a stud up under every joist or truss. At curtain walls, attach studs to each floor with the slide (bypass) clips on the shop drawings so the frame can move. Screw every connection with the screw size and count shown; weld only with a qualified welder and touch up welds with zinc-rich paint.',
+          detail: 'Welding thin members is limited — do not field weld steel lighter than 43 mil.',
+          tools: ['screw gun', 'chop saw', 'clamps', 'welder (qualified welder only)'],
+          materials: ['studs and headers per shop drawings', 'slide or bypass clips', 'self-drilling screws', 'zinc-rich touch-up paint'],
+          safety_ids: ['edge_fall', 'aerial_lift', 'hot_work', 'sharp_edges', 'eye_flying'],
+          qa_ids: ['inline_slide_clips', 'screws_three_threads'],
+          code_refs: [{ section: '2211', code_type: 'IBC', note: 'Cold-formed steel light-frame construction — design and install standards' }],
+        },
+        {
+          title: 'Brace, bridge and hold temporary bracing',
+          instruction: 'Install bridging rows and flat-strap X-bracing where the shop drawings show them; pull straps tight before sheathing. Keep temporary bracing in place, undisturbed, until sheathing and the floor or roof diaphragm are fastened. Do not cut, notch or remove framing members or connections without the engineer’s OK.',
+          tools: ['screw gun', 'strap tensioner', 'level'],
+          materials: ['cold-rolled bridging', 'flat strap + gusset plates', 'temporary braces'],
+          safety_ids: ['edge_fall', 'falling_objects', 'aerial_lift'],
+          qa_ids: ['bridging_rows', 'plumb_plane'],
+        },
+        {
+          title: 'Pass the framing inspection before sheathing',
+          instruction: 'Walk the walls with the shop drawings: stud size and spacing, headers and jambs, clips, anchors, hold-downs, strap bracing and bridging. Fix gaps and missing screws, then call the framing inspection (and any special inspection the plans list) before sheathing covers the work.',
+          tools: ['shop drawings', 'flashlight', 'tape measure'],
+          materials: [],
+          safety_ids: ['edge_fall', 'lift_scaffold_fall'],
+          qa_ids: ['shop_drawings_onsite', 'inline_slide_clips'],
+          gating_inspection_type: 'framing',
+          code_refs: [{ section: '2211', code_type: 'IBC', note: 'Cold-formed steel light-frame construction' }, { section: 'R603', code_type: 'IRC', note: 'Cold-formed steel wall framing in one- and two-family dwellings' }],
+        },
+      ],
+    },
+    {
+      id: 'ceilings_soffits',
+      example_title: 'Frame drywall ceilings and soffits',
+      priority: 5,
+      when: { title_re: '\\bsoffits?\\b|\\bbulkheads?\\b|ceiling\\s+(?:framing|furring)|furred\\s+ceilings?|drywall\\s+(?:ceilings?|grid)|hard[- ]lid' },
+      steps: [
+        {
+          title: 'Hang wires from the structure',
+          instruction: 'Lay out the ceiling grid from the reflected ceiling plan. Tie hanger wires to the structure above at the spacing on the detail, wrapping each end at least three tight turns. Add wires at light fixtures, grilles and access doors. Never hang from ducts, pipes, conduit or another trade’s supports.',
+          tools: ['laser level', 'wire twister', 'scissor lift', 'powder-actuated tool'],
+          materials: ['hanger wire', 'ceiling anchors / eye pins'],
+          safety_ids: ['lift_scaffold_fall', 'pat_tool', 'falling_objects', 'eye_flying'],
+          qa_ids: ['hanger_wire'],
+        },
+        {
+          title: 'Set carrying and furring channels level',
+          instruction: 'Hang the cold-rolled carrying channels on the wires and level them to the laser. Clip or wire-tie furring channels or studs across them at the spacing the board needs — commonly 16 in. on center for drywall ceilings. Keep the channels clear of the walls where the detail calls for a gap.',
+          tools: ['laser level', 'pliers', 'screw gun'],
+          materials: ['cold-rolled carrying channel', 'furring channel or studs', 'clips or tie wire'],
+          safety_ids: ['lift_scaffold_fall', 'sharp_edges'],
+          qa_ids: ['plumb_plane', 'hanger_wire'],
+        },
+        {
+          title: 'Frame soffits and openings, then check before board',
+          instruction: 'Frame soffits and bulkheads with track and studs, braced back to the structure. Frame openings for diffusers, lights and access doors. Leave the ceiling open for MEP above-ceiling work and the framing check before any board goes up.',
+          tools: ['screw gun', 'aviation snips', 'level'],
+          materials: ['track', 'studs', 'framing screws'],
+          safety_ids: ['lift_scaffold_fall', 'sharp_edges', 'falling_objects'],
+          qa_ids: ['plumb_plane', 'backing_located'],
+          gating_inspection_type: 'framing',
+          code_refs: [{ section: '2211', code_type: 'IBC', note: 'Cold-formed steel light-frame construction, incl. nonstructural members' }],
+        },
+      ],
+    },
+  ],
+  code_refs: {
+    framing: [
+      { section: '2211', code_type: 'IBC', note: 'Cold-formed steel light-frame construction — structural and nonstructural members', prov: icc },
+      { section: 'R603', code_type: 'IRC', note: 'Cold-formed steel wall framing in one- and two-family dwellings', prov: icc },
+      { section: '715', code_type: 'IBC', note: 'Fire-resistant joint systems — rated head-of-wall framing follows the listing', prov: icc },
+      { section: '609.8', code_type: 'ADA 2010', note: 'Grab bar structural strength — backing must carry a 250 lb load', prov: ada },
+    ],
+  },
+  equipment: [
+    { when: { title_re: 'stud|partition|deflection|soffit|ceiling|bulkhead', building_types: ['commercial', 'industrial', 'residential_mf'] }, type: 'scissor_lift', reason: 'Reach top and deflection track, hanger wires and ceiling framing at deck height', optional: true },
+    { when: { title_re: 'cold[- ]formed|cfs|exterior|curtain', building_types: ['commercial', 'industrial', 'residential_mf'] }, type: 'boom_lift', reason: 'Erect and brace exterior studs and clips at slab edges from outside', optional: true },
+    { when: { title_re: 'stud|cold[- ]formed|cfs|partition', building_types: ['commercial', 'industrial', 'residential_mf'] }, type: 'forklift', reason: 'Unload stud and track bundles and stock floors', optional: true },
+    { when: { title_re: 'cold[- ]formed|cfs|curtain|load[- ]bearing' }, type: 'welder', reason: 'Welded connections where the shop drawings call for them (qualified welder)', optional: true },
+  ],
+  hazards: [
+    { id: 'pat_tool', hazard: 'Struck by a pin or misfire from a powder-actuated tool', hazard_es: PENDING_ES, controls: ['Only workers trained on that tool may use it; test it each day before loading', 'Load just before firing and never point it at anyone', 'Do not fire into brittle or spalled material or thin material without backing'], controls_es: PENDING_ES, osha_ref: '1926.302(e)(1)', severity: 3, ppe: ['safety glasses', 'hearing protection'], prov: osha('i') },
+    { id: 'sharp_edges', hazard: 'Cuts from cut stud ends, track flanges and snipped steel', hazard_es: PENDING_ES, controls: ['Wear cut-resistant gloves and long sleeves when handling and cutting steel', 'Bend back or cover sharp cut ends; keep scrap in a bin'], controls_es: PENDING_ES, osha_ref: '1926.95(a)', severity: 2, ppe: ['cut-resistant gloves', 'long sleeves'], prov: osha('e') },
+    { id: 'eye_flying', hazard: 'Eye injury from metal chips, screw shavings and pins', hazard_es: PENDING_ES, controls: ['Wear safety glasses while cutting, screwing and shooting pins'], controls_es: PENDING_ES, osha_ref: '1926.102(a)(1)', severity: 2, ppe: ['safety glasses'], prov: osha('e') },
+    { id: 'noise', hazard: 'Hearing damage from chop saws, screw guns and powder-actuated tools', hazard_es: PENDING_ES, controls: ['Wear ear protection when cutting steel or shooting pins', 'Cut in one area away from other crews where possible'], controls_es: PENDING_ES, osha_ref: '1926.101(a)', severity: 2, ppe: ['ear plugs or muffs'], prov: osha('e') },
+    { id: 'ladder_top_step', hazard: 'Fall from a stepladder while setting top track or backing', hazard_es: PENDING_ES, controls: ['Never stand on the top step or top cap', 'Use a taller ladder, rolling scaffold or lift for top-track work'], controls_es: PENDING_ES, osha_ref: '1926.1053(b)(13)', severity: 3, prov: osha('x') },
+    { id: 'lift_scaffold_fall', hazard: 'Fall from a rolling scaffold or scissor lift at deck height', hazard_es: PENDING_ES, controls: ['Guardrails on platforms more than 10 ft up; lock casters before climbing', 'Keep the lift on firm, level floor and away from openings'], controls_es: PENDING_ES, osha_ref: '1926.451(g)(1)', severity: 4, prov: osha('l') },
+    { id: 'aerial_lift', hazard: 'Thrown or falling from a boom lift at the building face', hazard_es: PENDING_ES, controls: ['Wear a harness and lanyard tied to the basket or boom', 'Stand on the basket floor — never on the rails'], controls_es: PENDING_ES, osha_ref: '1926.453(b)(2)(v)', severity: 4, ppe: ['harness + lanyard'], prov: osha('l') },
+    { id: 'edge_fall', hazard: 'Fall from an open floor edge while framing exterior walls', hazard_es: PENDING_ES, controls: ['Keep guardrails, safety nets or personal fall arrest at edges 6 ft or more above the level below', 'Do not remove perimeter guardrail to set studs without another fall protection system in place'], controls_es: PENDING_ES, osha_ref: '1926.501(b)(1)', severity: 4, ppe: ['harness when required'], prov: osha('m') },
+    { id: 'falling_objects', hazard: 'Struck by tools, track or pins dropped from overhead work', hazard_es: PENDING_ES, controls: ['Hard hats for everyone below; barricade the area under deck and ceiling work', 'Tether tools on lifts where practical'], controls_es: PENDING_ES, osha_ref: '1926.501(c)', severity: 3, ppe: ['hard hat'], prov: osha('m') },
+    { id: 'material_stack', hazard: 'Stud and track bundles sliding or collapsing', hazard_es: PENDING_ES, controls: ['Stack bundles flat on dunnage and block them so they cannot slide', 'Stock floors within their safe load and away from edges and openings'], controls_es: PENDING_ES, osha_ref: '1926.250(a)(1)', severity: 3, prov: osha('h') },
+    { id: 'silica_drilling', hazard: 'Breathing silica dust drilling anchor holes in concrete', hazard_es: PENDING_ES, controls: ['Use a drill with a dust shroud and HEPA vacuum, or follow the drilling row of the silica table', 'Do not dry sweep the dust'], controls_es: PENDING_ES, osha_ref: '1926.1153(c)(1)', severity: 2, ppe: ['safety glasses'], prov: osha('z') },
+    { id: 'hot_work', hazard: 'Fire from welding sparks near insulation, packaging and wood blocking', hazard_es: PENDING_ES, controls: ['Move or shield combustibles before welding', 'Keep an extinguisher at hand and watch the area after welding'], controls_es: PENDING_ES, osha_ref: '1926.352(a)', severity: 3, ppe: ['welding gloves', 'face shield'], prov: osha('j') },
+  ],
+  qa_checklist: [
+    { id: 'layout_tolerance', item: 'Walls within 1/4 in. of their plan location; door openings and rated walls match the partition plan.', item_es: tr('Muros a no más de 1/4 pulg. de su ubicación en planos; vanos de puertas y muros con clasificación coinciden con el plano de particiones.'), prov: u0922 },
+    { id: 'track_set', item: 'Tracks aligned and straight within 1/4 in. in 8 ft, sealer gasket under bottom track on slabs, anchors at the scheduled spacing and at least 3 in. from slab edges.', item_es: tr('Canales alineados y rectos dentro de 1/4 pulg. en 8 pies, empaque sellador bajo el canal inferior en losas, anclas a la separación indicada y a 3 pulg. o más del borde de losa.'), prov: { src: ['metal_stud_framing-ufgs-09-22-00', 'metal_stud_framing-ufgs-05-40-00'], confidence: 'verified', last_verified: D } },
+    { id: 'stud_designation', item: 'Stamped designator on studs and track (depth, flange, mils, and yield where marked) matches the wall schedule or shop drawings — 30 mil drywall studs are not substituted for 33 mil structural studs.', item_es: tr('La designación marcada en postes y canales (peralte, patín, mils y resistencia cuando aplique) coincide con el programa de muros o planos de taller — no se sustituyen postes de 30 mil por postes estructurales de 33 mil.'), prov: sfia },
+    { id: 'stud_spacing_bearing', item: 'Studs at the scheduled spacing, full height without splices, cut square with at least 1 in. of bearing in each track.', item_es: tr('Postes a la separación indicada, de altura completa sin empalmes, cortados a escuadra con al menos 1 pulg. de apoyo en cada canal.'), prov: { src: ['metal_stud_framing-ufgs-05-40-00', 'metal_stud_framing-sfia-tpg'], confidence: 'verified', last_verified: D } },
+    { id: 'screws_three_threads', item: 'Framing screws of the specified size and count at every connection, with at least three threads showing through the joined steel and low-profile heads where board covers them.', item_es: tr('Tornillos del tamaño y cantidad especificados en cada conexión, con al menos tres hilos visibles a través del acero unido y cabeza plana donde los cubre el panel.'), prov: u0540 },
+    { id: 'deflection_gap', item: 'Deflection track at every wall that reaches the deck, with the gap shown on the head-of-wall detail and studs not screwed to deep-leg track flanges.', item_es: tr('Canal de deflexión en cada muro que llega a la losa, con la holgura del detalle de remate superior y postes sin atornillar a las alas del canal de alas largas.'), prov: { src: ['metal_stud_framing-ufgs-09-22-00', 'metal_stud_framing-ufgs-05-40-00'], confidence: 'derived', last_verified: D, note: 'UFGS requires firestop/deflection track per the listing and provision for vertical movement; gap size comes from the project detail.' } },
+    { id: 'rated_track_listing', item: 'On fire-rated walls, the top track type and joint width match the listed head-of-wall joint system so the firestop installer can complete it.', item_es: PENDING_ES, safety: true, prov: { src: ['metal_stud_framing-ufgs-09-22-00', 'icc-pa'], confidence: 'verified', last_verified: D } },
+    { id: 'opening_jambs', item: 'At least two studs (or the scheduled heavier jamb studs) at each jamb of openings 2 ft or wider, with headers and cripples keeping the stud spacing.', item_es: tr('Al menos dos postes (o los postes de jamba más pesados indicados) en cada jamba de vanos de 2 pies o más, con cabezales y postes cortos que mantienen la separación.'), prov: u0540 },
+    { id: 'backing_located', item: 'Backing installed at every grab bar, wall-hung fixture, handrail, cabinet and accessory on the backing plan, at the heights shown, before the framing inspection.', item_es: tr('Refuerzos instalados en cada barra de apoyo, accesorio colgado, pasamanos, gabinete y accesorio del plano de refuerzos, a las alturas indicadas, antes de la inspección de estructura.'), prov: u0922 },
+    { id: 'grab_bar_backing', item: 'Grab-bar backing spans at least two studs and is fastened so the bar can carry a 250 lb load at any point.', item_es: PENDING_ES, safety: true, prov: ada },
+    { id: 'bridging_rows', item: 'Bridging rows at the spacing the shop drawings or wall height require (for example one row at mid-height up to 10 ft on wind-only walls), and strap bracing pulled tight.', item_es: tr('Filas de arriostre a la separación que piden los planos de taller o la altura del muro (por ejemplo una fila a media altura hasta 10 pies en muros sólo con viento), y flejes diagonales bien tensados.'), prov: u0540 },
+    { id: 'plumb_plane', item: 'Studs plumb and framing faces in plane within 1/4 in. in 8 ft (1/8 in. where tile goes on with thin-set or adhesive).', item_es: tr('Postes a plomo y caras de la estructura en un mismo plano dentro de 1/4 pulg. en 8 pies (1/8 pulg. donde va azulejo con adhesivo o mortero delgado).'), prov: u0922 },
+    { id: 'inline_slide_clips', item: 'Bearing studs line up under each joist or truss; curtain-wall studs attach to each floor with the slide clips shown, free to move vertically.', item_es: tr('Postes de carga alineados bajo cada vigueta o armadura; postes de muro cortina fijados a cada piso con los clips deslizantes indicados, libres para moverse verticalmente.'), prov: u0540 },
+    { id: 'shop_drawings_onsite', item: 'Engineer-stamped shop drawings and calculations for structural cold-formed steel on site; anchors, hold-downs and clips match them.', item_es: tr('Planos de taller y cálculos sellados por el ingeniero para acero estructural formado en frío en obra; anclas, sujetadores y clips coinciden con ellos.'), prov: u0540 },
+    { id: 'hanger_wire', item: 'Ceiling hanger wires at the detailed spacing, each end wrapped three tight turns, extra wires at fixtures and grilles, none hung from ducts, pipes or conduit.', item_es: tr('Alambres colgantes del plafón a la separación del detalle, cada extremo con tres vueltas apretadas, alambres adicionales en luminarias y rejillas, ninguno colgado de ductos, tubos o conduit.'), prov: u0922 },
+  ],
+  inspection_checklists: {
+    framing: [
+      { item: 'Stud size, thickness (mils) and spacing match the wall schedule or shop drawings', item_es: tr('Tamaño, espesor (mils) y separación de postes según el programa de muros o planos de taller'), ref: '2211' },
+      { item: 'Deflection track and gap installed where walls meet the deck; rated walls match the listed joint system', item_es: PENDING_ES, ref: '715' },
+      { item: 'Headers, jamb studs and frame anchors at openings', item_es: tr('Cabezales, postes de jamba y anclas de marco en vanos') },
+      { item: 'Backing at grab bars, wall-hung fixtures, handrails and casework per the backing plan', item_es: PENDING_ES, ref: 'ADA 609.8' },
+      { item: 'Bridging, strap bracing, clips and anchors per the shop drawings (structural cold-formed steel)', item_es: tr('Arriostre, flejes diagonales, clips y anclas según planos de taller (acero estructural formado en frío)'), ref: '2211' },
+      { item: 'Walls left open for MEP rough-in and in-wall inspection before board', item_es: tr('Muros abiertos para instalaciones y la inspección dentro del muro antes del panel') },
+    ],
+  },
+  assemblies: [
+    { code: 'B-MSF-PART-SF', name: 'Interior partition framing, 3-5/8 in. 30 mil (20 ga) studs 16 in. o.c. with tracks, per SF of wall', name_es: 'Estructura de partición interior, postes de 3-5/8 pulg. 30 mil (cal. 20) a 16 pulg. con canales, por pie² de muro', unit: 'SF', csi: '09 22 16',
+      description: 'Framing only, one wall face area. Board is B-DRYWALL-SF; deflection track is B-MSF-DEFTRK-LF.',
+      material_cost_cents: { v: 80, prov: est('≈0.8 LF stud + 0.2 LF track + screws/pins per SF wall at 16 in. o.c., national distributor baseline 2026') }, labor_hours_per_unit: { v: 0.025, prov: est('layout, track, studs, bridging, openings averaged over a typical partition run') },
+      equipment_cost_cents: { v: 5, prov: est('lift and powder-actuated loads share') }, waste_pct: { v: 7, prov: est('cut-offs and short lengths') } },
+    { code: 'B-MSF-EXT-SF', name: 'Exterior structural CFS wall, 6 in. 54 mil (16 ga) studs 16 in. o.c. incl. track, bridging, clips, per SF wall', name_es: 'Muro exterior de acero formado en frío, postes 6 pulg. 54 mil (cal. 16) a 16 pulg., canales, arriostre, clips, por pie²', unit: 'SF', csi: '05 40 00',
+      description: 'Curtain-wall or bearing studs per engineered shop drawings; sheathing, WRB and engineering fees excluded.',
+      material_cost_cents: { v: 300, prov: est('heavier studs + track + bridging + slide clips + anchors per SF wall, national baseline 2026') }, labor_hours_per_unit: { v: 0.06, prov: est('erect, clip and brace at the building face, incl. openings') },
+      equipment_cost_cents: { v: 25, prov: est('boom lift / forklift day share') }, waste_pct: { v: 5, prov: est('ordered to length; cut-offs at openings') } },
+    { code: 'B-MSF-DEFTRK-LF', name: 'Deflection head-of-wall track (deep-leg or slotted), adder over standard top track, per LF', name_es: 'Canal de deflexión en remate superior (alas largas o ranurado), adicional sobre canal superior estándar, por pie lineal', unit: 'LF', csi: '09 22 16',
+      description: 'Framing only — the rated head-of-wall firestop joint is B-FS-HOW-LF (firestopping).',
+      material_cost_cents: { v: 250, prov: est('deep-leg or slotted track premium + deck fasteners, 2026 baseline') }, labor_hours_per_unit: { v: 0.04, prov: est('overhead fastening to deck flutes from a lift') },
+      equipment_cost_cents: { v: 10, prov: est('scissor lift share') }, waste_pct: { v: 5, prov: est('end cuts') } },
+    { code: 'B-MSF-BACKING-EA', name: 'In-wall backing for grab bar, wall-hung fixture or accessory (steel plate / strap or FRT blocking), each', name_es: 'Refuerzo en muro para barra de apoyo o accesorio colgado (placa/fleje de acero o madera ignífuga), c/u', unit: 'EA', csi: '09 22 16',
+      material_cost_cents: { v: 1500, prov: est('≈4 ft steel backing plate or FRT 2x blocking + screws, 2026') }, labor_hours_per_unit: { v: 0.35, prov: est('locate from plans, cut, fasten to two or more studs') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools only') }, waste_pct: { v: 10, prov: est('cut-offs') } },
+    { code: 'B-MSF-CEIL-SF', name: 'Framed drywall ceiling / soffit — hanger wire, cold-rolled carriers and furring channel, per SF', name_es: 'Plafón / faldón de tablaroca armado — alambre colgante, canales de carga y canal de enrasado, por pie²', unit: 'SF', csi: '09 22 26',
+      description: 'Suspension framing only; board is B-DRYWALL-SF. Not for acoustical grid ceilings.',
+      material_cost_cents: { v: 140, prov: est('hanger wire + 1-1/2 in. carriers + furring channel + clips per SF, 2026 baseline') }, labor_hours_per_unit: { v: 0.04, prov: est('overhead work from a lift, incl. extra wires at fixtures') },
+      equipment_cost_cents: { v: 10, prov: est('scissor lift share') }, waste_pct: { v: 7, prov: est('cut-offs and laps') } },
+  ],
+  quantity_rules: [
+    { code: 'B-MSF-PART-SF', assumption: '≈1 SF of interior partition (wall face) per SF of floor on commercial/industrial plans — replace with the partition takeoff; drop B-FRAME-SF (wood) if the building is steel framed', when: { building_types: [...COM] }, qty: { basis: 'area_sf_sum', mul: 1, round: 'ceil' } },
+    { code: 'B-MSF-DEFTRK-LF', assumption: '≈0.1 LF of wall-to-deck partition per SF of floor (corridor, demising and rated walls) — measure walls that run to structure', when: { building_types: [...COM] }, qty: { basis: 'area_sf_sum', mul: 0.1, round: 'ceil' } },
+    { code: 'B-MSF-BACKING-EA', assumption: '≈1.5 backing locations per room (casework, accessories, wall-hung items) — count from the backing plan', when: { building_types: [...COM] }, qty: { basis: 'rooms', mul: 1.5, round: 'ceil' } },
+    { code: 'B-MSF-BACKING-EA', assumption: 'Accessible route on plans — ≈6 extra grab-bar backings for accessible toilet rooms until counted', when: { facts_any: ['has_accessibility'], building_types: [...COM] }, qty: { basis: 'const', add: 6 } },
+    { code: 'B-MSF-CEIL-SF', assumption: '≈15% of floor area gets framed drywall ceilings or soffits (rest assumed acoustical grid) — measure from the reflected ceiling plan', when: { building_types: [...COM] }, qty: { basis: 'area_sf_sum', mul: 0.15, round: 'ceil' } },
+  ],
+  dependency_hints: [
+    { after_trades: ['structural_steel', 'metal_decking'], before_phase: 'rough_in', note: 'Studs and deflection track go up after the structure and deck are in, and before MEP rough-in runs through the punchouts.' },
+  ],
+});

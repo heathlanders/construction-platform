@@ -1,0 +1,21 @@
+# Flip a circuit's status with NO network.
+#
+# This used to go through the upload queue, where a 409 is a server verdict and the edit
+# is dropped. On the sync path it's a normal pending row — and a conflict is resolvable.
+appId: com.thejobsite.app
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+- scrollUntilVisible:
+    element: 'Trade Modules'
+    direction: DOWN
+- tapOn: 'Trade Modules'
+
+- assertVisible: 'Main Panel'
+- tapOn: 'Main Panel'          # expand to reveal its circuits
+- assertVisible: '.*Kitchen receptacles.*'
+- tapOn: '.*Kitchen receptacles.*'
+- assertVisible: 'Roughed In'
+- tapOn: 'Roughed In'
+
+- assertVisible: '.*Roughed In.*'

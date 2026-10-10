@@ -1,0 +1,67 @@
+{
+  "payroll": {
+    "title": "Nómina e Integraciones",
+    "export": {
+      "title": "Exportar para Nómina",
+      "week_label": "Semana de Pago",
+      "button": "Exportar CSV de Nómina",
+      "exporting": "Preparando exportación…",
+      "success": "Exportación en cola — recibirá un correo cuando esté lista.",
+      "error_no_timecards": "No se encontraron tarjetas de tiempo aprobadas para esta semana.",
+      "error_not_monday": "Por favor seleccione un lunes como inicio de semana.",
+      "history": "Historial de Exportaciones",
+      "no_exports": "Aún no hay exportaciones.",
+      "download": "Descargar"
+    },
+    "settings": {
+      "title": "Configuración de Nómina por Empleado",
+      "employee": "Empleado",
+      "role": "Rol",
+      "type": "Tipo de Empleo",
+      "rate": "Tarifa por Defecto",
+      "frequency": "Frecuencia de Pago",
+      "ot_multiplier": "Multiplicador HE",
+      "gusto_id": "ID Gusto",
+      "adp_aoid": "AOID ADP",
+      "edit": "Editar",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "no_settings": "No configurado",
+      "type_w2": "W-2",
+      "type_1099": "Contratista 1099",
+      "freq_weekly": "Semanal",
+      "freq_biweekly": "Quincenal",
+      "freq_semimonthly": "Dos veces al mes",
+      "freq_monthly": "Mensual"
+    },
+    "integrations": {
+      "title": "Sistemas de Nómina Conectados",
+      "sync_employees": "Sincronizar Empleados",
+      "sync_workers": "Sincronizar Trabajadores",
+      "syncing": "Sincronizando…",
+      "sync_success": "{{matched}} empleado(s) sincronizados. {{unmatched}} sin coincidencia.",
+      "sync_error": "Error de sincronización. Inténtelo de nuevo.",
+      "quickbooks": {
+        "title": "QuickBooks",
+        "desc": "Sincroniza tarjetas de tiempo aprobadas con QuickBooks Time.",
+        "connected": "QuickBooks Conectado",
+        "connect": "Conectar QuickBooks",
+        "disconnect": "Desconectar"
+      },
+      "gusto": {
+        "title": "Gusto",
+        "desc": "Envía horas aprobadas a las nóminas de Gusto automáticamente.",
+        "connected": "Gusto Conectado",
+        "connect": "Conectar Gusto",
+        "disconnect": "Desconectar"
+      },
+      "adp": {
+        "title": "ADP Workforce Now",
+        "desc": "Publica tarjetas de tiempo en ADP Workforce Now tras la aprobación.",
+        "connected": "ADP Conectado",
+        "connect": "Conectar ADP",
+        "disconnect": "Desconectar"
+      }
+    }
+  }
+}

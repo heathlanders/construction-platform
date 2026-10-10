@@ -1,0 +1,230 @@
+// Trade Knowledge Pack — exterior_doors (Exterior Doors — entry, patio/sliding, garage-to-house).
+// Wave 01, NEW-TRADE pattern (no hand recipe). Dossier: docs/trade-packs/dossiers/exterior_doors.md.
+// Sources: DOE BASC fully-flashed openings + pan flashing, Therma-Tru pre-hung install instructions,
+// Andersen hinged patio door install guide, 16 CFR 1201 (safety glazing), 29 CFR 1926 (C, D, I, K, M, X, Z),
+// IRC R311/R308/R302.5/R609/R703.4/N1102.4 (reference only).
+import { definePack, PENDING_ES } from './schema.js';
+
+const D = '2026-10-08';
+const osha = (sub: string) => ({ src: [`ecfr-1926-${sub}`], confidence: 'verified' as const, last_verified: D });
+const est = (note: string) => ({ src: ['platform-baseline'], confidence: 'estimate' as const, last_verified: D, note });
+const irc = { src: ['icc-pa'], confidence: 'verified' as const, last_verified: D };
+const tt = { src: ['thermatru-prehung-install'], confidence: 'verified' as const, last_verified: D };
+const basc = { src: ['doe-basc-extdr-flashed', 'doe-basc-extdr-pan'], confidence: 'verified' as const, last_verified: D };
+const aw = { src: ['andersen-patio-install'], confidence: 'verified' as const, last_verified: D };
+const glazing = { src: ['cpsc-16cfr1201-doors'], confidence: 'verified' as const, last_verified: D };
+const tr = (text: string) => ({ status: 'translated' as const, text });
+
+export default definePack({
+  key: 'exterior_doors',
+  schema_version: 1,
+  pack_version: '1.0.0',
+  status: 'draft',
+  identity: {
+    summary: 'Exterior doors — pre-hung entry doors, patio (sliding or hinged) doors, storm doors and the door between the garage and the house: sill pan and flashing into the weather barrier, setting, shimming, fastening, air sealing, hardware and adjustment.',
+    summary_es: 'Puertas exteriores — puertas de entrada premontadas, puertas de patio (corredizas o abatibles), contrapuertas y la puerta entre el garaje y la casa: bandeja de umbral y botaguas integrados a la barrera contra el clima, colocación, calzado, fijación, sellado de aire, herrajes y ajuste.',
+    glossary: [
+      { term: 'Pre-hung door', term_es: 'Puerta premontada', def: 'Door slab already hung on hinges in its frame, with the sill attached, ready to set in the rough opening.', def_es: 'Hoja de puerta ya colgada en su marco con bisagras y umbral, lista para colocar en el vano.' },
+      { term: 'Rough opening', term_es: 'Vano de obra', def: 'Framed hole in the wall that the door unit sits in; slightly larger than the door frame.', def_es: 'Hueco enmarcado en el muro donde se coloca la puerta; un poco más grande que el marco.' },
+      { term: 'Sill pan', term_es: 'Bandeja de umbral', def: 'Rigid or flexible pan under the door sill that catches water and sends it back outside.', def_es: 'Bandeja rígida o flexible bajo el umbral que recoge el agua y la devuelve al exterior.' },
+      { term: 'Brickmould', term_es: 'Moldura exterior (brickmould)', def: 'Exterior trim around the door frame that laps over the sheathing and gets a sealant bead behind it.', def_es: 'Moldura exterior alrededor del marco que traslapa el entablado y lleva un cordón de sellador por detrás.' },
+      { term: 'Shim', term_es: 'Cuña', def: 'Thin tapered piece set between the jamb and framing to hold the frame plumb and straight.', def_es: 'Pieza delgada en forma de cuña entre el marco y la estructura para dejar el marco a plomo y recto.' },
+      { term: 'Weather-resistive barrier (WRB)', term_es: 'Barrera resistente al clima (WRB)', def: 'Housewrap or felt over the sheathing that sheds water; door flashing must lap into it shingle-style.', def_es: 'Envoltura o fieltro sobre el entablado que desvía el agua; el botaguas de la puerta se traslapa con ella como tejas.' },
+      { term: 'Threshold', term_es: 'Umbral', def: 'Top of the sill the door seals against; often adjustable to tune the seal.', def_es: 'Parte superior del umbral contra la que sella la puerta; suele ser ajustable.' },
+      { term: 'Reveal', term_es: 'Holgura perimetral', def: 'Even gap between the door slab and the frame along the sides and top.', def_es: 'Separación uniforme entre la hoja y el marco en los costados y arriba.' },
+      { term: 'Self-closing device', term_es: 'Dispositivo de cierre automático', def: 'Spring hinge or closer that returns a door to the shut, latched position.', def_es: 'Bisagra de resorte o cierrapuertas que regresa la puerta a la posición cerrada y trabada.' },
+      { term: 'Safety glazing', term_es: 'Vidrio de seguridad', def: 'Tempered or laminated glass marked by the maker; required in door glass.', def_es: 'Vidrio templado o laminado con marca del fabricante; se requiere en el vidrio de puertas.' },
+    ],
+  },
+  est_bucket: 'building',
+  recipes: [
+    {
+      id: 'prehung_entry_door',
+      example_title: 'Install entry door',
+      when: { title_re: '\\b(exterior|entry|front|rear|back|side|service|man|garage)\\b[^.]{0,20}\\bdoors?\\b|\\bdoors?\\s+install' },
+      steps: [
+        {
+          title: 'Check the door unit and the rough opening',
+          instruction: 'Leave the shipping clip on the door. Measure the frame (not the brickmould) and confirm the opening is a little larger than the frame on height and width. Check both sides of the opening for plumb, the corners for square (compare diagonals), and the subfloor for level and flat; fix framing now. Cut the housewrap at the opening and tape the head flap up out of the way.',
+          tools: ['tape measure', '6 ft level', 'framing square', 'string line', 'utility knife', 'pry bar'],
+          materials: ['shims', 'self-adhered flashing tape'],
+          safety_ids: ['heavy_lift', 'power_tool', 'lead_paint', 'housekeeping'],
+          qa_ids: ['opening_size', 'opening_plumb_square', 'subfloor_level'],
+        },
+        {
+          title: 'Install the sill pan and jamb flashing',
+          instruction: 'Dry-fit the sill pan tight to both sides of the opening and lap its joints as the pan maker directs. Seal the pan to the subfloor, keep its back dam up, and lap its front edge over the housewrap below. Run flashing tape up each jamb from the bottom up, lapping over the pan ends.',
+          tools: ['caulk gun', 'tin snips', 'j-roller', 'utility knife'],
+          materials: ['sill pan (rigid or formable membrane)', 'high-performance sealant', 'self-adhered flashing tape'],
+          safety_ids: ['chem_sealant', 'power_tool'],
+          qa_ids: ['sill_pan', 'flashing_shingle'],
+          code_refs: [{ section: 'R703.4', code_type: 'IRC', note: 'Flashing at exterior wall openings' }],
+        },
+        {
+          title: 'Set, shim and fasten the door',
+          instruction: 'Run a continuous sealant bead on the back of the brickmould. Center the unit, set the sill on the pan, and tilt it into the opening. Plumb the hinge jamb first, shim behind each hinge and at the strike, then fasten through the hinge jamb with long screws into the framing. Remove the shipping clip and check the reveal and swing before fastening the latch side.',
+          tools: ['drill/driver', '6 ft level', '2 ft level', 'brad nailer', 'hammer'],
+          materials: ['composite or cedar shims', 'long exterior-rated screws', 'finish nails', 'sealant'],
+          safety_ids: ['heavy_lift', 'glass_cut', 'power_tool', 'nailer', 'cord_shock', 'fall_opening'],
+          qa_ids: ['sealant_brickmould', 'hinge_screws', 'reveal_operation'],
+          code_refs: [{ section: 'R609', code_type: 'IRC', note: 'Exterior windows and doors — installation' }],
+        },
+        {
+          title: 'Flash the head and air-seal around the jambs',
+          instruction: 'Install head flashing over the brickmould, fold the housewrap flap down over it, and tape the diagonal cuts. Fill the gap between jamb and framing from inside with low-expansion door foam or backer rod and sealant; do not overfill and bow the jamb. Leave flashing visible until the inspector has seen it.',
+          tools: ['foam gun', 'caulk gun', 'utility knife', 'j-roller', 'step ladder'],
+          materials: ['rigid head flashing', 'flashing tape', 'low-expansion window and door foam', 'backer rod'],
+          safety_ids: ['ladder', 'chem_sealant', 'eye'],
+          qa_ids: ['flashing_shingle', 'foam_low_expansion'],
+          gating_inspection_type: 'insulation',
+          code_refs: [{ section: 'R703.4', code_type: 'IRC', note: 'Flashing at exterior wall openings' }, { section: 'N1102.4', code_type: 'IRC', note: 'Air leakage — sealing the thermal envelope' }],
+        },
+        {
+          title: 'Install hardware, adjust and check life-safety items',
+          instruction: 'Install the lockset and deadbolt, adjust the threshold and strike so the door latches and the weatherstrip touches all around. Confirm door glass carries a safety-glazing mark, the egress door opens from inside without a key, and the outside landing is in place. On a garage-to-house door, confirm the door type and the self-closer the adopted code requires.',
+          tools: ['drill/driver', 'hole saw / boring jig', 'chisel', 'screwdrivers'],
+          materials: ['lockset / handleset', 'deadbolt', 'strike plates', 'self-closing hinges or closer (garage door)'],
+          safety_ids: ['power_tool', 'eye'],
+          qa_ids: ['lockset_operable', 'safety_glazing', 'egress_door', 'landing', 'garage_door_rating', 'reveal_operation'],
+          gating_inspection_type: 'final',
+          code_refs: [{ section: 'R311.2', code_type: 'IRC', note: 'Egress door' }, { section: 'R311.3', code_type: 'IRC', note: 'Floors and landings at exterior doors' }, { section: 'R308.4.1', code_type: 'IRC', note: 'Glazing in doors' }, { section: 'R302.5.1', code_type: 'IRC', note: 'Opening protection, garage to dwelling' }],
+        },
+      ],
+    },
+    {
+      id: 'patio_sliding_door',
+      example_title: 'Install sliding patio door',
+      priority: 10,
+      when: { title_re: '\\b(patio|sliding|slider|gliding|french)\\b[^.]{0,15}\\bdoors?\\b' },
+      steps: [
+        {
+          title: 'Check the patio door unit and opening',
+          instruction: 'Confirm the rough opening matches the maker\'s size for this unit. The sill line must be level and flat its full width and the header must be straight; a sagging header binds the panels. Check plumb and square, then cut the housewrap and tape the head flap up.',
+          tools: ['tape measure', '4 ft and 6 ft levels', 'framing square', 'string line', 'utility knife'],
+          materials: ['shims (waterproof)', 'flashing tape'],
+          safety_ids: ['heavy_lift', 'power_tool', 'silica', 'housekeeping'],
+          qa_ids: ['opening_size', 'opening_plumb_square', 'subfloor_level'],
+        },
+        {
+          title: 'Install the sill pan and jamb flashing',
+          instruction: 'Install a sill pan or formable membrane pan across the full sill with turned-up back and end dams, sealed to the subfloor and lapped over the housewrap below. Flash the jambs bottom-up over the pan ends.',
+          tools: ['caulk gun', 'j-roller', 'utility knife', 'tin snips'],
+          materials: ['sill pan or formable flashing', 'sealant', 'flashing tape'],
+          safety_ids: ['chem_sealant'],
+          qa_ids: ['sill_pan', 'flashing_shingle'],
+          code_refs: [{ section: 'R703.4', code_type: 'IRC', note: 'Flashing at exterior wall openings' }],
+        },
+        {
+          title: 'Set the unit, shim and fasten',
+          instruction: 'Lay sealant beads on the pan as the door maker shows, set the frame with enough people to carry it, and support the sill continuously with shims under it. Plumb and square the frame, shim at each fastener location, and fasten through the frame where the maker marks. Install the fixed and operating panels in the maker\'s order.',
+          tools: ['drill/driver', 'levels', 'pry bar', 'screwdrivers', 'hex wrench'],
+          materials: ['installation screws', 'waterproof shims', 'sealant', 'hole plugs'],
+          safety_ids: ['heavy_lift', 'glass_cut', 'power_tool', 'fall_opening'],
+          qa_ids: ['sill_supported', 'reveal_operation'],
+          code_refs: [{ section: 'R609', code_type: 'IRC', note: 'Exterior windows and doors — installation' }],
+        },
+        {
+          title: 'Flash the head and air-seal around the jambs',
+          instruction: 'Install head flashing, fold the housewrap down over it, and tape the cuts. Seal the interior gap with low-expansion foam or backer rod and sealant without bowing the frame, and leave the flashing exposed for inspection.',
+          tools: ['foam gun', 'caulk gun', 'j-roller', 'step ladder'],
+          materials: ['head flashing', 'flashing tape', 'low-expansion foam', 'backer rod'],
+          safety_ids: ['ladder', 'chem_sealant', 'eye'],
+          qa_ids: ['flashing_shingle', 'foam_low_expansion'],
+          gating_inspection_type: 'insulation',
+          code_refs: [{ section: 'N1102.4', code_type: 'IRC', note: 'Air leakage — sealing the thermal envelope' }],
+        },
+        {
+          title: 'Adjust panels, hardware and check glazing',
+          instruction: 'Adjust rollers or hinges so the operating panel moves smoothly and meets the jamb evenly, then install handles and locks and confirm they engage. Check every glass panel for a permanent safety-glazing mark and remove loose hole plugs and packaging.',
+          tools: ['screwdrivers', 'hex wrench', 'drill/driver'],
+          materials: ['handle set', 'lock hardware', 'screen panel'],
+          safety_ids: ['glass_cut', 'power_tool'],
+          qa_ids: ['safety_glazing', 'reveal_operation', 'lockset_operable'],
+          gating_inspection_type: 'final',
+          code_refs: [{ section: 'R308.4.1', code_type: 'IRC', note: 'Glazing in doors' }, { section: 'R311.3', code_type: 'IRC', note: 'Floors and landings at exterior doors' }],
+        },
+      ],
+    },
+  ],
+  code_refs: {
+    sheathing: [{ section: 'R703.4', code_type: 'IRC', note: 'Flashing at exterior wall openings — lap into the WRB', prov: irc }],
+    insulation: [{ section: 'N1102.4', code_type: 'IRC', note: 'Air leakage — seal gaps around door frames', prov: irc }],
+    final: [
+      { section: 'R311.2', code_type: 'IRC', note: 'Egress door — required side-hinged exit door', prov: irc },
+      { section: 'R311.3', code_type: 'IRC', note: 'Floors and landings at exterior doors', prov: irc },
+      { section: 'R308.4.1', code_type: 'IRC', note: 'Glazing in doors is a hazardous location', prov: irc },
+      { section: 'R302.5.1', code_type: 'IRC', note: 'Garage-to-dwelling door opening protection', prov: irc },
+      { section: 'R609', code_type: 'IRC', note: 'Exterior windows and doors', prov: irc },
+    ],
+  },
+  hazards: [
+    { id: 'heavy_lift', hazard: 'Strains and crush injuries carrying and setting heavy door units', hazard_es: PENDING_ES, controls: ['Carry patio and entry units with enough people or a cart; plan the path first', 'Brace or hold the unit until it is fastened'], controls_es: PENDING_ES, osha_ref: '1926.20(b)', severity: 2, prov: { src: ['ecfr-1926-c', 'andersen-patio-install'], confidence: 'verified', last_verified: D } },
+    { id: 'glass_cut', hazard: 'Cuts from breaking glass panels or lites during handling', hazard_es: PENDING_ES, controls: ['Wear cut-resistant gloves and eye protection when handling glazed units', 'Carry glass panels upright; never set them on an edge corner'], controls_es: PENDING_ES, osha_ref: '1926.95(a)', severity: 3, ppe: ['cut-resistant gloves', 'safety glasses'], prov: osha('e') },
+    { id: 'power_tool', hazard: 'Cuts and kickback from saws and drills while fitting jambs and boring locks', hazard_es: PENDING_ES, controls: ['Keep blade guards in place and clamp the work', 'Remove the battery or unplug before changing bits or blades'], controls_es: PENDING_ES, osha_ref: '1926.300(b)', severity: 3, ppe: ['safety glasses', 'hearing protection'], prov: osha('i') },
+    { id: 'nailer', hazard: 'Puncture wounds from brad and finish nailers', hazard_es: PENDING_ES, controls: ['Keep the contact safety working; never point the tool at anyone', 'Disconnect air before clearing jams'], controls_es: PENDING_ES, osha_ref: '1926.302(b)', severity: 2, ppe: ['safety glasses'], prov: osha('i') },
+    { id: 'cord_shock', hazard: 'Electric shock from cords and tools used at exterior openings', hazard_es: PENDING_ES, controls: ['Use GFCI protection on every temporary receptacle', 'Inspect cords daily and remove damaged ones'], controls_es: PENDING_ES, osha_ref: '1926.404(b)(1)', severity: 3, prov: osha('k') },
+    { id: 'ladder', hazard: 'Ladder falls while flashing the head or transom', hazard_es: PENDING_ES, controls: ['Set the ladder on firm, level footing at the right angle', 'Keep three points of contact and do not overreach'], controls_es: PENDING_ES, osha_ref: '1926.1053(b)(1)', severity: 3, prov: osha('x') },
+    { id: 'fall_opening', hazard: 'Fall through an upper-floor door opening (balcony or deck door) before a guard is in place', hazard_es: PENDING_ES, controls: ['Keep the opening guarded or blocked until the door is installed and a guard exists outside', 'Use fall protection when working at an unprotected opening 6 ft or more above the lower level'], controls_es: PENDING_ES, osha_ref: '1926.501(b)(14)', severity: 4, ppe: ['harness when required'], prov: osha('m') },
+    { id: 'eye', hazard: 'Eye injury from foam, sealant and debris while drilling and trimming', hazard_es: PENDING_ES, controls: ['Wear safety glasses when drilling, boring, foaming and cutting', 'Point foam guns away from faces'], controls_es: PENDING_ES, osha_ref: '1926.102(a)(1)', severity: 2, ppe: ['safety glasses'], prov: osha('e') },
+    { id: 'chem_sealant', hazard: 'Skin, eye and breathing irritation from spray foam, sealants and primers', hazard_es: PENDING_ES, controls: ['Read the safety data sheet and use the product in moving air', 'Wear gloves and eye protection; clean skin promptly'], controls_es: PENDING_ES, osha_ref: '1926.59(h)', severity: 2, ppe: ['nitrile gloves', 'safety glasses'], prov: osha('d') },
+    { id: 'lead_paint', hazard: 'Lead dust when removing old doors and trim in pre-1978 homes', hazard_es: PENDING_ES, controls: ['Assume old paint has lead until tested; mist and hand-pry instead of power sanding', 'Contain debris and clean with a HEPA vacuum'], controls_es: PENDING_ES, osha_ref: '1926.62(d)', severity: 3, ppe: ['respirator when required', 'disposable coveralls'], prov: { src: ['ecfr-1926-d', 'thermatru-prehung-install'], confidence: 'verified', last_verified: D } },
+    { id: 'silica', hazard: 'Silica dust when cutting or drilling concrete or masonry at the sill or for anchors', hazard_es: PENDING_ES, controls: ['Use water or a shrouded tool with a dust collector', 'Keep others away from the dust'], controls_es: PENDING_ES, osha_ref: '1926.1153', severity: 3, ppe: ['respirator when required', 'safety glasses'], prov: osha('z') },
+    { id: 'housekeeping', hazard: 'Trips on packaging, shims and offcuts at the doorway', hazard_es: PENDING_ES, controls: ['Clear packaging and offcuts as you go', 'Keep the doorway and walkway clear'], controls_es: PENDING_ES, osha_ref: '1926.25(a)', severity: 1, prov: osha('c') },
+  ],
+  qa_checklist: [
+    { id: 'opening_size', item: 'Rough opening is about 1/2 in. taller and 1/2 to 3/4 in. wider than the door frame (or the size the unit maker lists).', item_es: tr('El vano mide aprox. 1/2 pulg. más alto y de 1/2 a 3/4 pulg. más ancho que el marco (o la medida del fabricante).'), prov: tt },
+    { id: 'opening_plumb_square', item: 'Opening checked plumb both ways, square by matching diagonals, and in one plane by a crossed-string test.', item_es: tr('Vano revisado a plomo en ambos sentidos, a escuadra por diagonales iguales y en un mismo plano con la prueba de hilos cruzados.'), prov: tt },
+    { id: 'subfloor_level', item: 'Subfloor at the sill is level, flat, clean and solid before the pan goes in.', item_es: tr('El subpiso en el umbral está nivelado, plano, limpio y firme antes de poner la bandeja.'), prov: tt },
+    { id: 'sill_pan', item: 'Sill pan installed with back and end dams, sealed to the subfloor, and lapped over the WRB below so water drains out.', item_es: tr('Bandeja de umbral con topes trasero y laterales, sellada al subpiso y traslapada sobre la WRB inferior para drenar hacia afuera.'), prov: basc },
+    { id: 'flashing_shingle', item: 'Flashing lapped shingle-style: pan, then jambs, then head; WRB head flap folded down over the head flashing and taped.', item_es: tr('Botaguas traslapado como tejas: bandeja, luego jambas, luego cabezal; solapa de la WRB doblada sobre el botaguas del cabezal y encintada.'), prov: basc },
+    { id: 'sealant_brickmould', item: 'Continuous sealant bead behind the brickmould all around the frame; no sealant under the sill when a sill pan is used.', item_es: tr('Cordón continuo de sellador detrás de la moldura en todo el marco; sin sellador bajo el umbral cuando se usa bandeja.'), prov: tt },
+    { id: 'hinge_screws', item: 'Hinge jamb shimmed at each hinge and fastened with long screws through the hinge into the framing.', item_es: tr('Jamba de bisagras calzada en cada bisagra y fijada con tornillos largos a través de la bisagra hasta la estructura.'), prov: tt },
+    { id: 'sill_supported', item: 'Patio door sill supported continuously and level its full width; no sag at mid-span.', item_es: tr('Umbral de la puerta de patio apoyado de forma continua y nivelado en todo su ancho; sin pandeo al centro.'), prov: aw },
+    { id: 'reveal_operation', item: 'Even reveal on sides and head; door swings or slides freely, latches without force, and weatherstrip contacts all around.', item_es: tr('Holgura uniforme en costados y cabezal; la puerta abre o corre libremente, cierra sin forzar y el burlete hace contacto en todo el perímetro.'), prov: { src: ['thermatru-prehung-install', 'andersen-patio-install'], confidence: 'verified', last_verified: D } },
+    { id: 'foam_low_expansion', item: 'Gap between jamb and framing air-sealed with low-expansion foam or backer rod and sealant; jambs not bowed.', item_es: tr('Espacio entre jamba y estructura sellado con espuma de baja expansión o cordón de respaldo y sellador; jambas sin combarse.'), prov: { src: ['thermatru-prehung-install', 'doe-basc-extdr-flashed'], confidence: 'verified', last_verified: D } },
+    { id: 'safety_glazing', item: 'Every glass lite in the door carries a permanent safety-glazing mark from the maker.', item_es: PENDING_ES, safety: true, prov: glazing },
+    { id: 'egress_door', item: 'The required egress door is side-hinged and meets the clear width and height of the adopted code.', item_es: PENDING_ES, safety: true, prov: irc },
+    { id: 'lockset_operable', item: 'Egress door opens from the inside without a key, tool or special knowledge.', item_es: PENDING_ES, safety: true, prov: irc },
+    { id: 'landing', item: 'A landing or floor is in place on each side of the exterior door at the step-down the adopted code allows.', item_es: PENDING_ES, safety: true, prov: irc },
+    { id: 'garage_door_rating', item: 'Door between the garage and the house is the solid or fire-rated type the code lists, with the self-closing device the adopted edition requires.', item_es: PENDING_ES, safety: true, prov: irc },
+  ],
+  inspection_checklists: {
+    sheathing: [
+      { item: 'Sill pan, jamb and head flashing visible and lapped into the WRB before siding covers it', item_es: PENDING_ES, ref: 'IRC R703.4' },
+    ],
+    insulation: [
+      { item: 'Gaps around door frames air-sealed with low-expansion foam or backer rod and sealant', item_es: PENDING_ES, ref: 'IRC N1102.4' },
+    ],
+    final: [
+      { item: 'Required egress door is side-hinged, sized per code, and opens from inside without a key', item_es: PENDING_ES, ref: 'IRC R311.2' },
+      { item: 'Landings present at exterior doors', item_es: PENDING_ES, ref: 'IRC R311.3' },
+      { item: 'Safety-glazing mark visible on all door glass', item_es: PENDING_ES, ref: '16 CFR 1201' },
+      { item: 'Garage-to-house door type and self-closer match the plan', item_es: PENDING_ES, ref: 'IRC R302.5.1' },
+    ],
+  },
+  assemblies: [
+    { code: 'B-EXTDR-SILLPAN-EA', name: 'Door sill pan + jamb/head flashing tape, per exterior door', name_es: 'Bandeja de umbral + cinta de botaguas en jambas y cabezal, por puerta exterior', unit: 'EA', csi: '07 62 00',
+      material_cost_cents: { v: 6500, prov: est('rigid sill pan kit + flashing tape roll share, national baseline 2026') }, labor_hours_per_unit: { v: 0.75, prov: est('dry-fit, seal and tape one 3-0 opening') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools only') }, waste_pct: { v: 5, prov: est('tape laps and pan trim') } },
+    { code: 'B-EXTDR-PATIO-EA', name: 'Sliding patio door, 6 ft vinyl, supply + install', name_es: 'Puerta corrediza de patio de vinilo de 6 pies, suministro e instalación', unit: 'EA', csi: '08 32 00',
+      material_cost_cents: { v: 120000, prov: est('mid-grade 6-0 x 6-8 vinyl slider, low-E tempered, national baseline 2026') }, labor_hours_per_unit: { v: 6, prov: est('2-person crew ~3 hr incl. set, shim, fasten, adjust; excludes pan (B-EXTDR-SILLPAN-EA)') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools only') }, waste_pct: { v: 0, prov: est('factory unit — no waste') } },
+    { code: 'B-EXTDR-STORM-EA', name: 'Storm door, full-view aluminum, supply + install', name_es: 'Contrapuerta de aluminio de vista completa, suministro e instalación', unit: 'EA', csi: '08 11 16',
+      material_cost_cents: { v: 30000, prov: est('mid-grade full-view storm door with closer, 2026') }, labor_hours_per_unit: { v: 2.5, prov: est('fit Z-bar, hang, closer and latch') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools only') }, waste_pct: { v: 0, prov: est('kit — no waste') } },
+    { code: 'B-EXTDR-LOCKSET-EA', name: 'Exterior entry handleset + deadbolt, installed', name_es: 'Juego de manija de entrada + cerrojo, instalado', unit: 'EA', csi: '08 71 00',
+      material_cost_cents: { v: 15000, prov: est('mid-grade keyed handleset + single-cylinder deadbolt, 2026') }, labor_hours_per_unit: { v: 0.75, prov: est('pre-bored door; adjust strike') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools only') }, waste_pct: { v: 0, prov: est('hardware — no waste') } },
+    { code: 'B-EXTDR-GARAGE-EA', name: 'Garage-to-house door, solid-core or 20-min rated, with self-closing hinges', name_es: 'Puerta de garaje a casa, de núcleo sólido o resistente al fuego 20 min, con bisagras de cierre automático', unit: 'EA', csi: '08 11 13',
+      material_cost_cents: { v: 45000, prov: est('pre-hung steel or solid-core door + spring hinges + weatherstrip, 2026') }, labor_hours_per_unit: { v: 3, prov: est('set, shim, fasten, hardware and closer adjust') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools only') }, waste_pct: { v: 0, prov: est('factory unit — no waste') } },
+  ],
+  quantity_rules: [
+    { code: 'B-EXTDR-SILLPAN-EA', assumption: 'One sill pan per exterior door — ≈25% of scheduled doors are exterior (same split as B-DOOR-EXT)', qty: { basis: 'doors', mul: 0.25, round: 'round' } },
+    { code: 'B-EXTDR-LOCKSET-EA', assumption: 'One entry handleset + deadbolt per exterior door — ≈25% of scheduled doors', qty: { basis: 'doors', mul: 0.25, round: 'round' } },
+    { code: 'B-EXTDR-PATIO-EA', assumption: 'One patio slider assumed when the door schedule has ≈7+ doors — reduce B-DOOR-EXT by one; delete if none', qty: { basis: 'doors', mul: 0.08, round: 'round' } },
+  ],
+  dependency_hints: [
+    { after_trades: ['framing'], before_phase: 'insulation', note: 'Doors set and flashed after framing and WRB, before insulation/air-sealing inspection and before siding covers the flashing.' },
+  ],
+});

@@ -1,0 +1,25 @@
+# Create an inspection ONLINE so it has a server row (and a version) to conflict with.
+# Assumes an already-logged-in app — the harness runs login.yaml first.
+appId: com.thejobsite.app
+# TITLE is REQUIRED from the harness (-e TITLE=…) — randomised per run so a rerun can't
+# pass on a leftover record.
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+# The tile grid scrolls — a role with many tiles pushes Inspections below the fold.
+- scrollUntilVisible:
+    element: 'Inspections'
+    direction: DOWN
+- tapOn: 'Inspections'
+
+- tapOn: '+ New'
+- tapOn: 'e.g. Rough-in inspection'    # placeholder of the title input
+- inputText: ${TITLE}
+- hideKeyboard
+- tapOn: 'Create'
+
+# The project also carries the seeded permit's AHJ milestones, so a new inspection can
+# land below the fold — assert by scrolling to it, not by hoping it's on screen.
+- scrollUntilVisible:
+    element: ${TITLE}
+    direction: DOWN

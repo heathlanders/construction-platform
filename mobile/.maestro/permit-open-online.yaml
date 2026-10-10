@@ -1,0 +1,14 @@
+# Open the permit screen ONLINE so the pull-only cache is populated before the radio
+# goes off. This is the realistic sequence too — the phone was on wifi at the office
+# before it went to the site.
+appId: com.thejobsite.app
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+- scrollUntilVisible:
+    element: 'Permits'
+    direction: DOWN
+- tapOn: 'Permits'
+- extendedWaitUntil:
+    visible: 'E2E-PERMIT-1'
+    timeout: 30000

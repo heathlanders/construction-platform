@@ -1,0 +1,27 @@
+{
+  "plumbing": {
+    "title": "Plumbing",
+    "systems_title": "Plumbing Systems",
+    "new_system": "New System",
+    "no_systems": "No plumbing systems.",
+    "system_name": "System Name",
+    "system_type": "System Type",
+    "system_types": {
+      "supply": "Supply",
+      "drain": "Drain",
+      "gas": "Gas",
+      "fire": "Fire"
+    },
+    "fixtures_title": "Fixtures",
+    "new_fixture": "New Fixture",
+    "no_fixtures": "No fixtures.",
+    "fixture_type": "Fixture Type",
+    "location": "Location",
+    "fixture_status": {
+      "planned": "Planned",
+      "rough_in": "Rough In",
+      "trimmed": "Trimmed",
+      "complete": "Complete"
+    }
+  }
+}

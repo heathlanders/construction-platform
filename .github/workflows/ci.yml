@@ -1,0 +1,181 @@
+name: CI
+
+# Manual only. The default gate is scripts/ci-local.sh on the dev box, which runs the same checks
+# (plus mobile tsc + jest) for free and posts a `local-ci` commit status with --report.
+# Run this from the Actions tab / `gh workflow run CI --ref <branch>` when a clean-room check is
+# worth the minutes — e.g. a dependency or Dockerfile change, or before a release.
+# (Was: every PR AND every push to main, no path filters → ~16 billed min per PR, including
+# mobile-only PRs these jobs don't even cover. Exhausted the private-repo quota 2026-10.)
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: platform
+          POSTGRES_PASSWORD: platform
+          POSTGRES_DB: platform_test
+        ports:
+          - 15432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # edoburu/pgbouncer — same image as docker-compose.yml so local + CI match.
+      # (Replaced bitnami/pgbouncer, whose legacy Docker Hub tags were removed →
+      #  "manifest for bitnami/pgbouncer:latest not found".) Pinned by digest for
+      #  reproducibility. Listens on 5432 internally; transaction mode is required
+      #  for RLS SET LOCAL isolation (A-04/T-43).
+      pgbouncer:
+        image: edoburu/pgbouncer@sha256:4c1ca296ef525f108f5d3552cc337c0c09587cf8dae7f0067fd93349e47dc1cd
+        env:
+          # Route as platform_user (NOBYPASSRLS) — the same runtime user the app uses so
+          # RLS is actually enforced (T-52). edoburu writes it into userlist.txt, so the
+          # test's testBouncePool (platform_user:changeme) authenticates. The role is
+          # provisioned on the postgres service in a step below, before any query runs.
+          DATABASE_URL: "postgres://platform_user:changeme@postgres:5432/platform_test"
+          POOL_MODE: transaction
+          MAX_CLIENT_CONN: 100
+          DEFAULT_POOL_SIZE: 20
+          SERVER_RESET_QUERY: DISCARD ALL
+          AUTH_TYPE: scram-sha-256
+        ports:
+          - 15433:5432
+        options: >-
+          --health-cmd "pg_isready -h localhost -p 5432 -U platform"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # testPool (superuser, direct) reads DATABASE_URL; testBouncePool (RLS runtime user,
+      # via PgBouncer) reads DATABASE_POOL_URL — setup.ts uses these exact names.
+      DATABASE_URL: postgresql://platform:platform@localhost:15432/platform_test
+      DATABASE_DIRECT_URL: postgresql://platform:platform@localhost:15432/platform_test
+      DATABASE_POOL_URL: postgresql://platform_user:changeme@localhost:15433/platform_test
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: test-jwt-secret-minimum-32-chars-long
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: api
+        run: npm ci
+
+      - name: Provision platform_user (RLS runtime role)
+        # Mirrors infra/postgres/init.sql — GH service containers can't mount an
+        # initdb script. Creates the NOBYPASSRLS runtime user PgBouncer routes as +
+        # its grants. MUST run before migrations so ALTER DEFAULT PRIVILEGES (applied
+        # by the migration-runner `platform`) covers every table migrations create.
+        # Run via a one-shot postgres:15 container so we don't depend on a psql on the runner.
+        run: |
+          docker run --rm -i --network host -e PGPASSWORD=platform postgres:15 \
+            psql -h localhost -p 15432 -U platform -d platform_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          DO $$ BEGIN
+            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'platform_user') THEN
+              CREATE USER platform_user WITH PASSWORD 'changeme'
+                NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN NOBYPASSRLS;
+            END IF;
+          END $$;
+          GRANT CONNECT ON DATABASE platform_test TO platform_user;
+          GRANT USAGE, CREATE ON SCHEMA public TO platform_user;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO platform_user;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public
+            GRANT USAGE, SELECT ON SEQUENCES TO platform_user;
+          SQL
+
+      # No `prisma generate` step: @prisma/client's placeholder types satisfy tsc without
+      # it (the Docker builder does the same fresh npm ci + tsc with no generate), and no
+      # runtime code instantiates PrismaClient (src/lib/prisma.ts has no importers — the
+      # dual-client pattern uses raw pg everywhere). Adding generate here also tripped the
+      # root pnpm-lock.yaml → `pnpm add` ENOENT self-heal.
+
+      - name: Run Prisma migrations
+        working-directory: api
+        # Schema is at repo-root prisma/ (not api/prisma/), so pass --schema. Invoke the
+        # locally-installed prisma CLI (v5) directly — `npx`/`npm exec` can fetch the
+        # latest (v7), which rejects `datasource url` in the schema. Mirrors the
+        # docker-compose.yml `migrate` service exactly.
+        run: ./node_modules/.bin/prisma migrate deploy --schema ../prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://platform:platform@localhost:15432/platform_test
+
+      - name: Run PgBouncer isolation tests (gate — T-43)
+        working-directory: api
+        run: npx vitest run src/test/pgbouncer.test.ts
+        # This must pass before any other tests run
+
+      - name: Run all API tests
+        working-directory: api
+        run: npx vitest run
+
+      - name: TypeScript type check
+        working-directory: api
+        run: npx tsc --noEmit
+
+  web-typecheck:
+    name: Web TypeScript Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+      - name: TypeScript type check
+        working-directory: web
+        run: npx tsc --noEmit
+
+  docker-build:
+    name: Docker Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -f api/Dockerfile .
+        # Build context = repo root (NOT api/) — the Dockerfile COPYs prisma/ and the
+        # root tsconfig.json alongside api/, mirroring the real directory layout.
+        # Verifies the multi-stage Dockerfile compiles cleanly — catches broken
+        # Dockerfiles before they block deployment. No push — build verification only.
+
+      - name: Build web image
+        run: docker build -f web/Dockerfile web/
+        # Verifies Next.js standalone build works end-to-end in Docker.

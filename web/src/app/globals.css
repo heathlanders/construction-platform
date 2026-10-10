@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Theme tokens — DESIGN.md §2.2 / §2.6. Light values are the canonical hexes;
+ * `.dark` overrides use the mobile DARK palette (mobile/src/lib/theme.ts) so both
+ * platforms share one dark surface set. Consume via the Tailwind semantic names
+ * (bg-surface, text-ink, border-line, bg-status-*-bg …) — never a raw hex.
+ */
+:root {
+  color-scheme: light;
+
+  --c-app-bg: #f9fafb;
+  --c-surface: #ffffff;
+  --c-surface-alt: #f1f5f9;
+  --c-text: #111827;
+  --c-text-muted: #6b7280;
+  --c-border: #e5e7eb;
+  --c-overlay: rgba(2, 6, 23, 0.45);
+
+  --c-rail: #0f172a;
+  --c-rail-2: #1e293b;
+  --c-rail-text: #cbd5e1;
+
+  /* status — light = canonical DESIGN.md §2.3 hexes */
+  --c-status-success: #059669;  --c-status-success-bg: #dcfce7;
+  --c-status-danger: #dc2626;   --c-status-danger-bg: #fee2e2;  --c-status-danger-hover: #b91c1c;
+  --c-status-info: #2563eb;     --c-status-info-bg: #dbeafe;
+  --c-status-warning: #d97706;  --c-status-warning-bg: #fef9c3;
+  --c-status-action: #7c3aed;   --c-status-action-bg: #ede9fe;
+  --c-status-neutral: #6b7280;  --c-status-neutral-bg: #f3f4f6;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --c-app-bg: #0b1220;
+  --c-surface: #161e2e;
+  --c-surface-alt: #1f2937;
+  --c-text: #f3f4f6;
+  --c-text-muted: #9ca3af;
+  --c-border: #2d3748;
+  --c-overlay: rgba(0, 0, 0, 0.6);
+
+  --c-rail: #080d18;
+  --c-rail-2: #141d30;
+  --c-rail-text: #aab6c6;
+
+  /* status — dark: brighter fg on dark ground, translucent bg tints */
+  --c-status-success: #34d399;  --c-status-success-bg: rgba(16, 185, 129, 0.16);
+  --c-status-danger: #f87171;   --c-status-danger-bg: rgba(220, 38, 38, 0.18);  --c-status-danger-hover: #ef4444;
+  --c-status-info: #60a5fa;     --c-status-info-bg: rgba(37, 99, 235, 0.20);
+  --c-status-warning: #fbbf24;  --c-status-warning-bg: rgba(217, 119, 6, 0.20);
+  --c-status-action: #a78bfa;   --c-status-action-bg: rgba(124, 58, 237, 0.20);
+  --c-status-neutral: #9ca3af;  --c-status-neutral-bg: rgba(148, 163, 184, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}

@@ -1,0 +1,136 @@
+# Locked Decisions
+
+> These decisions are final. Do not re-open without explicitly flagging it as a deliberate reversal and updating all affected documents.
+>
+> **Load this file before any architectural decision.**
+
+---
+
+## Architecture
+
+| # | Decision | Rationale | Doc |
+|---|---|---|---|
+| A-01 | **Multi-tenancy model: shared schema with tenant_id** | Industry standard for SaaS at this scale. Simple migrations, efficient infrastructure, DB-layer enforcement via RLS. | Doc 03 |
+| A-02 | **PostgreSQL 15+ as the primary database** | RLS support, JSONB, UUID, proven at SaaS scale. | Doc 03 |
+| A-03 | **Row-Level Security (RLS) for tenant isolation** | Isolation enforced at DB layer — application bugs cannot return another tenant's data. | Doc 03 |
+| A-04 | **PgBouncer in transaction mode for connection pooling** | RLS requires SET LOCAL app.current_tenant_id per transaction — session mode breaks this. Critical constraint. | Doc 03 |
+| A-05 | **JWT authentication with tenant_id claim** | 24hr web / 30d mobile expiry. Redis jti blacklist for revocation. | Doc 03 |
+| A-06 | **S3/GCS per-tenant path prefix for file storage** | `/{tenant_id}/live/projects/{project_id}/...` structure. Pre-signed URLs only — no direct S3 exposure. | Doc 03 |
+| A-07 | **Cross-tenant bridge via shared_project_events table** | Neutral table owned by neither tenant. Events written by source tenant, read by both parties. Sub data NEVER lives in GC tables. | Doc 03, 07 |
+| A-08 | **React + Next.js for web frontend** | Code sharing with mobile team, SSR for performance, large talent pool. | Doc 03 |
+| A-09 | **React Native for mobile (iOS + Android)** | Single codebase, shares business logic with web, Expo managed workflow for OTA updates. | Doc 09 |
+| A-10 | **WatermelonDB (SQLite) for mobile offline storage** | High-performance local database for offline-first architecture. | Doc 09 |
+| A-11 | **Node.js + Fastify for backend API** | LOCKED — entire v1.0 API built on Fastify 4.26 (raw pg + Prisma dual-client). Go option dropped. Resolves OQ-02. | Doc 03 |
+| A-12 | **DigitalOcean at launch, AWS migration at 300+ tenants** | DigitalOcean reduces pre-revenue burn to ~$200-350/mo. S3-compatible Spaces ensures zero-code migration to AWS S3. | Doc 03 |
+| A-13 | **i18n via react-i18next on web and mobile** | Same library and key namespace on both platforms — maximum code sharing. | Doc 03 |
+| A-14 | **Job queue: pg-boss (Stage 1–2) → AWS SQS (Stage 3+)** | pg-boss is PostgreSQL-backed — zero extra infra at DigitalOcean stage. Same job envelope and worker pattern both stages; swap provider via environment variable at Stage 3. Resolves OQ-13. | CLAUDE.md |
+| A-15 | **Email provider: SendGrid** | Transactional email for notifications, export delivery, and alerts. Well-supported Node.js SDK. | CLAUDE.md |
+| A-16 | **Real-time: Pusher (Stage 1–2) → native WebSocket server (Stage 3+)** | Pusher channel auth primitives map directly to T-15/T-16 isolation rules. Native WebSocket at AWS stage using the same channel naming convention. Resolves OQ-05. | Doc 03 §5.1 |
+
+---
+
+## Product
+
+| # | Decision | Rationale | Doc |
+|---|---|---|---|
+| P-01 | **3 trade modules at v1.0 launch: GC, Electrical, Plumbing** | Sufficient for ICP. Adds scope significantly for each additional module. | Doc 02 |
+| P-02 | **Cross-tenant collaboration deferred to v1.1** | Schema and architecture built in v1.0. Feature not user-accessible until v1.1. **v1.1 bridge SHIPPED 2026-07-18 (PR #27, migration 0039)** — lifecycle UI, Doc 07 §6 sub-project instantiation, map layer, env-gated realtime. **Spec-gap follow-up SHIPPED 2026-07-18 (migration 0040)** — §5 permissions JSONB + re-consent (enforced in `publishIfActive`, layered ON the payload whitelist), §8 closeout (`completed` + reason codes → mirror disposition), sub→GC location publishing. **§5.1 event-family depth SHIPPED 2026-07-18 (migration 0041)** — invoice workflow (sub-side link, `invoice.submitted/approved/paid`), lien waivers (event-ledger-only + closeout gate), `message.sent`; Pusher realtime live end-to-end. **§5 final families SHIPPED 2026-07-18** (daily-report auto-mirror + fail-closed nightly labor summaries — §5 fully gated). **§3.3 fuzzy discovery SHIPPED 2026-07-19 (PR #33, migration 0042)** — opt-in no-RLS `tenant_discovery_profiles` directory (flag defaults OFF), addon-gated capped search, T-64 trade keys; sub-portal + client-portal i18n EN+ES (PR #34). Only the mobile surface remains deferred (see `CrossTenant_v1_1_Session_Plan.md`). | Doc 02, 07 |
+| P-03 | **Starter and Professional tiers only at v1.0** | Business tier (v1.1), Enterprise (v2.0). Reduces complexity at launch. | Doc 02, 11 |
+| P-04 | **Free Sub Portal for non-tenant subs** | Primary acquisition engine — GC invites subs free, subs convert to paid. | Doc 02 |
+| P-05 | **14-day free trial — full Professional tier access** | Users experience the full product. Credit card required at signup. | Doc 11 |
+| P-06 | **Self-serve signup — no sales required for Starter/Professional** | Low-friction acquisition. High-touch assist available for $500+/mo potential. | Doc 12 |
+| P-07 | **7 user roles** | Owner, PM, Estimator, Foreman, Field Tech, Accountant, Safety Officer + Client (portal) + Sub Portal. | Doc 06 |
+| P-08 | **Three-tier platform model: Enterprise → Project → Trade** | Reflects how construction companies actually operate. | Doc 01 |
+| P-09 | **Spanish language support is a v1.0 launch gate** | Not optional. 31% of US construction workforce is Hispanic/Latino. Safety liability if skipped. | Doc 01, 02 |
+| P-10 | **Pricing is trade-neutral (any trade at any tier)** | GC module is an add-on, not built into the base price. | Doc 11 |
+| P-11 | **Product name: The Jobsite (`thejobsite.app`)** | Domain registered 2026-06-18 on Cloudflare. Resolves OQ-01. Tagline "The Operating System for Construction" unchanged. `.docx` specs still carry `[PLATFORM NAME]` placeholders — markdown docs + skills updated. | PROJECT_MASTER_REFERENCE §1 |
+
+---
+
+## Pricing
+
+| # | Decision | Rationale | Doc |
+|---|---|---|---|
+| PR-01 | **Starter: $149/mo — 5 users, 5 projects, 1 trade module** | Entry-level accessible price. Covers solo/small operator. | Doc 11 |
+| PR-02 | **Professional: $349/mo — 20 users, 20 projects, 2 trade modules** | Main volume tier for v1.0. | Doc 11 |
+| PR-03 | **Business: $749/mo — 50 users, unlimited projects, 5 modules** | v1.1. Unlocks cross-tenant collaboration. | Doc 11 |
+| PR-04 | **Enterprise: $1,499+/mo — unlimited everything** | v2.0. Includes API access, all modules, dedicated CSM. | Doc 11 |
+| PR-05 | **Annual discount: 17% off (roughly 2 months free)** | Standard SaaS annual incentive. | Doc 11 |
+| PR-06 | **GC Module add-on: $99/mo** | Optional on Professional. Included in Business+. | Doc 11 |
+| PR-07 | **Additional users: $25/user/mo** | Per-seat expansion beyond tier limit. | Doc 11 |
+| PR-08 | **Cross-tenant collaboration add-on: $149/mo** | For Professional-tier subs connecting before reaching Business. v1.1. | Doc 11 |
+
+---
+
+## Technical
+
+| # | Decision | Rationale | Doc |
+|---|---|---|---|
+| T-01 | **Cursor-based pagination (not offset)** | Consistent results with concurrent writes. Max 100 per page. | Doc 05 |
+| T-02 | **All monetary amounts in cents (integers) on the wire** | Never floating point for currency. $1,500.00 = 150000. | Doc 05 |
+| T-03 | **All IDs as UUID v4 strings** | Never expose integer IDs in API responses. | Doc 05 |
+| T-04 | **All dates as ISO 8601 TIMESTAMPTZ** | 2026-03-13T14:30:00Z format throughout. | Doc 05 |
+| T-05 | **Pre-signed URLs for all file access (15-min expiry)** | No direct S3/Spaces URL exposure. Always via pre-signed URL. | Doc 05 |
+| T-06 | **Offline sync: optimistic locking with tiered conflict policy** | ⚠️ REVISED from original last-write-wins. Version integer on all mobile-writable tables. Conflict surfaced to user via side-by-side UI. See T-12, T-13, T-14 for full detail. | Doc 03 |
+| T-07 | **JWT tokens stored in device Keychain (never AsyncStorage)** | Security requirement — AsyncStorage is unencrypted on mobile. | Doc 09 |
+| T-08 | **CSS logical properties throughout (RTL-ready)** | margin-inline-start not margin-left. Arabic support (v2.0+) is enablement not rebuild. | Doc 03, 08 |
+| T-09 | **Locale resolution order: JWT preferred_language → Accept-Language → tenant default → 'en'** | User preference always wins. | Doc 05 |
+| T-10 | **Background jobs carry tenant_id in SQS message envelope** | Workers apply withTenantContext() before any DB query. Superadmin bypass in job workers is prohibited. Jobs missing tenant_id are dead-lettered, never processed. | Doc 03 §4.6 |
+| T-11 | **API versioning: URL path prefix /v1/, 6-month deprecation window** | All endpoints launch under /v1/. Breaking changes introduce new version prefix. Deprecated versions supported minimum 6 months. All clients send User-Agent with app version. | Doc 03 §4.7 |
+| T-12 | **Optimistic locking via version integer trigger on all mobile-writable tables** | Sync writes include client_version; server returns 409 Conflict on mismatch. Version incremented by DB trigger — never trusted from client. | Doc 03 §4.8 |
+| T-13 | **Tiered conflict policy by field sensitivity** | Financial fields: block on conflict. Operational fields: block on conflict. Append-only fields (photos, notes): last-write-wins. System fields: server-always-wins. | Doc 03 §4.8 |
+| T-14 | **Conflict resolution UI: side-by-side, field-level selection** | Field worker sees both versions side by side. Must resolve all differing fields before submission. Unresolved conflicts held in sync queue — do not block other records. | Doc 03 §4.8 |
+| T-15 | **One private authenticated channel per tenant: private-tenant-{tenant_id}** | No public channels. No shared channels between tenants. Channel names never constructed from user input. | Doc 03 §5.1 |
+| T-16 | **Channel authorization endpoint validates JWT tenant_id against requested channel** | Mismatched channel requests return 403 — never authorized. Auth endpoint is the only security gate for WebSocket access. | Doc 03 §5.1 |
+| T-17 | **Cross-tenant real-time events via server fan-out** | Server publishes scoped payloads to each tenant's own channel independently. Permission matrix applied before constructing GC payload. Sub's internal data never enters GC's channel payload. | Doc 03 §5.1 |
+| T-18 | **One dedicated webhook endpoint per provider** | Signature validation is the first operation — before any DB write. Failed validation returns 403 with no body. Raw request body preserved as Buffer for signature validation. | Doc 03 §4.9 |
+| T-19 | **Webhook receivers return 200 immediately after persisting raw event** | All processing asynchronous via SQS background worker. Provider receives acknowledgement in <500ms. | Doc 03 §4.9 |
+| T-20 | **Webhook idempotency via explicit status check before processing** | Check on (provider, event_id) before processing. Duplicate events skipped and acknowledged — never double-processed. | Doc 03 §4.9 |
+| T-21 | **Integration retries: exponential backoff with ±20% jitter** | Schedule: 30s → 2min → 10min → 1hr → 6hr. Rate limit responses respect provider Retry-After header. | Doc 03 §4.10 |
+| T-22 | **Per-integration platform-wide circuit breaker stored in Redis** | Opens after 5 consecutive failures. Half-open probe after 5-minute recovery timeout. Auth failures bypass circuit breaker and go directly to tenant notification. | Doc 03 §4.10 |
+| T-23 | **Integration failures are never silent** | Tenant admin notified after first failed retry cycle. Circuit open triggers in-app banner for all tenant users. Recovery triggers confirmation notification. | Doc 03 §4.10 |
+| T-24 | **Platform launches on DigitalOcean, migrates to AWS at 300+ tenants** | 1–2 sprint migration — no architectural rework required. Triggered by tenant count, enterprise customer SOC 2 requirement, or SLA commitment. | Doc 03 §9.5 |
+| T-25 | **DigitalOcean Spaces for file storage at Stage 1–2** | S3-compatible API ensures zero code change on migration to AWS S3 — swap endpoint environment variable only. | Doc 03 §9.5 |
+| T-26 | **Cloudmersive Virus Scan API at Stage 1–2, GuardDuty at Stage 3** | Scanner behind provider-agnostic interface. No upload handler code changes required at AWS migration. | Doc 03 §4.11 |
+| T-27 | **All uploaded files land in quarantine prefix before becoming accessible** | No file accessible via pre-signed URL until scan completes and file moved to /live/ prefix. Quarantine prefix has no public access policy. | Doc 03 §4.11 |
+| T-28 | **Triple file type validation at API layer** | Extension allowlist + magic byte check + Content-Type header must all agree. Any mismatch returns 422 before storage write. | Doc 03 §4.11 |
+| T-29 | **Per-file size limits by type, per-tenant storage quotas by tier** | Photos 25MB, Documents 50MB, Plans 250MB, Video 500MB. Quotas: 10GB Starter, 50GB Professional, 250GB Business, unlimited Enterprise. | Doc 03 §4.11 |
+| T-30 | **Scanner provider behind provider-agnostic interface** | Cloudmersive at Stage 1–2, GuardDuty at Stage 3. Swap via environment variable — no upload handler code changes. | Doc 03 §4.11 |
+| T-31 | **Audit log captures all events across six categories** | Authentication, user management, financial, operational, document, cross-tenant. Logging begins at v1.0 — SOC 2 evidence period starts at launch. | Doc 03 §4.12 |
+| T-32 | **Audit log entries are append-only, hash-chained for tamper evidence** | Nightly integrity verification job alerts on any chain break. Entries never updated or deleted. | Doc 03 §4.12 |
+| T-33 | **Tenant admins have read-only access to their own scoped audit log** | Via UI and API. IP addresses and user agent strings not exposed to tenant admins. CSV export available for legal/compliance. | Doc 03 §4.12 |
+| T-34 | **Audit log retained for 7 years, survives tenant data purge** | Construction disputes and lien claims surface years after project completion. actor_email denormalized to preserve record after user deletion. | Doc 03 §4.12 |
+| T-35 | **Data export is async background job** | ZIP archive containing one CSV per domain plus all tenant files from live storage. Delivered via 7-day pre-signed URL sent by email. | Doc 03 §4.13 |
+| T-36 | **Maximum one active export job per tenant** | Available in Active, Cancelled, and Grace Period states. Export files purged from storage after 7 days. | Doc 03 §4.13 |
+| T-37 | **Audit log included in export at full 7-year depth** | CCPA data portability obligation satisfied by export feature from v1.0 launch. | Doc 03 §4.13 |
+| T-38 | **Push notifications via APNs (iOS) and FCM (Android)** | Delivery fallback chain: in-app WebSocket → push → email → SMS. SMS requires explicit user opt-in. | Doc 03 §4.14 |
+| T-39 | **Device tokens upserted on every app launch, invalidated on APNs/FCM error response** | Invalid token responses trigger immediate deactivation. Platform never retries against a known-bad token. | Doc 03 §4.14 |
+| T-40 | **Per-user notification preferences: per channel and per category** | Safety event notifications cannot be disabled. Quiet hours supported at user level. Preferences stored in notification_preferences table. | Doc 03 §4.14 |
+| T-41 | **Notification read/unread state tracked in notifications table** | Unread count cached in Redis per user for badge display. All notifications stored in user's preferred_language. | Doc 03 §4.14 |
+| T-42 | **Dual client pattern: raw pg pool for tenant context injection, Prisma for other queries** | Prisma does not natively support SET LOCAL per-transaction. All tenant-scoped queries inside withTenantContext use client.query() (raw pg). Prisma used for migrations and non-tenant-scoped queries. Confirms Prisma as the ORM — resolves OQ-04. | Doc 03 §3.6 |
+| T-43 | **PgBouncer must be in transaction mode — validated in staging before any production data write** | Session mode invalidates SET LOCAL tenant context isolation. Validated against actual PgBouncer config, not direct PostgreSQL connection. | Doc 03 §3.6 |
+| T-44 | **shared_project_events is explicitly exempt from standard tenant RLS** | Access controlled at application layer via connection membership validation on every read and write. | Doc 03 §6.7 |
+| T-45 | **Connection membership validation is mandatory before any cross-tenant data access** | Not optional, not bypassed for performance. Authorization failure throws immediately. All cross-tenant access logged in audit log. | Doc 03 §6.7 |
+| T-46 | **Portal user migration copies records to new tenant with new UUIDs** | Original GC tenant records soft-deleted, not purged. Re-stamping tenant_id on existing rows is prohibited. | Doc 03 §6.8 |
+| T-47 | **Portal user migration requires super admin approval and execution** | Not self-serve. Full audit trail logged as platform-scope events. GC and sub tenant admin notified on completion. | Doc 03 §6.8 |
+| T-48 | **SET LOCAL is mandatory for tenant context injection — SET SESSION is prohibited** | SET LOCAL scopes to current transaction and clears on COMMIT/ROLLBACK. SET SESSION persists for connection lifetime and can leak across tenants. Enforced in code review. | Doc 03 §3.7 |
+| T-49 | **PgBouncer configured with server_reset_query = DISCARD ALL** | Defense-in-depth backstop against stale connection state. Tenant context isolation test runs against staging PgBouncer config before any production deployment. | Doc 03 §3.7 |
+| T-50 | **withTenantContext() passes raw pg PoolClient to fn — never PrismaClient** | SET LOCAL is issued on a raw pg PoolClient. fn must receive that same client so all queries run on the same connection where RLS context is active. Passing PrismaClient would route queries through a different pool connection, silently bypassing RLS. Prisma is used only for migrations and non-tenant-scoped queries. | tenant-context/SKILL.md |
+| T-51 | **DISCARD ALL in finally block of withTenantContext, not only in catch** | Stale session state must be cleared even when a transaction succeeds. Placing DISCARD ALL only in catch leaves the connection in a dirty state after a caught-and-rethrown error path. | tenant-context/SKILL.md |
+| T-52 | **No application-layer superadmin bypass of RLS — ever** | Application code never calls SET LOCAL with a privileged bypass role. DB migration account bypasses RLS only during migration script execution (not runtime). FORCE ROW LEVEL SECURITY on every table prevents table-owner bypass. Superadmin features use a dedicated superadmin tenant context. Resolves contradiction between earlier versions of tenant-context and rls-patterns skills. | CLAUDE.md rule 4 |
+| T-53 | **TEXT+CHECK for new multi-status enums — not PG ENUM** | Permits introduced this pattern: `status TEXT NOT NULL CHECK (status IN ('draft','submitted','approved','active','failed_inspection','closed','voided'))`. Easier to extend for plumbing/HVAC in v1.1 without `ALTER TYPE`. Applies to all new multi-state enums going forward. | Schema_Reference §permits |
+| T-54 | **Multiple permits per project — no UNIQUE on (tenant_id, project_id, permit_type)** | A project can have multiple electrical permits (phased work, temporary power + full, license extensions). Uniqueness is not enforced at DB layer. Application layer handles display ordering. | Schema_Reference §permits |
+| T-55 | **Tiered permit gates: soft (create) vs hard (generate-milestones)** | `POST /v1/permits` silently skips milestone auto-generation for Starter tier — permit is created, `tier_note` returned. `POST /v1/permits/:id/generate-milestones` returns 402 for Starter. Soft gate = graceful degradation so Starter users can still track permits manually. Hard gate = explicit user action must be gated. | Pricing_Tier_Enforcement_Matrix §5 |
+| T-56 | **Company Asset Management module is Business+ only** | All `/v1/assets*` endpoints call `assertTier('BUSINESS')` in the service layer. Returns 402 for Starter and Professional with `upgrade_to: 'BUSINESS'`. No soft gate — the entire module is gated. Rationale: asset management (depreciation, insurance, compliance) is an enterprise capability mismatched to Starter/Pro scale. | Asset_Management_v1_0.md |
+| T-57 | **Operator cert blocking on asset assignment and checkout** | When `company_assets.requires_operator_cert = true`, the service layer must validate `safety_certifications` before inserting `asset_operator_assignments` or `asset_checkouts`. Check: cert_type matches, deleted_at IS NULL, expires_at IS NULL OR expires_at > NOW(). Throws 403 `OPERATOR_CERT_REQUIRED` if no valid cert. Never skip for performance or convenience. | Asset_Management_v1_0.md |
+| T-58 | **Asset project assignments are chain-of-custody records — logged to audit_log** | Every insert and update to `asset_project_assignments` and `asset_operator_assignments` is written to `audit_log` with category `operational`. These records are never deleted (only soft-deleted on `company_assets`). The audit trail must survive the asset's deletion. | Asset_Management_v1_0.md |
+| T-59 | **One trade-aware `permits` table + route — not per-trade duplication** | The permits table, lifecycle FSM, AHJ fields, and inspection-milestone linkage are trade-neutral and shared across trades. `permit_type` (CHECK widened per trade) selects the trade; jurisdiction is resolved from a per-trade static code library (electrical → NEC; plumbing → IPC/UPC; mechanical/HVAC → IMC/UMC; building/general → IRC/IBC) into generic `code_type`/`code_edition` columns at creation. `nec_edition` is electrical-only (nullable since 0013). An HVAC permit uses `permit_type='mechanical'` (industry name) while its blueprint label stays 'hvac'. Roofing/concrete/framing have NO own permit — they are inspected under one `permit_type='building'` permit (IRC for 1-2 family, IBC otherwise; family derived from building_type, not state). Adding a trade = widen the CHECK + add a `{trade}-codes` library + a branch in `resolvePermitCode()` (+ a `PERMIT_TRADES` entry in blueprint-worker, which uses `matchTrades[]`→`permitType` so several disciplines can map to one permit). Do NOT clone the permits table/route per trade. | Schema_Reference §permits, migrations 0013/0014/0015 |
+| T-60 | **Weekly timecard approval workflow: draft → submitted → approved/rejected** | Daily `time_entries` roll up into one `timecards` row per user per ISO week. Opening or submitting a card re-sums that week's `time_entries` into `total_hours` and sets `overtime_hours = max(0, total_hours − 40)`. **OWNER/PM/ACCOUNTANT** may approve or reject (amended Session 43 — accountant added; reject requires `rejection_note`, returns the card to `draft`). Approve/reject use optimistic locking and write `audit_log`. DB partial-unique `(tenant_id, user_id, week_start) WHERE status != 'rejected' AND deleted_at IS NULL` enforces one active card per user/week while letting a rejected card be re-opened. Timecards remain **weekly** (ISO Monday) — pay-period timecards considered + deferred Session 43. | Time_Tracking_Payroll_v1_0.md, migration 0005 |
+| T-61 | **Tenant-level time-tracking mode toggle; clock-out upserts a time_entry** | `tenant_settings.time_tracking_mode` ∈ `manual` \| `clock_in_out` selects how field labor is captured. In `clock_in_out` mode, `time_punches` records clock-in/out and the day's clock `time_entries` row (`notes='Via clock in/out'`) = **SUM of that day's closed punches, recomputed** on every clock-out/add/edit/delete (`recomputeClockDay()`, amended Session 44 — replaced the incremental `upsertTimeEntry`; robust to multiple timestamps/edits/deletes) so both modes feed a single ledger. **Project is optional** on punches (Session 44). Employees add/edit/delete their **own** missed punches (`POST`/`PATCH`/`DELETE /v1/time-punches`, self-guard; OWNER/PM any). One open punch per user is DB-enforced (partial unique `(tenant_id, user_id) WHERE clock_out_at IS NULL AND deleted_at IS NULL`). A midnight `time_punch.auto_clockout` cron closes still-open punches (`auto_clocked_out=true`) and creates the entry. | Time_Tracking_Payroll_v1_0.md, migration 0011 |
+| T-62 | **Payroll provider tokens encrypted; export gated on approval; time tracking is not tier-gated** | `tenant_integrations` stores provider (`quickbooks`/`gusto`/`adp`) OAuth tokens **AES-256-GCM encrypted** (`access_token_enc`/`refresh_token_enc`), UNIQUE `(tenant_id, provider)`. `POST /v1/payroll/export` requires at least one **approved** timecard for the week before it will run; on timecard approve, one `payroll.{provider}_push` job is enqueued per active integration. Time tracking, timecards, clock in/out, and payroll carry **no tier gate** — available on every tier (Starter+). | Time_Tracking_Payroll_v1_0.md, migration 0007 |
+| T-63 | **Estimating engine: burdened labor snapshot, estimate-local markups, cascade catalog, no tier gate** | The deterministic sub-level estimating engine (`lib/estimating/`) prices `quantities → assembly (material + labor_hours×rate + equipment)×(1+waste%) → markups → bid`. **Labor rate is a burdened $/hr snapshot ON the estimate** (`estimates.labor_rate_cents`) — NOT read live from `user_payroll_settings` (an estimate prices a crew average, not one worker). **Markups are estimate-local** columns (`overhead/profit/tax/contingency_pct`), applied by the engine (overhead on subtotal; profit on subtotal+overhead; tax on **material only**; contingency on subtotal) — wires the previously-dormant markup concept without coupling to the project `markups` table. **Cost catalog cascade**: `estimate_assemblies` system rows (sentinel tenant, `is_system`, read-any via RLS `USING(own OR is_system)` + `WITH CHECK(own)`) are overridden by a tenant row with the same `(trade, code)`. **No tier gate** — available on every tier (Estimator role gates write). Money in cents/FLOOR (T-02); optimistic locking (T-12); RLS forced (A-03). Award seeds `budget_line_items` (closes the loop with `field-cost-worker`). | Estimating_Engine_v1_0.md, migration 0028 |
+| T-64 | **Canonical trade taxonomy is the single source of truth for subcontractor trades; permit layer stays 4 trades** | `api/src/lib/trades/taxonomy.ts` (`TRADE_TAXONOMY`, ~100 trades in 10 categories) is THE trade list — every trade-enumerating surface (blueprint `TradeType`, `vendors.trade_type`, task `trade_type`, estimating catalog, UI pickers via `GET /v1/trades`) derives from it or must stay consistent with it. Each entry carries `permit_trade` ∈ electrical\|plumbing\|mechanical\|building\|null — the T-59 collapse is now data-driven through `tradeToPermitTrade()` (thin lookup; unknown free text still → `building`; `null` = professional/cosmetic trades with no AHJ permit path). **Rules:** keys are permanent snake_case (stored in free-text columns — add aliases, never rename); the 13 legacy blueprint TradeType keys are a strict subset (`legacy: true`) with unchanged mappings; adding a trade NEVER adds a permits table/route/code library (T-59); aliases must not collide (tested). | Trade_Taxonomy_v1_0.md (Doc 21) |
+
+---
+
+*Last updated: July 17, 2026*

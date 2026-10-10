@@ -1,0 +1,283 @@
+// Trade Knowledge Pack — ground_improvement (Ground Improvement / Soil Stabilization / Grouting). Wave 19 —
+// NEW-TRADE pattern, heavy_civil, permit_trade null → no gating inspections and no code refs; owner / DOT /
+// geotechnical hold points live in inspection_checklists. Dossier: docs/trade-packs/dossiers/ground_improvement.md.
+// Sources: FHWA GEC 13 Ground Modification Methods Reference Manual Vol I (FHWA-NHI-16-027: vertical drains,
+// aggregate columns — stone columns + rammed aggregate piers, QC/QA, Table 5-2 costs) and Vol II
+// (FHWA-NHI-16-028: grouting Ch 8, chemical stabilization Ch 9, cost data); WisDOT Average Unit Price List
+// (208.0100 Borrow, for surcharge fill); 29 CFR 1926 Subparts D, E, M, O, P, Q, Z, CC.
+// Deep foundations (piles, drilled shafts, helical) are the deep_foundations pack; dewatering has its own pack.
+import { definePack, PENDING_ES } from './schema.js';
+
+const D = '2026-10-08';
+const v1 = { src: ['ground_improvement-fhwa-gec13-v1'], confidence: 'verified' as const, last_verified: D };
+const v2 = { src: ['ground_improvement-fhwa-gec13-v2'], confidence: 'verified' as const, last_verified: D };
+const v1d = (note: string) => ({ src: ['ground_improvement-fhwa-gec13-v1'], confidence: 'derived' as const, last_verified: D, note });
+const v2d = (note: string) => ({ src: ['ground_improvement-fhwa-gec13-v2'], confidence: 'derived' as const, last_verified: D, note });
+const aup = (note: string) => ({ src: ['excavation-wisdot-aup'], confidence: 'derived' as const, last_verified: D, note });
+const osha = (sub: string) => ({ src: [`ecfr-1926-${sub}`], confidence: 'verified' as const, last_verified: D });
+const est = (note: string) => ({ src: ['platform-baseline'], confidence: 'estimate' as const, last_verified: D, note });
+const tr = (text: string) => ({ status: 'translated' as const, text });
+
+export default definePack({
+  key: 'ground_improvement',
+  schema_version: 1,
+  pack_version: '1.0.0',
+  status: 'draft',
+  identity: {
+    summary: 'Improves weak or loose ground so it can carry a building, slab, embankment or pavement — rammed aggregate piers and stone columns, lime / cement / fly-ash soil stabilization, compaction and permeation grouting, and wick drains with surcharge — built to the geotechnical engineer’s design with a test section, installation logs for every element and post-treatment verification testing.',
+    summary_es: 'Mejora suelos débiles o sueltos para soportar edificios, losas, terraplenes o pavimentos — pilas de agregado compactado, columnas de grava, estabilización con cal o cemento, inyecciones y drenes verticales con precarga — según el diseño geotécnico, con sección de prueba, registros de cada elemento y verificación posterior.',
+    glossary: [
+      { term: 'Rammed aggregate pier', term_es: 'Pila de agregado compactado', def: 'Drilled or displaced hole filled with crushed stone in thin lifts, each rammed hard to stiffen the soil around it.', def_es: 'Perforación o desplazamiento rellenado con piedra triturada en capas delgadas, cada una apisonada para rigidizar el suelo alrededor.' },
+      { term: 'Stone column (vibro replacement)', term_es: 'Columna de grava (vibrorremplazo)', def: 'Column of stone built with a vibrating probe that pushes stone out into the surrounding soil.', def_es: 'Columna de piedra construida con un vibrador que empuja la piedra hacia el suelo de alrededor.' },
+      { term: 'Soil stabilization (lime / cement)', term_es: 'Estabilización de suelo (cal / cemento)', def: 'Mixing lime, cement or fly ash into the soil in place, then compacting it to make a stronger, drier layer.', def_es: 'Mezclar cal, cemento o ceniza volante con el suelo en sitio y luego compactarlo para formar una capa más fuerte y seca.' },
+      { term: 'Mellowing', term_es: 'Maduración (curado previo)', def: 'Waiting period after mixing lime into clay before final mixing and compaction, so the lime can react.', def_es: 'Periodo de espera después de mezclar cal con arcilla antes del mezclado final y la compactación, para que la cal reaccione.' },
+      { term: 'Compaction grouting (low-mobility grout)', term_es: 'Inyección de compactación (lechada de baja movilidad)', def: 'Stiff, mortar-like grout pumped into the ground in stages to push loose soil denser or fill voids.', def_es: 'Lechada rígida, como mortero, bombeada al suelo por etapas para densificar suelo suelto o rellenar vacíos.' },
+      { term: 'Grout refusal', term_es: 'Rechazo de inyección', def: 'Point where a stage stops taking grout at the allowed pressure, or hits the volume or heave limit.', def_es: 'Momento en que una etapa deja de admitir lechada a la presión permitida, o alcanza el límite de volumen o de levantamiento.' },
+      { term: 'Wick drain (PVD)', term_es: 'Dren vertical prefabricado (PVD)', def: 'Flat plastic drain pushed into soft clay so water squeezes out faster under a fill load.', def_es: 'Dren plástico plano hincado en arcilla blanda para que el agua salga más rápido bajo la carga de un relleno.' },
+      { term: 'Surcharge', term_es: 'Precarga (sobrecarga)', def: 'Extra fill placed over soft ground for a time to force settlement early, then removed.', def_es: 'Relleno adicional colocado sobre suelo blando durante un tiempo para forzar el asentamiento antes, y luego retirado.' },
+      { term: 'Test section', term_es: 'Sección de prueba', def: 'First small area built and tested to confirm the method and criteria before production work.', def_es: 'Primera área pequeña construida y probada para confirmar el método y los criterios antes de la producción.' },
+      { term: 'Post-treatment verification (CPT / SPT)', term_es: 'Verificación posterior al tratamiento (CPT / SPT)', def: 'Soundings after treatment, compared with the soundings before, to prove the ground improved.', def_es: 'Sondeos después del tratamiento, comparados con los de antes, para demostrar que el suelo mejoró.' },
+    ],
+  },
+  est_bucket: 'general',
+  recipes: [
+    {
+      id: 'aggregate_piers',
+      example_title: 'Install rammed aggregate piers under footings',
+      priority: 10,
+      when: { title_re: '\\b(?:rammed aggregate piers?|aggregate (?:piers?|columns?)|stone columns?|vibro[- ]?(?:replacement|stone|compaction)|geopiers?|ground improvement)\\b' },
+      steps: [
+        {
+          title: 'Review the design and lay out every element',
+          instruction: 'Have the geotechnical report, the ground improvement design (element diameter, depth, spacing, design stiffness or required density) and the contractor work plan on site. Call utility locates, build a firm working platform for the rig, and stake every pier or column from the footing layout agreed with the general contractor.',
+          tools: ['total station or GPS rover', 'marking paint'],
+          materials: ['ground improvement design and work plan', 'daily installation log forms', 'working platform stone or geosynthetic as designed'],
+          safety_ids: ['utility_strike', 'power_line', 'rig_ground'],
+          qa_ids: ['design_on_site', 'location_tolerance'],
+        },
+        {
+          title: 'Build and test the test elements',
+          instruction: 'Install the first piers or columns at the test locations with the production rig and method. For rammed aggregate piers run the modulus (load) test and any uplift test the design calls for; for stone columns run the pre- and post-treatment soundings in the test area. Get the engineer’s written acceptance of the method and criteria before production.',
+          tools: ['production rig', 'load test frame with calibrated jack and dial gauges (testing agency)'],
+          materials: ['test element logs', 'load test or sounding reports'],
+          safety_ids: ['rig_ground', 'open_hole', 'noise'],
+          qa_ids: ['test_section'],
+        },
+        {
+          title: 'Drill or penetrate and build each element in lifts',
+          instruction: 'Drill or push the probe to the design depth and log the soil you see against the boring logs, plus any groundwater or caving. Place stone in thin lifts and ram or vibrate each lift until it meets the criteria from the test section. For stone columns log stone consumption at least every 5 ft and the vibrator amperage by depth; for rammed piers log lifts and tamping time.',
+          detail: 'Never step into or reach into an open pier hole. Cover any hole left open.',
+          tools: ['pier rig with tamper or vibrator probe', 'bucket counter or stone flow meter', 'tape measure'],
+          materials: ['crushed stone to the specified gradation'],
+          safety_ids: ['open_hole', 'rig_ground', 'power_line', 'noise', 'silica'],
+          qa_ids: ['installation_log', 'stone_consumption'],
+        },
+        {
+          title: 'Check each element as it is finished',
+          instruction: 'Run the bottom stabilization (re-tamp) checks and dynamic cone tests on rammed piers at the frequency in the QC plan; check top elevation against the footing bottom. Flag any element short of depth, low on stone take or off location and tell the engineer before the footing is formed.',
+          tools: ['dynamic cone penetrometer', 'level or laser'],
+          materials: ['QC test records'],
+          safety_ids: ['open_hole', 'backing_equipment'],
+          qa_ids: ['bsta_dcp', 'location_tolerance'],
+        },
+        {
+          title: 'Verify the improvement and hand over records',
+          instruction: 'Where the design calls for it, have the geotechnical engineer run soundings (CPT or SPT) between columns with the same method used before treatment. Shoot as-built locations and give the engineer the daily logs, test results and any out-of-tolerance elements before footings or the slab are built.',
+          tools: ['total station or GPS rover'],
+          materials: ['as-built survey', 'daily logs and test reports'],
+          safety_ids: ['utility_strike'],
+          qa_ids: ['post_verification', 'records_delivered'],
+        },
+      ],
+    },
+    {
+      id: 'chemical_stabilization',
+      example_title: 'Lime stabilization of building pad subgrade',
+      priority: 10,
+      when: { title_re: '\\b(?:(?:lime|cement|fly[- ]?ash|chemical)[- ](?:stabiliz\\w*|treat\\w*|modif\\w*)|soil[- ](?:stabiliz\\w*|cement)|subgrade (?:stabiliz\\w*|modification))\\b' },
+      steps: [
+        {
+          title: 'Confirm the mix design and set up the test strip',
+          instruction: 'Have the lab mix design (stabilizer type and percent, target moisture, strength), the depth of treatment and the QC plan on site. Make sure the soil was checked for sulfates and organics. Grade the area to line and grade, then build a test strip to prove the spreader rate, mixing depth and compaction before full production.',
+          tools: ['grade stakes or GPS machine control', 'scale and canvas pans for spread-rate checks'],
+          materials: ['approved mix design', 'safety data sheets for the stabilizer'],
+          safety_ids: ['chemical_sds', 'caustic_contact'],
+          qa_ids: ['mix_design', 'test_section'],
+        },
+        {
+          title: 'Spread the stabilizer at the design rate',
+          instruction: 'Spread lime, cement or fly ash only on the area you can mix the same day, at the design rate. Check the rate with weighed pans or canvas at the frequency in the QC plan. Stop spreading when wind carries dust off the area, and keep people without PPE out of the spread zone.',
+          detail: 'Quicklime gets hot when it meets water — slake it as the supplier directs and keep skin and eyes covered.',
+          tools: ['spreader truck', 'water truck', 'weighed pans or canvas squares'],
+          materials: ['lime, cement or fly ash as specified'],
+          safety_ids: ['caustic_contact', 'dust_exposure', 'backing_equipment'],
+          qa_ids: ['mix_uniformity', 'caustic_ppe'],
+        },
+        {
+          title: 'Mix to full depth at the right moisture',
+          instruction: 'Mix with a reclaimer or rotary mixer to the full treatment depth, adding water to reach the target moisture. For lime in clay, let it mellow for the specified time, then remix. Dig check holes across the width and spray the sides with phenolphthalein — a uniform deep red to the full depth shows the stabilizer is mixed in.',
+          tools: ['reclaimer or rotary mixer', 'water truck', 'phenolphthalein spray', 'tape measure'],
+          materials: ['water'],
+          safety_ids: ['caustic_contact', 'dust_exposure', 'backing_equipment', 'noise'],
+          qa_ids: ['mix_uniformity', 'caustic_ppe'],
+        },
+        {
+          title: 'Compact, finish and cure',
+          instruction: 'Compact within the time limit after final mixing (cement sets quickly) to the specified density, then trim to grade. Keep the surface moist or sealed as specified and keep traffic off until the cure time or strength is reached. Test density, moisture and thickness at the QC plan frequency.',
+          tools: ['padfoot and smooth-drum rollers', 'motor grader', 'nuclear density gauge (testing agency)'],
+          materials: ['curing water or curing seal as specified'],
+          safety_ids: ['backing_equipment', 'caustic_contact'],
+          qa_ids: ['compaction_density'],
+        },
+      ],
+    },
+    {
+      id: 'grouting',
+      example_title: 'Compaction grouting under settled slab',
+      priority: 10,
+      when: { title_re: '\\b(?:compaction grout\\w*|permeation grout\\w*|jet grout\\w*|chemical grout\\w*|low[- ]mobility grout\\w*|void (?:fill|grout)\\w*|grouting)\\b' },
+      steps: [
+        {
+          title: 'Review the grouting plan and set up monitoring',
+          instruction: 'Have the grouting plan on site: hole layout and sequence (primary, secondary, closure), stage length, grout mix, injection rate, refusal criteria (pressure, volume, heave) and what to do with runaway or zero takes. Survey nearby structures and set heave and settlement monitoring points before the first hole, and call utility locates.',
+          tools: ['total station or level', 'crack gauges', 'marking paint'],
+          materials: ['grouting plan and refusal criteria', 'grout log forms'],
+          safety_ids: ['utility_strike', 'power_line'],
+          qa_ids: ['design_on_site', 'heave_monitoring'],
+        },
+        {
+          title: 'Drill and set the grout pipes',
+          instruction: 'Drill each hole at the planned location and angle to the bottom of treatment and set the steel grout casing. Log depth, soil and any voids or drill-fluid loss. Cap or cover open holes.',
+          tools: ['track drill or drill rig', 'casing wrenches'],
+          materials: ['steel grout casing (about 3 in. or larger for stiff grout)'],
+          safety_ids: ['silica', 'power_line', 'open_hole', 'noise'],
+          qa_ids: ['installation_log'],
+        },
+        {
+          title: 'Mix and check the grout',
+          instruction: 'Batch the grout to the approved mix in a pug mill or approved mixer. For compaction grout, check slump at the pipe header and reject batches stiffer or wetter than the limit (about 1 in. maximum slump). Make strength samples as specified.',
+          tools: ['grout plant or pug mill', 'slump cone', 'sample molds'],
+          materials: ['cement, sand, fly ash or bentonite to the approved mix'],
+          safety_ids: ['caustic_contact', 'dust_exposure', 'chemical_sds'],
+          qa_ids: ['grout_mix_tested', 'caustic_ppe'],
+        },
+        {
+          title: 'Inject in stages to refusal',
+          instruction: 'Inject from the bottom up in short stages (about 1 to 3 ft), pulling the pipe between stages. Keep the injection rate low (about 1.5 to 2 cubic ft per minute for compaction grout) and work from the perimeter inward. Record volume, pressure and rate for every stage and stop the stage at the refusal criteria or the first sign of heave at the monitoring points.',
+          detail: 'Never open, uncouple or clear a grout line while it is under pressure.',
+          tools: ['grout pump with pressure gauge and flow meter', 'grout hoses with restraints', 'level'],
+          materials: ['grout'],
+          safety_ids: ['grout_line', 'caustic_contact', 'noise'],
+          qa_ids: ['stage_records', 'heave_monitoring'],
+        },
+        {
+          title: 'Close holes, verify and report',
+          instruction: 'Backfill and seal each finished hole as specified and clean up spills. Have the geotechnical engineer run the verification soundings or tests the plan calls for, and give the engineer the stage logs, monitoring readings and any holes that did not meet refusal.',
+          tools: ['tremie hose', 'shovels'],
+          materials: ['hole backfill grout', 'grout logs and monitoring records'],
+          safety_ids: ['open_hole', 'caustic_contact'],
+          qa_ids: ['post_verification', 'records_delivered'],
+        },
+      ],
+    },
+  ],
+  equipment: [
+    { when: { title_re: 'rammed aggregate|aggregate (?:pier|column)|geopier' }, type: 'excavator', reason: 'Excavator-based pier rig carrier for drilling and the tamper / displacement mandrel' },
+    { when: { title_re: 'stone column|vibro' }, type: 'crane', reason: 'Crane to suspend the vibrator probe for stone columns or vibro-compaction' },
+    { when: { title_re: 'aggregate|stone column|vibro|geopier' }, type: 'skid_steer', reason: 'Feed stone to the rig hopper and clear spoils', optional: true },
+    { when: { title_re: 'aggregate|stone column|vibro|geopier' }, type: 'dump_truck', reason: 'Haul stone in and drill spoils out', optional: true },
+    { when: { title_re: 'stabiliz|lime|cement|fly ?ash|subgrade modification' }, type: 'compactor', reason: 'Padfoot and smooth-drum rollers to compact the treated layer within the time limit' },
+    { when: { title_re: 'stabiliz|lime|cement|fly ?ash|subgrade modification' }, step_re: 'mix to full depth', type: 'excavator', reason: 'Dig the phenolphthalein check holes across the mixed width', optional: true },
+    { when: { title_re: 'grout' }, type: 'air_compressor', reason: 'Air for the track drill setting the grout casing' },
+    { when: { title_re: 'grout' }, type: 'generator', reason: 'Power for the grout plant and pump where no site power is available', optional: true },
+  ],
+  hazards: [
+    { id: 'caustic_contact', hazard: 'Chemical burns to skin and eyes from wet lime, quicklime or cement and from grout', hazard_es: PENDING_ES, controls: ['Keep an eyewash or quick-drench station in the work area', 'Wear alkali-resistant gloves, long sleeves and eye protection', 'Wash wet lime or cement off skin right away; change soaked clothing'], controls_es: PENDING_ES, osha_ref: '1926.50(g)', severity: 3, ppe: ['safety goggles', 'alkali-resistant gloves', 'long sleeves and pants', 'waterproof boots'], prov: osha('d') },
+    { id: 'chemical_sds', hazard: 'Workers handling lime, cement, fly ash or chemical grout without knowing the hazards (quicklime heats violently with water)', hazard_es: PENDING_ES, controls: ['Keep safety data sheets on site for every stabilizer and grout product', 'Train the crew on the hazards and labels before use', 'Slake quicklime only as the supplier directs'], controls_es: PENDING_ES, osha_ref: '1926.59', severity: 3, prov: osha('d') },
+    { id: 'dust_exposure', hazard: 'Breathing lime, cement or fly ash dust while spreading and mixing', hazard_es: PENDING_ES, controls: ['Spread only in light wind and keep the spread area wet as the work allows', 'Use enclosed cabs with filtered air on spreaders and mixers', 'Wear a respirator where dust cannot be kept below the exposure limits'], controls_es: PENDING_ES, osha_ref: '1926.55(a)', severity: 2, ppe: ['respirator as required', 'safety goggles'], prov: osha('d') },
+    { id: 'silica', hazard: 'Respirable silica dust from drilling grout holes or pier holes in rock or concrete', hazard_es: PENDING_ES, controls: ['Use the Table 1 controls for drilling (water or dust collection)', 'Wear a respirator where Table 1 calls for one'], controls_es: PENDING_ES, osha_ref: '1926.1153(c)(1)', severity: 3, ppe: ['respirator as required', 'safety glasses'], prov: osha('z') },
+    { id: 'power_line', hazard: 'Drill mast, pier rig or crane boom contacting overhead power lines', hazard_es: PENDING_ES, controls: ['Find overhead lines before the rig arrives and keep the required clearance', 'Lower masts and booms before moving the rig', 'Use a dedicated spotter near lines or have the utility de-energize them'], controls_es: PENDING_ES, osha_ref: '1926.600(a)(6)', severity: 4, prov: osha('o') },
+    { id: 'rig_ground', hazard: 'Pier rig or crane with a suspended vibrator tipping on soft ground or an unfinished working platform', hazard_es: PENDING_ES, controls: ['Set rigs and cranes only on a firm, drained working platform or crane mats', 'Keep rigs back from soft spots and open holes', 'Barricade the swing radius'], controls_es: PENDING_ES, osha_ref: '1926.1402(b)', severity: 4, prov: osha('cc') },
+    { id: 'grout_line', hazard: 'Grout hose or pipe bursting, whipping or separating under pumping pressure, or a plugged line releasing suddenly', hazard_es: PENDING_ES, controls: ['Use hoses and couplings rated above the pump pressure, with restraints at joints', 'Support discharge pipe runs', 'Relieve pressure before opening, uncoupling or clearing any line'], controls_es: PENDING_ES, osha_ref: '1926.702(e)(1)', severity: 3, ppe: ['safety glasses or face shield', 'gloves'], prov: osha('q') },
+    { id: 'backing_equipment', hazard: 'Struck or run over by spreaders, mixers, rollers and haul trucks backing on the treated area', hazard_es: PENDING_ES, controls: ['Working reverse alarms on all earthmoving and compacting equipment', 'Use a spotter where the rear view is blocked', 'Wear high-visibility clothing and keep foot traffic out of the mixing train'], controls_es: PENDING_ES, osha_ref: '1926.602(a)(9)(ii)', severity: 4, ppe: ['high-visibility vest'], prov: osha('o') },
+    { id: 'open_hole', hazard: 'Falling or stepping into open pier, column or grout holes', hazard_es: PENDING_ES, controls: ['Cover or guard every hole that is left open', 'Mark covers and secure them against moving'], controls_es: PENDING_ES, osha_ref: '1926.501(b)(4)(i)', severity: 3, prov: osha('m') },
+    { id: 'utility_strike', hazard: 'Drilling, probing or mixing into buried gas, electric or water lines', hazard_es: PENDING_ES, controls: ['Get utility locates before drilling, probing or deep mixing', 'Pothole marked lines that are near the treatment area'], controls_es: PENDING_ES, osha_ref: '1926.651(b)(1)', severity: 4, prov: osha('p') },
+    { id: 'noise', hazard: 'Hearing damage from vibrators, tampers, drills and grout plants', hazard_es: PENDING_ES, controls: ['Wear hearing protection near the rig and plant', 'Rotate workers away from the loudest equipment'], controls_es: PENDING_ES, osha_ref: '1926.101(a)', severity: 2, ppe: ['ear plugs or muffs'], prov: osha('e') },
+  ],
+  qa_checklist: [
+    { id: 'design_on_site', item: 'Geotechnical report, ground improvement design, contractor work / QC plan and acceptance criteria on site before work starts', item_es: tr('Informe geotécnico, diseño de mejoramiento de suelo, plan de trabajo / control de calidad del contratista y criterios de aceptación en obra antes de empezar'), prov: v1 },
+    { id: 'test_section', phase: 'site_prep', item: 'Test section or test elements built and tested with the production method; engineer accepted the criteria in writing before production', item_es: tr('Sección o elementos de prueba construidos y probados con el método de producción; el ingeniero aceptó los criterios por escrito antes de la producción'), prov: v1 },
+    { id: 'location_tolerance', phase: 'site_prep', item: 'Each pier or column center within 4 in. of plan (or project spec); obstructions and offsets reported to the engineer', item_es: tr('Centro de cada pila o columna a no más de 4 pulg. del plano (o la especificación del proyecto); obstrucciones y desplazamientos informados al ingeniero'), prov: v1 },
+    { id: 'installation_log', phase: 'site_prep', item: 'Daily log for every element: location, depth / top and bottom elevations, diameter, lifts and tamping time or drill data, soils and groundwater met, unusual conditions, equipment used', item_es: tr('Registro diario de cada elemento: ubicación, profundidad / cotas superior e inferior, diámetro, capas y tiempo de apisonado o datos de perforación, suelos y agua encontrados, condiciones anormales, equipo usado'), prov: v1 },
+    { id: 'stone_consumption', phase: 'site_prep', item: 'Stone columns: stone take logged every ≤5 ft, amperage ≥ free-standing +40 A per lift, avg diameter per 50 columns meets spec (none <90% of min), axis within 2 in. in 10 ft', item_es: tr('Columnas de grava: consumo de piedra cada ≤5 pies, amperaje ≥ valor en vacío +40 A por capa, diámetro promedio por 50 columnas cumple (ninguna <90% del mín.), eje dentro de 2 pulg. en 10 pies'), prov: v1 },
+    { id: 'bsta_dcp', phase: 'site_prep', item: 'Rammed piers: bottom stabilization re-tamp checks and DCP tests at QC-plan frequency (DCP consistently above 15 blows per 1.75 in.); about one modulus test per 1,000 piers on large jobs', item_es: tr('Pilas apisonadas: verificaciones de estabilización del fondo y pruebas DCP con la frecuencia del plan de calidad (DCP constantemente mayor a 15 golpes por 1.75 pulg.); aproximadamente una prueba de módulo por cada 1,000 pilas en obras grandes'), prov: v1 },
+    { id: 'mix_design', phase: 'site_prep', item: 'Stabilization mix design from lab tests (typ. lime 3–8% / cement 3–10% of dry soil weight); soil checked for sulfates and organics', item_es: tr('Diseño de mezcla de estabilización por pruebas de laboratorio (típ. cal 3–8% / cemento 3–10% del peso seco del suelo); suelo revisado por sulfatos y materia orgánica'), prov: v2 },
+    { id: 'mix_uniformity', phase: 'site_prep', item: 'Spread rate checked with weighed pans or canvas at the QC frequency; check holes across the width show full treatment depth and uniform color and moisture; phenolphthalein turns uniformly deep red', item_es: tr('Tasa de aplicación revisada con charolas o lonas pesadas con la frecuencia del plan; hoyos de revisión a lo ancho muestran la profundidad total de tratamiento y color y humedad uniformes; la fenolftaleína se torna rojo intenso uniforme'), prov: v2 },
+    { id: 'compaction_density', phase: 'site_prep', item: 'Lime clay mellowed as specified; layer compacted within the time limit to spec density (typ. 95% AASHTO T 99 lime / T 134 cement); no traffic until cure time or strength is met', item_es: tr('Arcilla con cal madurada según lo especificado; capa compactada en el tiempo límite a la densidad (típ. 95% AASHTO T 99 cal / T 134 cemento); sin tránsito hasta cumplir curado o resistencia'), prov: v2 },
+    { id: 'grout_mix_tested', phase: 'site_prep', item: 'Grout batched to the approved mix; compaction grout slump checked at the header (about 1 in. max) and off-spec batches rejected; strength samples taken', item_es: tr('Lechada dosificada según la mezcla aprobada; revenimiento de la lechada de compactación revisado en el cabezal (máx. aprox. 1 pulg.) y lotes fuera de especificación rechazados; muestras de resistencia tomadas'), prov: v2 },
+    { id: 'stage_records', phase: 'site_prep', item: 'Volume, pressure and injection rate recorded for every stage; stages stopped at the refusal criteria; holes grouted in the planned sequence, perimeter inward', item_es: tr('Volumen, presión y caudal de inyección registrados en cada etapa; etapas detenidas al alcanzar los criterios de rechazo; perforaciones inyectadas en la secuencia planeada, de la periferia hacia adentro'), prov: v2 },
+    { id: 'heave_monitoring', phase: 'site_prep', item: 'Heave / settlement points on nearby structures and slabs read before and during grouting; injection stopped when the heave limit is reached', item_es: tr('Puntos de levantamiento / asentamiento en estructuras y losas cercanas leídos antes y durante la inyección; inyección detenida al alcanzar el límite de levantamiento'), prov: v2 },
+    { id: 'post_verification', item: 'Post-treatment CPT / SPT (or the test the design names) run by the geotechnical engineer with the same method as before treatment, and results meet the design', item_es: tr('CPT / SPT después del tratamiento (o la prueba que indique el diseño) realizados por el ingeniero geotécnico con el mismo método que antes del tratamiento, y los resultados cumplen el diseño'), prov: v1 },
+    { id: 'records_delivered', item: 'As-built locations, daily logs, test results and out-of-tolerance elements delivered to the engineer before footings, slab or pavement are built', item_es: tr('Ubicaciones finales, registros diarios, resultados de pruebas y elementos fuera de tolerancia entregados al ingeniero antes de construir zapatas, losa o pavimento'), prov: v1 },
+    { id: 'caustic_ppe', item: 'Eyewash / quick-drench station in the work area and everyone handling lime, cement or grout in eye, skin and respiratory protection', item_es: PENDING_ES, safety: true, prov: osha('d') },
+  ],
+  inspection_checklists: {
+    test_section_verification: [
+      { item: 'Test elements / test strip built with the same rig, materials and method planned for production', item_es: tr('Elementos de prueba / tramo de prueba construidos con el mismo equipo, materiales y método previstos para la producción') },
+      { item: 'Load test, modulus test or before-and-after soundings complete and reported', item_es: tr('Prueba de carga, prueba de módulo o sondeos antes y después terminados e informados') },
+      { item: 'Engineer’s written acceptance of production criteria (depth, lifts, stone take, spread rate, refusal) on file', item_es: tr('Aceptación escrita del ingeniero de los criterios de producción (profundidad, capas, consumo de piedra, tasa de aplicación, rechazo) en archivo') },
+    ],
+    daily_qc_logs: [
+      { item: 'Pier / column logs complete for every element installed that day and initialed by the QC representative', item_es: tr('Registros de pilas / columnas completos para cada elemento instalado ese día y firmados por el representante de calidad') },
+      { item: 'Grout logs show volume, pressure and rate for every stage plus monitoring-point readings', item_es: tr('Registros de inyección muestran volumen, presión y caudal de cada etapa más las lecturas de los puntos de control') },
+      { item: 'Stabilization records show spread rate, mixing depth, moisture and density test results by station or grid', item_es: tr('Registros de estabilización muestran tasa de aplicación, profundidad de mezclado, humedad y densidad por estación o cuadrícula') },
+    ],
+    post_treatment_verification: [
+      { item: 'Verification soundings located between elements, using the same method as the pre-treatment soundings', item_es: tr('Sondeos de verificación ubicados entre elementos, con el mismo método que los sondeos previos al tratamiento') },
+      { item: 'Results compared to the design values by the geotechnical engineer; areas that fall short re-treated or redesigned', item_es: tr('Resultados comparados con los valores de diseño por el ingeniero geotécnico; zonas deficientes retratadas o rediseñadas') },
+    ],
+    settlement_monitoring: [
+      { item: 'Settlement plates and any piezometers installed and baselined before wick drains or surcharge fill', item_es: tr('Placas de asentamiento y piezómetros instalados con lectura inicial antes de los drenes verticales o el relleno de precarga') },
+      { item: 'Surcharge height, readings and dates plotted; surcharge removed only when the engineer confirms settlement is complete', item_es: tr('Altura de precarga, lecturas y fechas graficadas; precarga retirada solo cuando el ingeniero confirma que el asentamiento terminó') },
+    ],
+  },
+  assemblies: [
+    { code: 'HC-GI-RAP-LF', name: 'Rammed aggregate pier (about 30 in. diameter), drilled and rammed in lifts, per LF', name_es: 'Pila de agregado compactado (aprox. 30 pulg. de diámetro), perforada y apisonada por capas, por pie lineal', unit: 'LF', csi: '31 34 00',
+      material_cost_cents: { v: 900, prov: est('≈0.18 CY/LF (≈0.25 ton) crushed stone at ≈$35/ton delivered, national baseline 2026') },
+      labor_hours_per_unit: { v: 0.1, prov: v1d('GEC 13 Vol I Table 5-2: aggregate columns $20–60/LF, typical $20–40/LF (2007–2010 DOT bid tabs) → ≈$45/LF escalated to 2026; 3-person crew ≈ 240 LF/day.') },
+      equipment_cost_cents: { v: 1500, prov: v1d('Remainder of the ≈$45/LF escalated GEC 13 Table 5-2 range: pier rig + tamper + skid steer ≈$3,600/day ÷ ≈240 LF/day. Mobilization ($20k–100k per rig in Table 5-2) not included.') },
+      waste_pct: { v: 10, prov: est('Stone lost to over-break and spoil') } },
+    { code: 'HC-GI-LIMESTAB-SY', name: 'Lime stabilization of clay subgrade, 12 in. deep (≈5% lime), mixed, mellowed and compacted, per SY', name_es: 'Estabilización con cal de subrasante arcillosa, 12 pulg. (≈5% de cal), mezclada y compactada, por yd²', unit: 'SY', csi: '31 32 13',
+      material_cost_cents: { v: 470, prov: v2d('≈945 lb dry soil per SY-ft × 5% ≈ 47 lb lime ≈ 0.024 ton at ≈$200/ton (GEC 13 Vol II lists $100–150/ton for 2007–2010, escalated).') },
+      labor_hours_per_unit: { v: 0.012, prov: v2d('GEC 13 Vol II subgrade modification bids $2–5 per unit for >10,000 SY (2007–2010); 5-person mixing train ≈ 4,000 SY/day incl. two-pass mixing for lime.') },
+      equipment_cost_cents: { v: 300, prov: v2d('Spreader, reclaimer, water truck, rollers and grader ≈$12,000/day ÷ ≈4,000 SY/day, consistent with the escalated GEC 13 range.') },
+      waste_pct: { v: 5, prov: est('Spread overlap and wind loss') } },
+    { code: 'HC-GI-CEMSTAB-SY', name: 'Cement stabilization of soil, 12 in. deep (≈6% cement), mixed and compacted, per SY', name_es: 'Estabilización de suelo con cemento, 12 pulg. de profundidad (≈6% de cemento), mezclada y compactada, por yarda cuadrada', unit: 'SY', csi: '31 32 13',
+      material_cost_cents: { v: 510, prov: v2d('≈945 lb dry soil per SY-ft × 6% ≈ 57 lb cement ≈ 0.028 ton at ≈$180/ton bulk (GEC 13 Vol II lists $100–150/ton for 2007–2010, escalated).') },
+      labor_hours_per_unit: { v: 0.01, prov: v2d('GEC 13 Vol II subgrade modification $2–5 per unit (2007–2010), escalated; 5-person train ≈ 5,000 SY/day single pass.') },
+      equipment_cost_cents: { v: 250, prov: v2d('Spreader, reclaimer, water truck, rollers and grader ≈$12,000/day ÷ ≈5,000 SY/day.') },
+      waste_pct: { v: 5, prov: est('Spread overlap and wind loss') } },
+    { code: 'HC-GI-COMPGROUT-CY', name: 'Compaction (low-mobility) grouting, per CY of grout injected (drilling and casing included)', name_es: 'Inyección de compactación (lechada de baja movilidad), por yd³ inyectada, con perforación y tubería', unit: 'CY', csi: '31 34 19',
+      material_cost_cents: { v: 13000, prov: v2d('GEC 13 Vol II: grout alone $60–120/CY (2007–2010) → ≈$130/CY 2026 for a cement–sand–fly ash low-mobility mix.') },
+      labor_hours_per_unit: { v: 2.5, prov: est('4-person drill + grout crew ≈ 13 CY injected per day at 1.5–2 cf/min with stage moves and hole changes') },
+      equipment_cost_cents: { v: 25000, prov: est('Track drill, compressor, grout plant and piston pump ≈$3,300/day ÷ ≈13 CY/day; mobilization not included') },
+      waste_pct: { v: 5, prov: est('Line flushing and rejected batches') } },
+    { code: 'HC-GI-WICK-LF', name: 'Prefabricated vertical (wick) drain, installed with mandrel, per LF', name_es: 'Dren vertical prefabricado, instalado con mandril, por pie lineal', unit: 'LF', csi: '31 34 00',
+      material_cost_cents: { v: 25, prov: est('Band drain material ≈$0.25/LF delivered, national baseline 2026') },
+      labor_hours_per_unit: { v: 0.002, prov: v1d('GEC 13 Vol I case-history bids $0.45/LF and $2.10/LF installed (mobilization separate); 3-person crew ≈ 12,000 LF/day.') },
+      equipment_cost_cents: { v: 35, prov: v1d('Crawler with mandrel mast ≈$4,200/day ÷ ≈12,000 LF/day; GEC 13 case bid carried $27,500 mobilization separately (not included).') },
+      waste_pct: { v: 5, prov: est('Drain anchor plates and cut-offs above the blanket') } },
+    { code: 'HC-GI-SURCHARGE-CY', name: 'Surcharge fill — place from borrow, hold, then remove and re-handle, per CY', name_es: 'Relleno de precarga — colocar desde préstamo, mantener y luego retirar y reacomodar, por yarda cúbica', unit: 'CY', csi: '31 23 23',
+      material_cost_cents: { v: 300, prov: aup('Material share of WisDOT 208.0100 Borrow avg $9.11/$9.09/$7.39 per CY (FY23/24/25).') },
+      labor_hours_per_unit: { v: 0.05, prov: aup('Two handlings (place, then remove) at the WisDOT 208.0100 Borrow scale: dozer + loader + trucks crew ≈ 800 CY/day per handling.') },
+      equipment_cost_cents: { v: 450, prov: aup('Equipment for two handlings at ≈$2.25/CY each, scaled from the WisDOT 208.0100 Borrow average; settlement monitoring not included.') },
+      waste_pct: { v: 0, prov: est('Fill reused or hauled off; no consumption') } },
+  ],
+  quantity_rules: [
+    { code: 'HC-GI-RAP-LF', assumption: 'Rammed aggregate piers assumed under the building at about one 15 ft pier per 100 SF of floor area — replace with the geotechnical design count and depth, or remove if another method is used', when: { building_types: ['commercial', 'industrial'] }, qty: { basis: 'area_sf_sum', mul: 0.15, round: 'ceil' } },
+  ],
+  dependency_hints: [
+    { after_trades: ['surveying', 'erosion_control'], note: 'Stake the treatment area and set erosion controls before the rig or stabilizer spreading starts.' },
+    { before_phase: 'foundation', note: 'Test section accepted and post-treatment verification complete before footings, slab or pavement are built on the improved ground.' },
+  ],
+});

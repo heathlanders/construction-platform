@@ -1,0 +1,23 @@
+# Project tiles — guards the role-gating regression class.
+#
+# `hasRole()` once compared the UPPERCASE JWT role against the lowercase manifest,
+# so `tilesForRole()` returned [] and EVERY project detail screen rendered an empty
+# grid. The project list still worked (cached), so it looked fine from the outside.
+# This flow fails the moment a role gate stops matching.
+#
+#   maestro test mobile/.maestro/project-tiles.yaml
+appId: com.thejobsite.app
+---
+# Field tech on purpose: the narrowest tile set, so a broken gate shows up here first.
+- runFlow:
+    file: login.yaml
+    env:
+      COMPANY: e2e-test
+      EMAIL: field_tech@e2e.thejobsite.test
+      PASSWORD: ${PASSWORD}    # pass -e PASSWORD="$E2E_PASSWORD"
+
+- assertVisible: 'E2E Test Project'    # seeded by api/src/scripts/seed-e2e-tenant.ts
+- tapOn: 'E2E Test Project'
+
+# A field tech must see field tiles. Empty grid = role gate broken.
+- assertVisible: 'Log Time'

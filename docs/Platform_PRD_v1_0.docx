@@ -1,0 +1,1805 @@
+**\[PLATFORM NAME\]**
+
+Construction Management Platform
+
+**PRODUCT REQUIREMENTS DOCUMENT**
+
+*Version 1.0 \| Confidential*
+
+March 2026
+
+PREPARED FOR INTERNAL USE ONLY
+
+**Document Information**
+
+  -----------------------------------------------------------------------------
+  **Version**   **Date**      **Author**         **Description**
+  ------------- ------------- ------------------ ------------------------------
+  1.0           March 2026    Product Team       Initial PRD --- Full Platform
+                                                 Scope
+
+  -----------------------------------------------------------------------------
+
+**Table of Contents**
+
+**1. Executive Summary**
+
+\[PLATFORM NAME\] is a multi-tenant, enterprise-grade construction
+management platform purpose-built for small to mid-size construction
+companies across all trades. Unlike existing solutions that force
+generic project management tools onto the construction industry,
+\[PLATFORM NAME\] delivers native, trade-specific workflows for every
+major construction discipline --- from General Contracting and
+Electrical to Roofing, HVAC, Plumbing, Concrete, and beyond.
+
+The platform operates on a three-tier architecture: Enterprise
+(company-wide management), Project (per-job command center), and Trade
+(discipline-specific task execution). Each tier is designed to reflect
+how construction professionals actually work, reducing administrative
+overhead and increasing field-to-office data accuracy.
+
+A defining feature of \[PLATFORM NAME\] is its cross-tenant
+collaboration model, which allows General Contractors and Subcontractors
+--- each operating as independent tenants --- to connect on shared
+projects through a governed data bridge. This creates a powerful network
+effect: GCs bring their subs onto the platform, subs gain their own full
+business management environment, and adoption grows organically across
+the construction ecosystem.
+
+**Key Platform Pillars**
+
+-   Multi-tenant SaaS architecture with full tenant data isolation
+
+-   Native trade-specific workflows for 10+ construction disciplines
+
+-   Cross-tenant collaboration between General Contractors and
+    Subcontractors
+
+-   Mobile-first field experience with offline capability
+
+-   Deep financial management: estimating, job costing, AIA billing,
+    lien tracking
+
+-   Client portal with real-time visibility and e-signature workflows
+
+-   QuickBooks integration (bi-directional sync)
+
+-   Comprehensive document management with version control
+
+-   White-label options for enterprise tenants
+
+**Market Opportunity**
+
+The global construction management software market is valued at
+approximately \$11 billion in 2025 and is projected to reach \$23
+billion by 2032 at an 11.2% CAGR. The construction SaaS segment alone is
+projected to reach \$45.5 billion by 2035. North America accounts for
+approximately 47% of global market revenue. The primary underserved
+segment --- small to mid-size contractors across all trades ---
+represents millions of businesses currently using fragmented,
+disconnected toolsets or paper-based processes.
+
+**Competitive Position**
+
+\[PLATFORM NAME\] occupies a unique position in the market. Existing
+enterprise platforms (Procore, Autodesk Build) are cost-prohibitive and
+overcomplicated for small to mid-size companies. Consumer-grade tools
+(Buildertrend, CoConstruct) lack the depth required for multi-trade
+commercial work. No current platform offers true multi-tenant
+architecture with cross-tenant GC-to-sub collaboration, native workflows
+for all major trades, and pricing accessible to smaller operators.
+
+**2. Product Goals & Objectives**
+
+**Primary Goals**
+
+1.  Deliver an all-in-one construction management platform that
+    eliminates the need for multiple disconnected software tools.
+
+2.  Provide native, trade-specific workflows that reflect how each
+    discipline actually operates --- not generic task lists.
+
+3.  Enable multi-tenant SaaS operation so every subscribing company has
+    an isolated, secure business environment.
+
+4.  Build a cross-tenant collaboration layer that connects GCs and subs
+    on shared projects while preserving each company\'s data privacy.
+
+5.  Create a mobile-first field experience that works reliably without
+    internet connectivity.
+
+6.  Make enterprise-grade functionality accessible at price points
+    viable for small and mid-size construction companies.
+
+**Success Metrics --- Year 1**
+
+  -----------------------------------------------------------------------
+  **Metric**                          **Target**
+  ----------------------------------- -----------------------------------
+  Paying tenants                      200+
+
+  Average MRR per tenant              \$350+
+
+  Mobile app daily active users       70%+ of subscribed field users
+
+  QuickBooks sync adoption            60%+ of Business/Enterprise tenants
+
+  Cross-tenant connections            100+ active GC-Sub connections
+
+  NPS score                           50+
+
+  Churn rate (monthly)                \< 2%
+
+  Support ticket resolution (avg)     \< 24 hours
+  -----------------------------------------------------------------------
+
+**Out of Scope --- Version 1.0**
+
+-   BIM (Building Information Modeling) integration
+
+-   Equipment telematics / IoT sensor integration
+
+-   AI-powered predictive scheduling
+
+-   International multi-currency support
+
+-   Government / public sector certified payroll (added in v1.1)
+
+-   Custom marketplace / app store for third-party plugins
+
+**3. Target Market & User Personas**
+
+**Target Market**
+
+\[PLATFORM NAME\] targets small to mid-size construction companies in
+the United States and Canada, operating in residential and commercial
+construction across all major trades. The primary addressable customer
+ranges from sole-proprietor contractors to companies with up to 200
+field employees and \$50M in annual revenue.
+
+**Primary Personas**
+
+**Persona 1 --- The General Contractor (Primary Buyer)**
+
+  -----------------------------------------------------------------------
+  **Attribute**      **Detail**
+  ------------------ ----------------------------------------------------
+  Company Size       5--75 employees, \$2M--\$40M annual revenue
+
+  Primary Role       Manages full project lifecycle across multiple
+                     subcontractors
+
+  Pain Points        Coordinating subs, tracking change orders, managing
+                     lien exposure, billing draws
+
+  Software Currently Buildertrend or Procore (if any), QuickBooks, email,
+  Using              spreadsheets
+
+  Key Buying         One place to manage all subs, financials, and client
+  Motivation         communication
+  -----------------------------------------------------------------------
+
+**Persona 2 --- The Specialty Trade Contractor (Core User)**
+
+  -----------------------------------------------------------------------
+  **Attribute**      **Detail**
+  ------------------ ----------------------------------------------------
+  Trades             Electrical, Plumbing, HVAC, Roofing, Concrete,
+                     Framing, Painting, Landscaping
+
+  Company Size       2--50 employees, \$500K--\$15M annual revenue
+
+  Primary Role       Runs trade-specific jobs as prime or sub to GCs
+
+  Pain Points        Phase tracking, inspection logs, material tracking,
+                     invoice approval from GCs
+
+  Key Buying         Trade-native workflows, field crew management,
+  Motivation         connected to GC projects
+  -----------------------------------------------------------------------
+
+**Persona 3 --- The Project Manager / Foreman**
+
+  -----------------------------------------------------------------------
+  **Attribute**      **Detail**
+  ------------------ ----------------------------------------------------
+  Role               Day-to-day project execution, crew supervision
+
+  Primary Device     Smartphone or tablet in the field
+
+  Pain Points        Outdated plans, missing inspection records, manual
+                     daily reports
+
+  Key Feature Needs  Mobile app, offline access, photo documentation,
+                     task completion tracking
+  -----------------------------------------------------------------------
+
+**Persona 4 --- The Client / Owner**
+
+  -----------------------------------------------------------------------
+  **Attribute**      **Detail**
+  ------------------ ----------------------------------------------------
+  Role               Project owner --- residential homeowner or
+                     commercial property owner/developer
+
+  Access Level       Client portal only
+
+  Pain Points        Lack of visibility, surprise costs, slow change
+                     order approvals
+
+  Key Feature Needs  Progress photos, budget transparency, e-signature
+                     for approvals
+  -----------------------------------------------------------------------
+
+**4. Platform Architecture**
+
+**Multi-Tenant Architecture**
+
+\[PLATFORM NAME\] is built on a hybrid multi-tenant SaaS architecture.
+All tenants share the same application infrastructure and codebase,
+while data is logically isolated per tenant through strict tenant_id
+scoping at every layer of the data model. This approach provides the
+scalability of shared infrastructure while ensuring complete data
+separation between companies.
+
+  -----------------------------------------------------------------------
+  **Layer**          **Approach**          **Notes**
+  ------------------ --------------------- ------------------------------
+  Application / API  Shared                Single codebase; all tenants
+                                           served from same application
+
+  Database           Shared schema,        Every record includes
+                     isolated data         tenant_id; row-level security
+                                           enforced
+
+  File / Document    Isolated per tenant   Separate storage buckets or
+  Storage                                  folder namespacing per tenant
+
+  Authentication     Tenant-scoped         Users belong to exactly one
+                                           tenant; no cross-tenant login
+
+  Configuration      Per-tenant            Branding, workflow settings,
+                                           custom fields per tenant
+
+  Encryption         Per-tenant keys       Sensitive financial and PII
+                                           data encrypted with
+                                           tenant-specific keys
+
+  Rate Limiting      Per-tenant            Heavy tenants cannot degrade
+                                           performance for others
+  -----------------------------------------------------------------------
+
+**Three-Tier Platform Model**
+
+**Tier 1 --- Enterprise (Company Level)**
+
+The highest level of the platform. Manages the entire business across
+all active projects. Includes company profile, user management,
+cross-project dashboards, financial reporting, resource management,
+vendor database, compliance tracking, and accounting integration.
+
+**Tier 2 --- Project Level**
+
+Each job gets a dedicated project environment. Includes scheduling
+(Gantt), budget tracking, document management, RFIs, submittals, change
+orders, inspections, subcontractor management, AIA billing, lien waiver
+tracking, and the client-facing portal.
+
+**Tier 3 --- Trade / Task Level**
+
+The deepest level --- trade-specific workflows, phase gates, checklists,
+material tracking, and inspection records tailored to each discipline.
+This is the core differentiator of the platform. Each trade module is
+built to reflect how that trade actually operates.
+
+**Super Admin Layer**
+
+A separate administrative console above all tenant environments,
+accessible only to \[PLATFORM NAME\] platform operators. Provides tenant
+provisioning and deactivation, subscription and billing management,
+platform-wide feature flag control, usage analytics, global template
+library management, read-only tenant impersonation for support,
+infrastructure health monitoring, and audit logging.
+
+**Cross-Tenant Collaboration Architecture**
+
+When a General Contractor (Tenant A) awards a scope of work to a
+Subcontractor (Tenant B), both parties may be independent tenants on the
+platform. The cross-tenant collaboration feature creates a governed
+Shared Project Layer --- a controlled data bridge between the two
+tenants --- exposing only the data relevant to their joint scope.
+
+Key design principles of the Shared Project Layer:
+
+-   Neither tenant gains access to the other\'s internal company data
+
+-   Data sharing is governed by explicit permission tables per
+    connection
+
+-   Either party may disconnect at project closeout, archiving the
+    shared record for both
+
+-   A sub may be simultaneously connected to multiple GC tenants across
+    different projects
+
+-   Non-tenant subcontractors (not yet subscribers) receive a limited
+    free portal to prevent GC adoption blockers
+
+**5. User Roles & Permissions**
+
+Access control is enforced at both the tenant level and the role level.
+Every user belongs to exactly one tenant. Permissions are role-based and
+configurable by tenant administrators within the bounds of their
+subscription tier.
+
+  ---------------------------------------------------------------------------
+  **Role**         **Scope**          **Key Permissions**
+  ---------------- ------------------ ---------------------------------------
+  Owner / Admin    Full company       All access --- users, financials,
+                                      settings, all projects, billing
+
+  Project Manager  Assigned projects  Full project control --- schedule,
+                                      budget, docs, change orders, subs
+
+  Estimator        Pre-construction   Estimating, bidding, takeoffs, bid
+                                      leveling --- no field access
+
+  Foreman /        Assigned projects  Field reports, schedules, crew
+  Superintendent                      management, task completion, photos
+
+  Field Technician Own tasks only     Clock in/out, task completion, photo
+                                      uploads, daily reports
+
+  Subcontractor    Assigned scope     Submittals, task status, invoice
+  (External)       only               submission, RFI response
+
+  Client           Portal only        Project progress, photos, change order
+                                      approval, invoice approval
+
+  Accountant       Financial data     Job costing, invoices, QuickBooks sync,
+                   only               financial reports
+
+  Safety Officer   All projects       Safety reports, incident logs,
+                   (safety)           compliance checklists
+  ---------------------------------------------------------------------------
+
+**Permission Categories**
+
+-   View --- read-only access to data
+
+-   Edit --- create and modify records
+
+-   Approve --- formal approval workflows (change orders, invoices,
+    submittals)
+
+-   Delete --- remove records (restricted to Admin and PM by default)
+
+-   Financial --- access to cost data, budgets, and invoices (restricted
+    by role)
+
+-   Export --- ability to export data and generate reports
+
+**6. Feature Modules --- Tier 1: Enterprise**
+
+**6.1 Company Profile & Settings**
+
+-   Company name, logo, address, license numbers, bonding information
+
+-   Trade type designation (GC, Electrical, Plumbing, HVAC, etc.)
+
+-   Default terms and conditions for contracts
+
+-   Business hours, time zone, fiscal year configuration
+
+-   Custom branding for client portal (colors, logo)
+
+**6.2 User Management**
+
+-   Invite users via email with role assignment
+
+-   Multi-factor authentication (MFA) enforcement option
+
+-   User activity audit log
+
+-   Permission customization within role bounds
+
+-   Deactivate users without data deletion
+
+-   Crew grouping --- assign field users to crews or divisions
+
+**6.3 Cross-Project Dashboard**
+
+-   Active project count with status indicators (on track, at risk,
+    delayed)
+
+-   Total company revenue pipeline vs. actual billed
+
+-   Aggregate labor hours logged this week / month
+
+-   Upcoming inspection and permit deadlines across all jobs
+
+-   Outstanding change order approvals
+
+-   Overdue invoices (to pay and to collect)
+
+-   Lien deadline alerts across all active projects
+
+**6.4 Resource Management**
+
+-   Employee roster with trade certifications and license tracking
+
+-   Equipment inventory with assignment to active projects
+
+-   Vehicle fleet log with assignment tracking
+
+-   Crew scheduling across multiple jobs
+
+-   Certification expiration alerts (OSHA cards, licenses, etc.)
+
+**6.5 Vendor & Subcontractor Database**
+
+-   Vendor profiles: contact info, trade type, payment terms
+
+-   Subcontractor prequalification status and insurance tracking
+
+-   Certificate of Insurance (COI) storage with expiration alerts
+
+-   Bonding capacity tracking
+
+-   Performance rating history across past projects
+
+-   Preferred vendor flagging
+
+**6.6 Company-Wide Document Library**
+
+-   Master template library: contracts, change orders, daily reports
+
+-   Safety program documents and OSHA compliance records
+
+-   Standard operating procedures by trade
+
+-   Version control on all master templates
+
+-   Folder organization with access controls
+
+**6.7 Compliance & License Tracking**
+
+-   Contractor license database with expiration tracking and alerts
+
+-   Insurance policy tracking (GL, workers comp, umbrella, auto)
+
+-   Bonding expiration management
+
+-   OSHA 300 log integration
+
+-   Safety training record tracking per employee
+
+**6.8 Reporting Engine**
+
+-   Pre-built report types: job profitability, labor by project, revenue
+    by trade, open lien exposure
+
+-   Custom report builder with date range, project, trade, and user
+    filters
+
+-   Scheduled report delivery via email (weekly/monthly)
+
+-   Export to PDF and Excel
+
+-   QuickBooks reconciliation report
+
+**7. Feature Modules --- Tier 2: Project**
+
+**7.1 Project Setup**
+
+-   Job types: Residential New Build, Residential Remodel, Commercial
+    New Build, Commercial TI, Service/Repair
+
+-   Client information, site address, APN / parcel data
+
+-   Contract type selection: Fixed Price, Time & Materials, Cost-Plus,
+    GMP (Guaranteed Maximum Price)
+
+-   Contract value entry with retainage percentage
+
+-   Project team assignment (PM, Foreman, Estimator, Subs)
+
+-   Permit tracking: jurisdiction, permit number, submission date,
+    approval date, expiration
+
+-   Inspector contact management per permit type
+
+-   CSI division budget mapping at project creation
+
+**7.2 Scheduling**
+
+-   Gantt chart with drag-and-drop task management
+
+-   Task dependencies (finish-to-start, start-to-start,
+    finish-to-finish)
+
+-   Critical path calculation and highlighting
+
+-   Baseline schedule with deviation tracking
+
+-   Milestone tracking with client portal visibility toggle
+
+-   Weather delay logging with automatic schedule impact notation
+
+-   Daily schedule push notifications to assigned crew members
+
+-   Two-week lookahead view for foremen
+
+-   iCal export for personal calendar integration
+
+**7.3 Budget & Financial Tracking**
+
+-   Line-item budget entry by CSI division or custom category
+
+-   Estimate vs. actual cost tracking at every line item in real time
+
+-   Committed cost tracking (awarded subcontracts + POs)
+
+-   Projected cost at completion with variance alerts
+
+-   Overhead and profit margin tracking per job
+
+-   Owner\'s contingency tracking
+
+**7.4 Change Order Management**
+
+-   Change order creation with scope description, cost breakdown, and
+    schedule impact
+
+-   Multi-step approval workflow: PM review → Owner approval → Executed
+
+-   E-signature integration for executed change orders
+
+-   Change order log with status tracking (pending, approved, rejected,
+    void)
+
+-   Automatic budget update upon change order approval
+
+-   Subcontractor change order issuance and tracking
+
+-   Change order reason code categorization
+
+**7.5 AIA Billing & Draw Management**
+
+-   G702 Application for Payment generation
+
+-   G703 Schedule of Values with continuation sheet
+
+-   Retainage tracking and release management
+
+-   Draw schedule with milestone-based billing triggers
+
+-   Stored materials billing support
+
+-   Billing period management
+
+-   Client approval workflow with e-signature
+
+**7.6 Lien Management**
+
+-   Preliminary notice tracking by state (20-day notice, Notice to
+    Owner, etc.)
+
+-   Conditional and unconditional lien waiver generation and collection
+
+-   Lien deadline calendar with automated alerts
+
+-   Subcontractor lien waiver collection workflow --- cannot release
+    payment without waiver on file
+
+-   Lien release tracking at each billing period
+
+**7.7 Subcontractor Management**
+
+-   Bid invitation and scope distribution to sub database
+
+-   Bid leveling tool --- compare multiple bids side by side across line
+    items
+
+-   Subcontract award with contract generation from templates
+
+-   Sub-tier scope tracking (sub\'s subs)
+
+-   Subcontractor insurance verification before mobilization
+
+-   Invoice approval pipeline: Sub submits → PM reviews → Owner approves
+    → Released for payment
+
+-   Payment tracking and remittance records
+
+**7.8 Document Management**
+
+-   Plan set uploads with revision control (Rev A, Rev B, etc.) and
+    issue date tracking
+
+-   Drawing markup and annotation tools for field use
+
+-   RFI (Request for Information) log: creation, distribution, response
+    tracking, status
+
+-   Submittal log: submission, review, approval, resubmittal tracking
+    per spec section
+
+-   Meeting minutes creation and distribution with action item tracking
+
+-   Daily field reports with crew count, work performed, materials
+    received, issues
+
+-   Photo management: field photo upload, GPS tagging, date stamp, album
+    organization
+
+-   Project closeout package generation: O&M manuals, as-builts,
+    warranties, permits
+
+**7.9 Inspections & Quality Control**
+
+-   Inspection scheduling by trade and phase
+
+-   Pass / Fail / Correction Required result logging with notes
+
+-   Photo documentation attached to each inspection record
+
+-   Inspector contact management per jurisdiction
+
+-   Re-inspection scheduling on failed inspections
+
+-   Punch list creation, assignment, and completion tracking
+
+-   Quality control checklist library by trade and phase
+
+**7.10 Client Portal**
+
+-   Real-time project progress summary with milestone status
+
+-   Photo update feed --- curated job site photos visible to client
+
+-   Change order review and e-signature approval
+
+-   Invoice / draw approval workflow
+
+-   Project schedule visibility (milestones only --- no internal task
+    detail)
+
+-   Document access: permit copies, approved submittals, warranty
+    documentation
+
+-   Messaging thread --- direct communication with PM through the portal
+
+-   Client-branded experience using contractor\'s logo and colors
+
+**8. Trade-Specific Modules --- Tier 3**
+
+Each trade module delivers discipline-specific phase gates, task
+templates, material tracking, inspection checklists, and data fields.
+These modules are the platform\'s core differentiator. Trade modules are
+activated at the tenant level and appear as an additional layer within
+relevant projects.
+
+**8.1 General Contracting Module**
+
+-   Sub bid leveling tool --- compare bids across all CSI divisions side
+    by side
+
+-   Sub award and contract generation from master templates
+
+-   Master project schedule with all trade phase dependencies linked
+
+-   Owner\'s contingency and allowance tracking
+
+-   Certified payroll module (Davis-Bacon Act compliance for public
+    work)
+
+-   Closeout checklist: O&M manuals, as-built drawings, warranties,
+    attic stock, spare parts
+
+-   Owner-furnished, contractor-installed (OFCI) item tracking
+
+**8.2 Electrical Module**
+
+  -----------------------------------------------------------------------
+  **Phase**          **Key Activities**
+  ------------------ ----------------------------------------------------
+  Rough-In           Underground conduit, conduit runs, junction boxes,
+                     panel rough
+
+  Trim / Device      Devices, outlets, switches, fixtures, cover plates
+
+  Final              Panel terminations, service connection, final test
+  -----------------------------------------------------------------------
+
+-   Panel schedule tracking: panel name, location, breaker inventory,
+    load assignments
+
+-   Circuit tracking: circuit ID, home run, load, phase, breaker size
+
+-   Load calculation log with engineer-of-record reference
+
+-   Conduit and wire pull log by zone or area
+
+-   Fixture and device schedule tied to drawing callouts
+
+-   Utility coordination log: service size, transformer requirements,
+    meter status
+
+-   Inspection types: Underground, Rough, Service, Final
+
+-   Arc fault (AFCI) and ground fault (GFCI) compliance checklist by
+    code version
+
+**8.3 Plumbing / Mechanical Module**
+
+  -----------------------------------------------------------------------
+  **Phase**          **Key Activities**
+  ------------------ ----------------------------------------------------
+  Underground        Sewer, water, gas rough below slab
+
+  Rough-In           Above-slab rough, vent stack, water distribution
+
+  Trim               Fixtures, valves, water heater, appliance
+                     connections
+
+  Final              Pressure test, final inspection, commissioning
+  -----------------------------------------------------------------------
+
+-   Fixture schedule: type, location, model, rough-in dimensions, status
+
+-   Pressure test log: system, date, test pressure, duration, result,
+    witness
+
+-   Water heater and boiler equipment log with warranty info
+
+-   Backflow preventer tracking: device type, location, test date,
+    tester, result
+
+-   Sewer camera inspection records with video attachment
+
+-   Gas pressure test log separate from water
+
+-   Inspection types: Underground, Rough, Gas, Final
+
+**8.4 HVAC Module**
+
+  -----------------------------------------------------------------------
+  **Phase**          **Key Activities**
+  ------------------ ----------------------------------------------------
+  Rough              Ductwork, lineset rough, equipment curbs,
+                     penetrations
+
+  Equipment Set      AHU, RTU, heat pump, furnace installation
+
+  Startup            Refrigerant charge, electrical connections, controls
+
+  Balance &          TAB report, airflow measurements, controls
+  Commission         programming
+  -----------------------------------------------------------------------
+
+-   Equipment schedule: tag, type (AHU/RTU/mini-split), make, model,
+    serial, tonnage, SEER/EER
+
+-   Duct layout tracking by zone with CFM requirements
+
+-   Manual J load calculation documentation and engineer reference
+
+-   Refrigerant log: refrigerant type, charge weight, EPA 608 technician
+    ID, date
+
+-   Startup checklist per equipment type
+
+-   Test and balance (TAB) report upload and data entry
+
+-   Warranty registration tracking and manufacturer contact
+
+-   Inspection types: Rough, Mechanical Final, Energy Compliance
+
+**8.5 Concrete / Masonry Module**
+
+-   Pour schedule with planned and actual pour dates
+
+-   Cure time tracking with calendar reminders for stripping / loading
+
+-   Mix design log: PSI, slump, water-cement ratio, admixtures, design
+    engineer
+
+-   Batch ticket attachment to each pour record
+
+-   Concrete break test tracking: cylinder ID, cast date, 7-day result,
+    28-day result, lab name
+
+-   Formwork and shoring inspection log with engineer stamp reference
+
+-   Cold and hot weather concrete procedure compliance checklist
+
+-   Masonry: block and brick count by wall/area, mortar mix design,
+    rebar placement and tie log
+
+-   Post-tension / PT cable tracking for PT slabs
+
+**8.6 Framing / Carpentry Module**
+
+  -----------------------------------------------------------------------
+  **Phase**          **Key Activities**
+  ------------------ ----------------------------------------------------
+  Layout &           Slab prep, anchor bolts, sill plates
+  Foundation         
+
+  Floor Framing      Joists, beams, subfloor sheathing
+
+  Wall Framing       Stud walls, headers, shear panels
+
+  Roof Framing       Rafters, trusses, ridge, hip/valley
+
+  Sheathing & Wrap   Roof and wall sheathing, housewrap/WRB
+  -----------------------------------------------------------------------
+
+-   Lumber delivery and material tracking by order/phase
+
+-   Structural hardware schedule: LVL beams, post caps, holdowns,
+    straps, joist hangers
+
+-   Shear wall and holdown placement log with engineering plan reference
+
+-   Framing inspection checklist by phase
+
+-   Advanced framing / OVE (Optimum Value Engineering) notation for
+    energy-code projects
+
+-   Truss certification and engineer stamp tracking
+
+**8.7 Roofing Module**
+
+  -----------------------------------------------------------------------
+  **Phase**          **Key Activities**
+  ------------------ ----------------------------------------------------
+  Tear-Off / Demo    Existing roof removal, debris haul-off, deck
+                     condition assessment
+
+  Deck Repair        Sheathing replacement, fastener schedule
+
+  Underlayment       Felt/synthetic install, ice and water shield at
+                     eaves and valleys
+
+  Field Install      Shingles, TPO/EPDM/modified bitumen, tile, metal
+                     panels
+
+  Flashing & Details Step flashing, counter flashing, pipe boots, ridge
+                     cap
+
+  Final & Inspection Manufacturer compliance check, photos, client
+                     walkthrough
+  -----------------------------------------------------------------------
+
+-   Material tracking by type: asphalt shingle, TPO, EPDM, modified
+    bitumen, tile, metal
+
+-   Manufacturer warranty compliance checklist (required for NDL/system
+    warranty)
+
+-   Penetration and flashing detail log with photo documentation
+
+-   Drone inspection photo upload and annotation
+
+-   Leak investigation and repair log with before/after photos
+
+-   Material delivery and dumpster/haul-off tracking
+
+**8.8 Painting / Finishing Module**
+
+  -----------------------------------------------------------------------
+  **Phase**          **Key Activities**
+  ------------------ ----------------------------------------------------
+  Surface Prep       Sanding, patching, caulking, priming surfaces
+
+  Prime Coat         Primer application by area/surface type
+
+  Body Coats         Primary color coats --- count and coverage
+
+  Trim & Detail      Doors, windows, millwork, accent colors
+
+  Touch-Up / Final   Punch list items, final coat review
+  -----------------------------------------------------------------------
+
+-   Paint schedule: room/area, surface type, manufacturer, product name,
+    color code, sheen, coat count
+
+-   Surface preparation log: sanding grit, patching compound, caulk
+    type, primer
+
+-   VOC (Volatile Organic Compound) compliance tracking for low-VOC and
+    zero-VOC specs
+
+-   Drywall punch and texture match log
+
+-   Material usage tracking: gallons per area, waste calculation
+
+**8.9 Landscaping / Sitework Module**
+
+  -----------------------------------------------------------------------
+  **Phase**          **Key Activities**
+  ------------------ ----------------------------------------------------
+  Demo & Clearing    Existing vegetation removal, grading prep
+
+  Rough Grading      Cut/fill operations, drainage swales, subgrade
+                     compaction
+
+  Underground        Irrigation mainline, electrical conduit, drainage
+  Utilities          pipe
+
+  Hardscape          Concrete flatwork, pavers, retaining walls, site
+                     furnishings
+
+  Softscape          Trees, shrubs, groundcover, sod, seeding
+
+  Irrigation         Lateral lines, heads, controllers, zone testing
+
+  Final Grading &    Finish grade, mulch, site cleanup, punch list
+  Cleanup            
+  -----------------------------------------------------------------------
+
+-   Grading plan reference with cut/fill volume tracking
+
+-   Compaction test log: location, date, test method, result (%), spec
+    requirement
+
+-   Plant material schedule: botanical/common name, container size,
+    quantity, supplier, warranty period
+
+-   Irrigation zone map with controller program documentation
+
+-   Irrigation system test log: zone, flow, pressure, head coverage,
+    pass/fail
+
+-   Erosion control and Best Management Practices (BMP) compliance log
+
+-   Stormwater management compliance documentation
+
+**8.10 Specialty Trades Module (Fire Suppression, Low Voltage, etc.)**
+
+-   Configurable phase template builder --- create custom phases for any
+    specialty trade
+
+-   Equipment and device schedule builder (customizable fields)
+
+-   AHJ (Authority Having Jurisdiction) specific inspection checklist
+    builder
+
+-   System test and acceptance documentation templates
+
+-   Hydraulic calculation reference attachment (fire suppression)
+
+-   As-built drawing log with version control
+
+-   Monitoring and service provider handoff documentation
+
+-   UL listing and listing number tracking for fire systems
+
+**9. Mobile Application Requirements**
+
+The mobile application is a first-class product --- not a stripped-down
+version of the web platform. Field use is the primary use case, and the
+mobile app is the primary touchpoint for foremen and field technicians.
+All critical field functions must be available on mobile with a native,
+fast, intuitive experience.
+
+**Platform Requirements**
+
+-   iOS (iPhone and iPad) --- iOS 16 and above
+
+-   Android --- Android 11 and above
+
+-   Offline mode: all critical field functions available without
+    internet connectivity
+
+-   Automatic background sync when connectivity is restored
+
+-   Push notifications for schedule changes, approvals, RFI responses,
+    and inspection results
+
+**Core Mobile Features**
+
+**Time & Attendance**
+
+-   GPS-verified clock in and clock out per job site
+
+-   Geofence alert if clock-in location does not match job site
+
+-   Break tracking
+
+-   Crew clock-in --- foreman can clock in multiple crew members
+    simultaneously
+
+-   Weekly hours summary per employee
+
+**Daily Field Reports**
+
+-   Voice-to-text notes for faster entry in the field
+
+-   Crew count entry with manpower hours
+
+-   Work performed description by trade/area
+
+-   Material deliveries received with quantity and supplier
+
+-   Equipment on site log
+
+-   Visitor and inspection log
+
+-   Weather conditions auto-populated via GPS location
+
+-   Photo attachment with automatic GPS and timestamp
+
+**Task Management**
+
+-   View assigned tasks for the day and week
+
+-   Mark tasks complete with optional photo proof
+
+-   Create tasks and assign to crew members
+
+-   View trade-specific phase checklist items
+
+**Document & Plan Viewer**
+
+-   Full plan set viewer with pinch-to-zoom
+
+-   Drawing markup and annotation tools in field
+
+-   RFI creation from a markup on a drawing
+
+-   Offline plan caching --- plans downloaded for offline access
+
+-   Always loads latest approved revision automatically
+
+**Inspections**
+
+-   Inspection checklist completion in field
+
+-   Pass/fail entry with notes
+
+-   Photo documentation attached per checklist item
+
+-   Automatic notification to PM on inspection completion or failure
+
+**Safety**
+
+-   Safety incident report creation
+
+-   Near-miss reporting
+
+-   Toolbox talk sign-off with digital crew signatures
+
+-   Photo documentation of hazards
+
+**Material & Delivery Tracking**
+
+-   Scan or photograph delivery tickets
+
+-   Confirm material receipt against purchase orders
+
+-   Flag short shipments or damaged materials
+
+**10. Integrations**
+
+  -----------------------------------------------------------------------------
+  **Integration**   **Type**         **Purpose**                 **Priority**
+  ----------------- ---------------- --------------------------- --------------
+  QuickBooks Online Bi-directional   Chart of accounts,          P1 --- v1.0
+                    sync             invoices, expenses, payroll 
+                                     --- real-time sync with job 
+                                     costing                     
+
+  QuickBooks        Bi-directional   Legacy QuickBooks Desktop   P1 --- v1.0
+  Desktop           sync             support via IIF file and    
+                                     API bridge                  
+
+  DocuSign          API              Contract execution, change  P1 --- v1.0
+                                     order signatures, lien      
+                                     waiver signatures           
+
+  Adobe Acrobat     API              Alternative e-signature     P2 --- v1.1
+  Sign                               option for tenants with     
+                                     Adobe licensing             
+
+  Stripe            API              Client invoice payment      P1 --- v1.0
+                                     processing, deposit         
+                                     collection, ACH             
+
+  Plaid / ACH       API              Subcontractor and vendor    P2 --- v1.1
+                                     payment processing          
+
+  Google Maps /     API              Job site navigation,        P1 --- v1.0
+  Apple Maps                         address validation,         
+                                     geofencing                  
+
+  Weather API       API              Automatic weather logging   P1 --- v1.0
+  (OpenWeather)                      on daily reports, forecast  
+                                     alerts for scheduling       
+
+  Twilio            API              SMS notifications to crews, P1 --- v1.0
+                                     subcontractors, and clients 
+
+  SendGrid          API              Transactional email         P1 --- v1.0
+                                     delivery --- notifications, 
+                                     reports, invitations        
+
+  Procore (Import)  One-way import   Project and document        P2 --- v1.1
+                                     migration for customers     
+                                     switching from Procore      
+
+  Autodesk / BIM    One-way import   Plan and document import    P3 --- v2.0
+  360 (Import)                       from Autodesk ecosystem     
+
+  Sage Intacct      Bi-directional   Enterprise accounting       P3 --- v2.0
+  Construction      sync             integration for larger      
+                                     tenants                     
+
+  Levelset          API              Automated preliminary       P2 --- v1.1
+                                     notice and lien waiver      
+                                     services                    
+  -----------------------------------------------------------------------------
+
+**QuickBooks Integration --- Detail**
+
+QuickBooks is the primary integration and a key purchase driver. The
+integration must support:
+
+-   Bi-directional sync of customers, vendors, and chart of accounts
+
+-   Automatic creation of invoices in QuickBooks when a draw is approved
+    in the platform
+
+-   Expense and bill sync to job cost categories
+
+-   Payroll hours export to QuickBooks Payroll or ADP
+
+-   Bank reconciliation-ready reporting
+
+-   Class tracking mapped to project/job codes
+
+-   Sub-customer hierarchy for project-level P&L in QuickBooks
+
+**11. Non-Functional Requirements**
+
+**11.1 Performance**
+
+  -----------------------------------------------------------------------
+  **Requirement**                     **Target**
+  ----------------------------------- -----------------------------------
+  Page load time (web app)            \< 2 seconds for all primary
+                                      screens
+
+  Mobile app launch time              \< 3 seconds cold start
+
+  API response time (P95)             \< 500ms for standard queries
+
+  Plan viewer load (large file set)   \< 5 seconds for initial render
+
+  File upload (documents/photos)      Resumable uploads; 100MB max per
+                                      file
+
+  Concurrent users per tenant         Support 500+ concurrent users at
+                                      Business/Enterprise tier
+
+  Report generation                   \< 10 seconds for standard reports;
+                                      async for large exports
+  -----------------------------------------------------------------------
+
+**11.2 Security**
+
+-   SOC 2 Type II compliance roadmap (target: 18 months post-launch)
+
+-   TLS 1.3 encryption for all data in transit
+
+-   AES-256 encryption for all data at rest
+
+-   Tenant-level encryption key management for sensitive data
+
+-   Multi-factor authentication (MFA) option for all users; enforceable
+    by tenant admin
+
+-   Role-based access control enforced at API layer --- no client-side
+    permission bypass possible
+
+-   Complete tenant data isolation --- row-level security on all
+    database queries
+
+-   Regular penetration testing (quarterly)
+
+-   Vulnerability disclosure policy and bug bounty program
+
+-   GDPR-ready data handling for future international expansion
+
+**11.3 Reliability & Availability**
+
+-   99.9% uptime SLA for Business and Enterprise tiers
+
+-   99.5% uptime SLA for Starter and Professional tiers
+
+-   Automated daily backups with 30-day retention
+
+-   Point-in-time recovery capability
+
+-   Multi-region failover for database and file storage
+
+-   Incident status page with real-time updates
+
+**11.4 Scalability**
+
+-   Horizontal scaling of application tier --- auto-scaling based on
+    load
+
+-   Database read replicas for reporting and analytics workloads
+
+-   CDN delivery for all static assets and plan files
+
+-   Tenant-aware rate limiting to prevent noisy-neighbor degradation
+
+-   Architecture supports migration of high-volume tenants to dedicated
+    infrastructure
+
+**11.5 Data & Privacy**
+
+-   Tenant data export available on demand (full JSON/CSV export)
+
+-   Data deletion workflow on tenant cancellation (30-day grace period,
+    then purge)
+
+-   Personally identifiable information (PII) handling policy
+
+-   Document retention configurable per tenant
+
+**12. Subscription Tiers & Pricing**
+
+**Pricing Philosophy**
+
+Tiers are structured around company scale and operational complexity ---
+not contractor type. A masonry company, an electrical contractor, and a
+general contractor with the same team size and project volume belong on
+the same tier. What differs is which trade modules and optional features
+they activate. Every tier is fully trade-neutral at onboarding: the
+company selects their trade type and the platform configures their
+default modules accordingly.
+
+The GC module is not assumed or forced on any tenant. It is an optional
+activation available from the Business tier upward, or available as a
+paid add-on for Professional tier companies that occasionally perform
+general contracting work.
+
+  ------------------------------------------------------------------------------------------
+  **Tier**       **Price**     **Users**   **Projects**   **Trade     **Key Features**
+                                                          Modules**   
+  -------------- ------------- ----------- -------------- ----------- ----------------------
+  Starter        \$149/mo      Up to 5     Up to 5 active 1 (any      Core scheduling, daily
+                                                          trade)      reports, basic client
+                                                                      portal, mobile app,
+                                                                      QuickBooks sync, 10GB
+                                                                      storage
+
+  Professional   \$349/mo      Up to 20    Up to 20       Up to 2     Full financials, job
+                                           active         (any trade) costing, change
+                                                                      orders, lien tracking,
+                                                                      subcontractor
+                                                                      management
+                                                                      (vendor-style), RFI &
+                                                                      submittal logs,
+                                                                      inspection tracking,
+                                                                      full client portal,
+                                                                      100GB storage
+
+  Business       \$749/mo      Up to 50    Unlimited      Up to 5     GC module (optional
+                                                          (any trade) activation),
+                                                                      cross-tenant
+                                                                      collaboration, AIA
+                                                                      billing, bid leveling,
+                                                                      crew & resource
+                                                                      management, advanced
+                                                                      reporting, 500GB
+                                                                      storage
+
+  Enterprise     \$1,499+/mo   Unlimited   Unlimited      All modules All Business features,
+                                                          included    white-label client
+                                                                      portal, certified
+                                                                      payroll, API access,
+                                                                      custom workflows &
+                                                                      fields, dedicated
+                                                                      onboarding, account
+                                                                      manager, SLA
+                                                                      guarantee, unlimited
+                                                                      storage
+  ------------------------------------------------------------------------------------------
+
+**Tier Guidance by Company Type**
+
+The following examples illustrate how different types of companies map
+to tiers based on their scale --- not their trade:
+
+  ------------------------------------------------------------------------
+  **Company Example**   **Recommended   **Why**
+                        Tier**          
+  --------------------- --------------- ----------------------------------
+  2-person masonry      Starter         Small team, low project volume,
+  crew, 3--4 active                     single trade workflow
+  jobs                                  
+
+  10-person electrical  Professional    Growing team, multi-project
+  company, residential                  financials, client billing needs
+  & light commercial                    
+
+  25-person plumbing    Business        High project volume, multi-foreman
+  company, active                       crews, reporting depth
+  commercial work                       
+
+  15-person GC, builds  Professional or Professional if managing subs as
+  homes and pole barns, Business        vendors; Business if cross-tenant
+  subs out electrical &                 collaboration needed
+  plumbing                              
+
+  40-person GC with     Business        Mixed self-perform and sub
+  internal framing                      management, AIA billing, multiple
+  crew, subs out MEP                    trade modules
+  trades                                
+
+  80-person multi-trade Enterprise      Full trade module suite, large
+  contractor,                           user base, white-label portal for
+  residential &                         clients
+  commercial                            
+  ------------------------------------------------------------------------
+
+**Job Type Configuration**
+
+At the project level, each job is configured with a Job Type that shapes
+the interface and active features for that project. This allows a single
+tenant to run different types of work simultaneously without confusion:
+
+  -----------------------------------------------------------------------
+  **Job Type**     **Description**                **Typical User**
+  ---------------- ------------------------------ -----------------------
+  Self-Perform     Company is running the full    Any trade contractor
+  Prime            job with their own crews       running their own
+                                                  projects
+
+  GC with Subs     Company is the GC managing     General contractors,
+                   subcontracted scopes           construction managers
+
+  Trade Prime      Trade company running a job    Electricians, plumbers,
+                   directly as the prime          masons as prime on
+                   contractor                     smaller jobs
+
+  Subcontract Work Job originated from a GC       Any trade company
+                   assigning scope to this        working under a GC
+                   company                        
+
+  Mixed            GC who also self-performs one  GC with in-house
+                   or more trade scopes           framing, concrete, or
+                                                  sitework crews
+  -----------------------------------------------------------------------
+
+**Add-On Pricing**
+
+  ---------------------------------------------------------------------------
+  **Add-On**             **Price**         **Available On**
+  ---------------------- ----------------- ----------------------------------
+  Additional trade       \$79/month each   All tiers
+  module                                   
+
+  GC module              \$99/month        Professional (occasional GC work)
+
+  Cross-tenant           \$149/month       Professional (as upgrade bridge to
+  collaboration                            Business feature)
+
+  Additional user seats  \$25/user/month   All tiers
+  (beyond plan limit)                      
+
+  Advanced analytics &   \$99/month        Professional and above
+  custom reporting                         
+
+  White-label client     \$149/month       Starter and Professional
+  portal                                   
+
+  Dedicated account      \$299/month       Professional and above
+  manager                                  
+
+  Data migration /       \$499 -- \$1,999  All tiers
+  onboarding package     one-time          
+
+  API access             \$199/month       Business (non-Enterprise)
+
+  Certified payroll      \$99/month        Business (non-Enterprise)
+  module                                   
+  ---------------------------------------------------------------------------
+
+**Free Tier --- Subcontractor Portal**
+
+Non-tenant subcontractors invited to a project by any paying tenant
+receive a free limited portal account. This eliminates the adoption
+barrier for GCs whose subs are not yet on the platform, and creates an
+organic conversion funnel --- subs experience the platform value through
+project participation and convert to paid tenants when ready.
+
+Free portal users can: view their assigned scope and schedule, submit
+invoices for approval, upload submittals and respond to RFIs, submit
+daily field reports, view inspection results, and communicate through
+the project message thread. They cannot access company-level features,
+manage their own independent projects, run financials, or use
+trade-specific workflows without upgrading to a paid subscription.
+
+**13. Implementation Roadmap**
+
+**Phase 1 --- MVP (v1.0)**
+
+Target: 6--9 months from kickoff
+
+-   Multi-tenant architecture foundation
+
+-   Tenant self-serve signup and onboarding wizard
+
+-   User roles and permissions system
+
+-   Project management: scheduling (Gantt), budget tracking, change
+    orders
+
+-   Document management: uploads, version control, RFI log, submittal
+    log
+
+-   Daily field reports and photo management
+
+-   Client portal: progress, change order approvals, invoicing
+
+-   Mobile app: iOS and Android --- clock-in, reports, task tracking,
+    plan viewer
+
+-   3 trade modules at launch: General Contracting, Electrical, Plumbing
+
+-   QuickBooks Online integration
+
+-   Stripe payment integration
+
+-   Basic reporting engine
+
+-   Starter and Professional subscription tiers live
+
+**Phase 2 --- v1.1**
+
+Target: 3--4 months post v1.0 launch
+
+-   Additional trade modules: HVAC, Concrete/Masonry, Framing/Carpentry
+
+-   Cross-tenant collaboration (GC-to-Sub connection)
+
+-   AIA billing (G702/G703)
+
+-   Lien management module
+
+-   Subcontractor bid leveling tool
+
+-   Business subscription tier live
+
+-   QuickBooks Desktop integration
+
+-   Adobe Acrobat Sign integration
+
+-   Procore import tool
+
+**Phase 3 --- v2.0**
+
+Target: 6 months post v1.1
+
+-   Remaining trade modules: Roofing, Painting, Landscaping, Specialty
+    Trades
+
+-   Enterprise subscription tier live
+
+-   White-label portal configuration
+
+-   Advanced analytics and custom report builder
+
+-   Certified payroll (Davis-Bacon)
+
+-   Sage Intacct Construction integration
+
+-   BIM/Autodesk import
+
+-   API access for enterprise tenants
+
+-   AI-assisted scheduling and cost forecasting (initial)
+
+**14. Open Questions & Decisions Required**
+
+  ----------------------------------------------------------------------------
+  **\#**   **Question**                          **Owner**        **Status**
+  -------- ------------------------------------- ---------------- ------------
+  1        Final product name and brand identity Founders         Open
+
+  2        Technology stack selection (frontend, Engineering Lead Open
+           backend, database, cloud provider)                     
+
+  3        Self-serve signup vs. sales-assisted  Product / Sales  Open
+           onboarding for Enterprise tier                         
+
+  4        Cross-tenant data ownership and       Legal / Product  Open
+           retention policy on tenant                             
+           cancellation                                           
+
+  5        Dispute resolution workflow for       Product          Open
+           cross-tenant task completion                           
+           disagreements                                          
+
+  6        White-label depth --- domain          Product          Open
+           customization, email whitelabeling,                    
+           full rebranding                                        
+
+  7        Mobile app: native (Swift/Kotlin) vs. Engineering Lead Open
+           cross-platform (React Native/Flutter)                  
+
+  8        International support timeline and    Product          Open
+           multi-currency requirements                            
+
+  9        GDPR compliance timeline for European Legal            Open
+           market entry                                           
+
+  10       Pricing for sub-accounts within a     Product /        Open
+           single tenant (e.g. branch offices)   Finance          
+  ----------------------------------------------------------------------------
+
+**Appendix A --- Glossary**
+
+  -----------------------------------------------------------------------
+  **Term**           **Definition**
+  ------------------ ----------------------------------------------------
+  Tenant             A subscribing company on the platform --- has its
+                     own isolated data environment
+
+  Multi-Tenant       Architecture where multiple companies share the same
+                     platform infrastructure with isolated data
+
+  Cross-Tenant       Feature enabling two separate tenants (GC and Sub)
+  Collaboration      to share project data through a governed bridge
+
+  Trade Module       A discipline-specific feature set with phase gates,
+                     checklists, and data fields for one construction
+                     trade
+
+  Shared Project     The controlled data bridge between two connected
+  Layer              tenants on a shared project
+
+  AIA Billing        American Institute of Architects standard billing
+                     format (G702/G703) for progress billing on
+                     construction projects
+
+  CSI Division       Construction Specifications Institute numbering
+                     system for organizing construction work by category
+
+  Lien Waiver        Legal document releasing a party\'s right to file a
+                     mechanic\'s lien against a property
+
+  Preliminary Notice Legal notice required in many states to preserve
+                     lien rights before work begins
+
+  GMP                Guaranteed Maximum Price --- contract type where the
+                     contractor assumes risk for cost overruns above a
+                     ceiling
+
+  Davis-Bacon        Federal law requiring prevailing wage rates on
+                     public construction projects, requiring certified
+                     payroll
+
+  RFI                Request for Information --- formal document
+                     requesting clarification from the design team
+
+  Submittal          Material or shop drawing submitted by a contractor
+                     for design team review and approval
+
+  COI                Certificate of Insurance --- document verifying a
+                     subcontractor\'s insurance coverage
+
+  TAB                Test, Adjust, and Balance --- HVAC commissioning
+                     process verifying airflow and system performance
+
+  AFCI / GFCI        Arc Fault Circuit Interrupter / Ground Fault Circuit
+                     Interrupter --- electrical safety devices required
+                     by code
+
+  MRR                Monthly Recurring Revenue --- primary SaaS business
+                     metric
+
+  CAGR               Compound Annual Growth Rate --- measure of market or
+                     revenue growth over time
+  -----------------------------------------------------------------------
+
+**12. Internationalization & Localization**
+
+Multilingual support is not a feature --- it is a foundational product
+requirement. The US construction workforce is 31% Hispanic/Latino (2024
+BLS/CPWR data), a share growing every year. In New York City, Spanish is
+now spoken by 39.3% of construction workers --- nearly matching English
+at 40.1%. In Texas, California, and Florida combined, over 834,000 +
+808,000 + 317,000 Hispanic construction workers represent more than half
+the national Hispanic construction workforce. A platform that doesn\'t
+speak Spanish cannot serve this industry.
+
+> **Safety Imperative:**
+>
+> This is not only a market access issue --- it is a safety and
+> liability issue. The National Safety Council documents a 25% reduction
+> in jobsite incidents at companies offering multilingual safety
+> training. Inspection result notifications, safety warnings, and
+> compliance documents sent in a language workers cannot read create
+> direct legal exposure. Spanish support in v1.0 is mandatory, not
+> optional.
+
+**12.1 Language Tier Strategy**
+
+  -----------------------------------------------------------------------------
+  **Tier**     **Languages**   **Target    **Workforce Basis**
+                               Release**   
+  ------------ --------------- ----------- ------------------------------------
+  **Tier 1 --- English (EN) +  v1.0 launch 31% of US construction workforce is
+  Required**   Spanish (ES)                Hispanic/Latino. In NYC Spanish
+                                           matches English nearly 1:1 (39.3% vs
+                                           40.1%). TX, CA, FL hold 50%+ of the
+                                           Hispanic construction workforce.
+
+  **Tier 2 --- Portuguese ---  v1.1        1.8% of foreign-born construction
+  High         Brazilian                   workers. Major concentrations in
+  Priority**   (PT-BR)                     Greater Boston, Miami, New Jersey,
+                                           Texas. Brazilian construction crews
+                                           are a well-documented regional
+                                           workforce.
+
+  **Tier 2 --- Haitian Creole  v1.1        Significant workforce in Florida
+  High         (HT)                        (Miami), New York, Boston.
+  Priority**                               Explicitly added to US Dept of
+                                           Labor\'s MigrantWorker.gov as a
+                                           priority construction language.
+
+  **Tier 3 --- Polish (PL) +   v2.0        Polish: 1.5% of foreign-born
+  Planned**    Ukrainian (UK)              construction workers --- heavy
+                                           Midwest presence (Chicago, Detroit).
+                                           Ukrainian: surged post-2022
+                                           invasion; concentrated Northeast +
+                                           Midwest.
+
+  **Tier 3 --- Vietnamese (VI) v2.0        Gulf Coast (Houston, New Orleans),
+  Planned**                                California, Pacific Northwest.
+                                           Notably strong in framing and
+                                           finishing trades.
+
+  **Tier 4 --- Tagalog (TL),   v2.0+       Tagalog: California, Pacific
+  Future**     Arabic (AR),                Northwest. Arabic: Midwest,
+               Mandarin                    Mid-Atlantic. Mandarin: more
+               Simplified                  relevant at PM/owner level for
+               (ZH-CN)                     Asian-owned GC businesses.
+  -----------------------------------------------------------------------------
+
+**12.2 Translation Scope by Feature**
+
+  ------------------------------------------------------------------------
+  **Feature Area**   **Tier 1   **Tier 2   **Why**
+                     (ES)       (PT/HT)    
+                     v1.0**     v1.1**     
+  ------------------ ---------- ---------- -------------------------------
+  Mobile app --- all **✓**      **✓**      Field workers use mobile only.
+  field screens                            Clock-in, daily reports, task
+                                           completion must be fully
+                                           bilingual.
+
+  Push               **✓**      **✓**      Inspection failures, schedule
+  notifications +                          changes --- unread because
+  SMS                                      they\'re in English = real
+                                           project risk.
+
+  Safety warnings &  **✓**      **✓**      OSHA liability. Multilingual
+  safety documents                         safety training reduces jobsite
+                                           incidents by 25% (National
+                                           Safety Council).
+
+  Onboarding wizard  **✓**      **✓**      Spanish-speaking owners signing
+                                           up need to complete initial
+                                           setup in their language.
+
+  Subcontractor      **✓**      **✓**      Sub portal users skew heavily
+  portal                                   non-English. This is the
+                                           primary free-tier acquisition
+                                           channel.
+
+  Email              **✓**      **✓**      All system emails sent in
+  notifications                            user\'s preferred_language ---
+                                           set at account level.
+
+  Web platform (PM / **◑**      **◑**      Office PMs tend to be more
+  office views)                            bilingual. Full web i18n
+                                           follows mobile as v1.1
+                                           priority.
+
+  Client portal      **◑**      **◑**      Spanish-speaking property
+                                           owners as GC clients are
+                                           common, especially in
+                                           residential TI.
+
+  Error messages +   **✓**      **✓**      Required for usability --- a
+  validation text                          field error in the wrong
+                                           language defeats the purpose.
+
+  Legal documents    v2.0       v2.0       Translated legal docs require
+  (lien waivers,                           attorney review per state.
+  contracts)                               English version controls;
+                                           translation is reference only.
+  ------------------------------------------------------------------------
+
+**12.3 Technical i18n Requirements**
+
+  -----------------------------------------------------------------------
+  **Requirement**     **Specification**
+  ------------------- ---------------------------------------------------
+  i18n library        react-i18next --- shared across React web app and
+                      React Native mobile app. Consistent translation key
+                      namespace across platforms.
+
+  Translation file    JSON files organized by namespace --- one namespace
+  format              per major feature area (e.g. schedule.json,
+                      financials.json, field.json, common.json).
+                      Namespaced to prevent key collisions and enable
+                      lazy loading.
+
+  Locale detection    Browser Accept-Language header → user account
+  --- web             preferred_language setting → tenant
+                      default_language → EN fallback.
+
+  Locale detection    Device system locale → user account
+  --- mobile          preferred_language → EN fallback. User can override
+                      in Profile settings.
+
+  Date / time         Intl.DateTimeFormat API throughout --- never
+  formatting          hardcoded date strings. Locale-aware: MM/DD/YYYY
+                      (en-US), DD/MM/YYYY (es, pt-BR).
+
+  Number / currency   Intl.NumberFormat API --- currency amounts always
+  formatting          in locale format. Amounts in cents on the wire;
+                      formatted for display per locale.
+
+  String length       Spanish and Portuguese strings are typically 20-30%
+  accommodation       longer than English equivalents. All UI components
+                      must be tested with ES strings --- no truncation of
+                      critical labels.
+
+  Pluralization       react-i18next i18nPlurals --- handles irregular
+                      plurals per language (English: 1 item / 2 items;
+                      Spanish: 1 elemento / 2 elementos).
+
+  RTL preparation     Arabic (Tier 4) requires right-to-left layout. CSS
+                      logical properties (margin-inline-start instead of
+                      margin-left) used throughout from v1.0 so RTL is an
+                      enablement, not a rebuild.
+
+  Translation         Phrase, Lokalise, or Crowdin (TBD) as translation
+  management          management platform. Professional translators for
+                      all Tier 1 and Tier 2 content --- no machine
+                      translation for safety-critical text.
+
+  Missing translation EN fallback for any untranslated key --- never
+  fallback            display a raw key string to users.
+  -----------------------------------------------------------------------
+
+**12.4 Translation Workflow**
+
+-   All user-facing strings defined in English source files first --- no
+    hardcoded strings in component code
+
+-   Phrase/Lokalise integrated with GitHub --- new keys auto-flagged for
+    translation on PR merge
+
+-   Professional human translators for all safety-related strings, legal
+    terminology, and field-worker-facing UI
+
+-   Machine translation (DeepL) acceptable for internal admin screens
+    and low-risk UI copy, reviewed before shipping
+
+-   Native speaker QA for each language before release --- a bilingual
+    construction professional, not just a language translator
+
+-   Spanish translation complete and QA-passed as a v1.0 launch gate ---
+    no exceptions

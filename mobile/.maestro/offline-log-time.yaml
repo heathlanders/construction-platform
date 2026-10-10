@@ -1,0 +1,37 @@
+# Log hours while the device has NO network.
+#
+# Assumes an already-logged-in app (run login.yaml first) and that the harness has
+# cut the radio — see run-offline-sync.sh, which is the only supported way to run
+# this file. On its own it still passes with a live network; the point is what it
+# proves when paired with the toggle.
+#
+# The entry lands in WatermelonDB as sync_status='pending'; the POST fails silently
+# (`catch { /* offline — stays pending */ }` in TimeHubScreen). Nothing renders it
+# yet — Today's Entries is fed from the API, not the local DB — which is exactly
+# why the companion flow asserting it AFTER sync is the real proof.
+appId: com.thejobsite.app
+# HOURS is REQUIRED from the harness (-e HOURS=…). No default on purpose: a flow-level
+# `env:` default silently wins over -e, which made a randomised run log 3.25 anyway.
+---
+- launchApp
+
+- tapOn: 'Time'
+- assertVisible: '＋ Add Hours'
+- tapOn: '＋ Add Hours'
+
+- assertVisible: 'Hours Worked'   # field ns `hours`, not the bare word
+- tapOn: '8.0'                    # placeholder of the hours input
+- inputText: ${HOURS}
+- hideKeyboard
+
+- tapOn: 'Submit'
+
+# The confirmation fires from the LOCAL write, before (and regardless of) the POST —
+# which is the offline-first contract: the worker is told it's saved because it is.
+- assertVisible: 'Time logged successfully'
+- tapOn: 'OK'
+
+# Back on the hub. No assertion on the value here on purpose: offline it is NOT
+# displayed (Today's Entries reads the API), and asserting it would make the flow
+# pass for the wrong reason if the radio were still up.
+- assertVisible: '＋ Add Hours'

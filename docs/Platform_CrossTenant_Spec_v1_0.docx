@@ -1,0 +1,959 @@
+**\[PLATFORM NAME\]**
+
+Construction Management Platform
+
+**CROSS-TENANT COLLABORATION SPEC**
+
+*Document 7 of 9 \| Version 1.0 \| v1.1 Feature \| Confidential*
+
+March 2026
+
+FOR ENGINEERING & PRODUCT --- CONFIDENTIAL
+
+**Table of Contents**
+
+**1. Overview & Design Goals**
+
+> **Release Target:**
+>
+> Cross-tenant collaboration is a v1.1 feature. The database schema and
+> API foundations are laid in v1.0, but the feature is not
+> user-accessible until v1.1. This document specifies the complete
+> design so v1.0 development does not create structural barriers to v1.1
+> delivery.
+
+Cross-tenant collaboration is the platform\'s defining differentiator.
+No major competitor offers true multi-tenant collaboration where two
+independent companies --- a General Contractor and a Subcontractor ---
+each operate their own full platform environment and selectively share
+project data across a governed bridge.
+
+This document specifies the complete design: use cases, data flow,
+permission model, UI/UX workflows, API contracts, security model, and
+edge cases.
+
+**1.1 Design Goals**
+
+-   Each tenant remains completely independent --- no data merges, no
+    shared tables, no loss of data sovereignty
+
+-   The collaboration bridge is opt-in --- both parties must consent
+    before any data flows
+
+-   The data that crosses the bridge is explicitly governed --- neither
+    party sees more than what was agreed
+
+-   The GC sees their project as a unified whole even though sub data
+    crosses from another tenant
+
+-   The Sub sees the GC project as a job in their own dashboard
+    alongside their other independent work
+
+-   The connection can be dissolved cleanly --- both parties retain
+    their own records after disconnect
+
+-   The architecture is extensible --- designed for 2-party connections
+    but capable of N-party in future
+
+**1.2 The Problem Being Solved**
+
+Today, a GC manages a project with 8 subcontractors using a mix of
+email, spreadsheets, text messages, and a single-tenant PM tool. The
+problems:
+
+-   Subs don\'t have visibility into the GC\'s schedule --- they show up
+    when told, often too early or too late
+
+-   GC has no real-time visibility into sub progress --- they must make
+    phone calls for status updates
+
+-   Sub invoices are submitted via email, approved via email, tracked in
+    a spreadsheet
+
+-   Lien waivers are paper documents --- collected inconsistently, often
+    missing at closeout
+
+-   RFIs bounce back and forth in email --- no central log, frequent
+    duplication
+
+-   When a sub\'s work fails inspection, the GC learns about it via
+    phone call, hours or days later
+
+Cross-tenant collaboration solves all of these --- in real time, with
+both parties in their own native environment, without either party
+having to adopt a foreign tool or share sensitive internal data.
+
+**2. Use Cases**
+
+**2.1 Primary Use Case: GC Managing Trade Subs**
+
+ABC General Contractors is building a 12-unit apartment complex. They
+have awarded scopes to:
+
+-   Smith Electrical Co. --- Electrical (tenant on platform)
+
+-   Martinez Plumbing LLC --- Plumbing (tenant on platform)
+
+-   Northeast Framing Inc. --- Framing (not on platform --- free portal)
+
+Smith Electrical and Martinez Plumbing are full platform tenants. Each
+has their own company environment, their own projects, their own
+financials, and their own team. When ABC GC connects with them on the
+apartment project:
+
+-   The apartment job appears in Smith Electrical\'s dashboard as one of
+    their active jobs
+
+-   Smith\'s electricians clock in and out against the GC\'s project ---
+    those hours flow into Smith\'s own payroll and job costing
+
+-   When Smith completes a rough-in phase, ABC GC sees it update on
+    their project dashboard in real time
+
+-   When the rough electrical fails inspection, both ABC GC\'s PM and
+    Smith Electric\'s PM are notified simultaneously
+
+-   Smith submits their draw invoice through the platform --- ABC GC
+    reviews and approves without leaving their dashboard
+
+-   Northeast Framing (not a tenant) accesses a free limited portal ---
+    submits daily reports and invoices, but has no full platform
+    environment
+
+**2.2 Secondary Use Case: Trade Prime with Specialty Sub**
+
+Smith Electrical (a tenant) wins a prime contract on a commercial
+building. They sub out the fire alarm work to a specialty contractor.
+Smith acts as the prime --- they initiate the connection and the
+specialty sub receives a portal invite or platform connection. Same
+architecture, same data governance --- the \'GC\' role is held by Smith
+in this context.
+
+**2.3 Scope Boundary: What Is NOT Cross-Tenant Collaboration**
+
+-   A GC adding a vendor (sub) to their vendor database --- this is
+    single-tenant, no data bridge
+
+-   A GC creating a \'subcontractor\' record and tracking their scope
+    internally --- still single-tenant
+
+-   A client accessing their project portal --- this is a portal user
+    within the GC\'s tenant, not a separate tenant
+
+-   A GC inviting a sub who is not a platform tenant to a free portal
+    --- this is the Sub Portal feature, not full cross-tenant
+    collaboration
+
+**3. Connection Model**
+
+**3.1 Connection States**
+
+  ----------------------------------------------------------------------------------
+  **State**          **Description**        **Who Can          **Data Access**
+                                            Transition**       
+  ------------------ ---------------------- ------------------ ---------------------
+  **Pending**        GC has sent connection Sub accepts or     No data flows yet ---
+                     request --- Sub has    declines; GC can   invitation metadata
+                     not yet responded      cancel             only
+
+  **Active**         Both parties have      Either party can   Governed data flows
+                     accepted --- shared    close/disconnect   in real time per
+                     project layer is live                     permissions matrix
+
+  **Completed**      Project closeout ---   GC PM initiates,   Shared data archived
+                     connection formally    Sub confirms       for both parties ---
+                     completed by GC PM                        read-only bridge
+
+  **Disconnected**   Either party ended the Either party can   Bridge closed ---
+                     connection             disconnect at any  each party retains
+                                            time               their own archived
+                                                               copy of shared events
+
+  **Rejected**       Sub declined the       Sub only           No data ever flowed
+                     connection request                        --- request archived
+  ----------------------------------------------------------------------------------
+
+**3.2 Connection Initiation Flow**
+
+1.  GC PM opens a project and navigates to the Subcontractors section
+
+2.  GC PM selects a vendor from their vendor database or enters a new
+    company name + email
+
+3.  Platform checks: does an active tenant exist with this email domain
+    or company name match?
+
+    -   If YES → displays \'This company appears to be on \[PLATFORM
+        NAME\]. Send a platform connection request?\' with brief
+        explanation
+
+    -   If NO → defaults to portal invite (free limited portal flow)
+
+4.  GC PM defines the connection scope: which project, brief scope
+    description, and contract value (optional)
+
+5.  GC PM selects data sharing permissions --- pre-populated with
+    sensible defaults (see Section 5)
+
+6.  Platform generates a connection request --- creates a
+    tenant_connections record with status=\'pending\'
+
+7.  Sub tenant\'s Owner and any PMs receive an in-app notification and
+    email: \'\[GC Company\] has invited \[Sub Company\] to collaborate
+    on \[Project Name\] via \[PLATFORM NAME\]\'
+
+8.  Sub reviews: project name, scope description, GC company profile,
+    and proposed data sharing permissions
+
+9.  Sub accepts or declines:
+
+    -   Accept → status=\'active\', shared project layer instantiated,
+        job appears in Sub\'s dashboard
+
+    -   Decline → status=\'rejected\', GC notified, GC defaults to
+        portal invite flow if desired
+
+**3.3 Connection Discovery --- Matching Logic**
+
+The platform uses fuzzy matching to identify potential tenant
+connections when a GC enters a subcontractor:
+
+  ----------------------------------------------------------------------------
+  **Signal**             **Confidence**   **Action**
+  ---------------------- ---------------- ------------------------------------
+  Email domain exact     High             Prompt for platform connection with
+  match (e.g.                             high confidence message
+  smith-electric.com)                     
+
+  Company name exact or  Medium           Prompt with lower confidence: \'Did
+  very close match                        you mean Smith Electrical Co. on
+  (Levenshtein distance                   \[PLATFORM NAME\]?\'
+  \< 2)                                   
+
+  Email address direct   Very High        \'John Smith at Smith Electrical is
+  match to existing user                  already on \[PLATFORM NAME\].
+                                          Connect directly?\'
+
+  No match found         ---              Default to portal invite --- no
+                                          platform connection prompt
+  ----------------------------------------------------------------------------
+
+> **Privacy Note:**
+>
+> The matching process only reveals that a tenant with a matching
+> name/domain exists on the platform --- it does not expose any details
+> about that tenant\'s business, projects, or users. The GC sees only:
+> company name, trade type, and a \'verified platform tenant\' badge.
+
+**4. Data Governance Model**
+
+This is the most architecturally critical section of the spec. The data
+governance model defines exactly what crosses the tenant boundary, how
+it flows, and what data sovereignty guarantees each party has.
+
+**4.1 The Golden Rule**
+
+> **Golden Rule:**
+>
+> Sub\'s internal business data NEVER lives in the GC\'s tenant tables.
+> GC\'s internal business data NEVER lives in the Sub\'s tenant tables.
+> All shared data lives in a neutral shared_project_events bridge table
+> that neither tenant \'owns\'. Both tenants read from this bridge.
+> Neither tenant can modify the other\'s native records.
+
+**4.2 Data Flow Architecture**
+
+> ┌─────────────────────────────────────────────────────────────────┐
+>
+> │ GC TENANT (t_001) │ SUB TENANT (t_002) │
+>
+> │ │ │
+>
+> │ project.id = p_100 │ project.id = p_200 │
+>
+> │ (GC\'s internal project) │ (Sub\'s internal project record │
+>
+> │ │ created when connection │
+>
+> │ │ accepted) │
+>
+> │ │ │ │ │
+>
+> │ │ WRITES │ WRITES │ │
+>
+> │ ▼ │ ▼ │
+>
+> │ ┌──────────────────────────────────────────────────────────┐ │
+>
+> │ │ SHARED PROJECT EVENTS BRIDGE │ │
+>
+> │ │ connection_id = c_500 │ │
+>
+> │ │ (neutral --- belongs to neither tenant) │ │
+>
+> │ │ │ │
+>
+> │ │ event: task_completed (source: t_002) │ │
+>
+> │ │ event: inspection_pass (source: t_002) │ │
+>
+> │ │ event: invoice_submit (source: t_002) │ │
+>
+> │ │ event: daily_report (source: t_002) │ │
+>
+> │ │ event: rfi_response (source: t_002) │ │
+>
+> │ └──────────────────────────────────────────────────────────┘ │
+>
+> │ │ │ │ │
+>
+> │ │ READS │ READS │ │
+>
+> │ ▼ │ ▼ │
+>
+> │ GC sees sub\'s scope │ Sub sees GC\'s shared tasks, │
+>
+> │ progress in their │ schedule, and their own │
+>
+> │ project dashboard │ scope in their dashboard │
+>
+> └─────────────────────────────────────────────────────────────────┘
+
+**4.3 Shared Event Types**
+
+  ------------------------------------------------------------------------------------
+  **Event Type**           **Source   **Consumers**   **Data Included**
+                           Tenant**                   
+  ------------------------ ---------- --------------- --------------------------------
+  task_completed           Sub        GC reads        Task ID (mapped), phase,
+                                                      completion timestamp, notes,
+                                                      photos (optional)
+
+  task_uncompleted         Sub        GC reads        Task ID (mapped), reason for
+                                                      un-completion
+
+  inspection_scheduled     Either     Both read       Inspection type, date, inspector
+                                                      contact, jurisdiction
+
+  inspection_result        Either     Both read       Pass/fail, notes, correction
+                                                      items, photos
+
+  daily_report_submitted   Sub        GC reads        Date, manpower count, total
+                                                      hours, work performed summary,
+                                                      weather
+
+  invoice_submitted        Sub        GC reads        Invoice number, period, amount,
+                                                      line items summary
+
+  invoice_approved         GC         Sub reads       Invoice number, approved amount,
+                                                      payment due date
+
+  invoice_paid             GC         Sub reads       Invoice number, paid amount,
+                                                      payment date, reference
+
+  rfi_created              Either     Both read       RFI number, subject, drawing
+                                                      reference, due date
+
+  rfi_responded            Either     Both read       RFI number, response text,
+                                                      responding party
+
+  submittal_uploaded       Sub        GC reads        Submittal number, spec section,
+                                                      revision, file reference
+
+  submittal_reviewed       GC         Sub reads       Submittal number, status
+                                                      (approved/RAS/rejected),
+                                                      reviewer notes
+
+  change_order_issued      GC         Sub reads       CO number, scope description,
+                                                      amount, schedule impact
+
+  change_order_responded   Sub        GC reads        CO number, accepted/declined,
+                                                      sub\'s counter if applicable
+
+  lien_waiver_requested    GC         Sub reads       Waiver type, through date,
+                                                      amount, DocuSign envelope
+
+  lien_waiver_signed       Sub        GC reads        Waiver type, signed date,
+                                                      document reference
+
+  message_sent             Either     Both read       Message text, sender party (not
+                                                      internal user details),
+                                                      timestamp
+  ------------------------------------------------------------------------------------
+
+**5. Data Sharing Permissions Model**
+
+When initiating a connection, the GC selects which event types flow
+across the bridge. The Sub reviews and can negotiate before accepting.
+Permissions are stored in the tenant_connections.permissions JSONB
+column.
+
+**5.1 Default Permissions (Pre-Populated for GC)**
+
+  -----------------------------------------------------------------------------
+  **Event Type**           **Default   **Can be     **Notes**
+                           ON**        Turned Off** 
+  ------------------------ ----------- ------------ ---------------------------
+  task_completed /         ON          No           Core collaboration ---
+  uncompleted                                       cannot be disabled
+
+  inspection_scheduled &   ON          No           Core compliance --- cannot
+  result                                            be disabled
+
+  daily_report_submitted   ON          Yes          GC may not need sub daily
+                                                    reports for small scopes
+
+  invoice_submitted &      ON          No           Core financial workflow ---
+  approved                                          cannot be disabled
+
+  invoice_paid             ON          No           Sub must know when they\'re
+                                                    paid
+
+  rfi_created & responded  ON          Yes          Can be disabled if all RFIs
+                                                    go through GC PM only
+
+  submittal_uploaded &     ON          Yes          Relevant only if sub has
+  reviewed                                          submittals in their scope
+
+  change_order_issued &    ON          No           Core contract management
+  responded                                         --- cannot be disabled
+
+  lien_waiver_requested &  ON          No           Core closeout compliance
+  signed                                            --- cannot be disabled
+
+  message_sent             ON          Yes          Collaborative communication
+                                                    --- on by default
+
+  Sub\'s crew time totals  OFF         Yes          GC sees total hours only,
+  (hours only)                                      not individual employee
+                                                    names or rates
+
+  Sub\'s individual labor  OFF         N/A ---      Never shared --- Sub\'s
+  costs                                always off   internal cost data is
+                                                    private
+
+  Sub\'s profit margin     OFF         N/A ---      Never shared --- Sub\'s
+                                       always off   financial privacy is
+                                                    absolute
+  -----------------------------------------------------------------------------
+
+**5.2 Permissions JSONB Structure**
+
+> {
+>
+> \"core_events\": {
+>
+> \"task_updates\": true, // Cannot be false
+>
+> \"inspection_events\": true, // Cannot be false
+>
+> \"invoice_workflow\": true, // Cannot be false
+>
+> \"change_orders\": true, // Cannot be false
+>
+> \"lien_waivers\": true // Cannot be false
+>
+> },
+>
+> \"optional_events\": {
+>
+> \"daily_reports\": true,
+>
+> \"rfi_events\": true,
+>
+> \"submittal_events\": true,
+>
+> \"messages\": true
+>
+> },
+>
+> \"labor_visibility\": {
+>
+> \"show_total_hours\": false, // Aggregate hours only --- no names
+>
+> \"show_crew_names\": false, // Never shown by default
+>
+> \"show_labor_costs\": false // Never shared --- hardcoded off
+>
+> },
+>
+> \"negotiated_at\": \"2026-04-15T10:00:00Z\",
+>
+> \"accepted_by_sub\": true
+>
+> }
+
+**6. Sub\'s Dashboard Experience**
+
+When a Sub accepts a connection, the GC project appears in the Sub\'s
+own dashboard as a job --- indistinguishable in structure from any
+project the Sub created themselves. This is a critical UX principle: the
+Sub uses the platform exactly the same way for GC-connected jobs as for
+their own direct jobs.
+
+**6.1 Sub\'s Project Record**
+
+When a connection is accepted, a project record is created in the Sub\'s
+tenant:
+
+> // Created in Sub\'s tenant (tenant_id = t_002)
+>
+> projects table:
+>
+> id = p_200 (Sub\'s own project UUID)
+>
+> tenant_id = t_002
+>
+> name = \'Main St Office --- Electrical (ABC General Contractors)\'
+>
+> job_type = \'subcontract_work\'
+>
+> status = \'active\'
+>
+> source = \'cross_tenant_connection\'
+>
+> connection_id = c_500 // Link to tenant_connections record
+
+This is a real project in the Sub\'s tenant --- not a read-only view
+into the GC\'s tenant. The Sub\'s project is their own. They manage
+their scope, their crew, their costs, and their invoices from this
+project record.
+
+**6.2 What the Sub Sees in Their Dashboard**
+
+  -----------------------------------------------------------------------
+  **Dashboard      **What Sub Sees**         **Source**
+  Section**                                  
+  ---------------- ------------------------- ----------------------------
+  Project overview Project name, GC company, From connection record +
+                   their scope, contract     Sub\'s own project
+                   value, status             
+
+  Schedule         Their phases and tasks    Shared bridge + Sub\'s own
+                   --- pulled from shared    task tracking
+                   task assignments          
+
+  My scope         Their assigned work       Shared from GC via bridge on
+                   breakdown from the GC\'s  connection init
+                   project                   
+
+  Daily reports    Their own daily reports   Sub\'s own tenant records
+                   for this job              
+
+  Time & labor     Their crew clock-ins      Sub\'s own tenant records
+                   against this job, total   
+                   hours                     
+
+  Inspections      Inspections for their     Shared bridge events
+                   scope --- pass/fail       
+                   history                   
+
+  Invoices         Their invoices to GC ---  Sub\'s own records + GC
+                   status, approval, payment approval events from bridge
+
+  Change orders    COs issued to them by GC  Shared bridge events
+                   --- their responses       
+
+  Documents /      Plans and documents       Read access to GC-shared
+  plans            shared by GC for their    documents via bridge
+                   scope                     
+
+  RFIs             RFIs relevant to their    Sub\'s own + bridge events
+                   scope                     
+
+  Submittals       Their submittals for      Sub\'s own records + GC
+                   their scope               review events from bridge
+
+  Messages         Project thread with GC    Bridge messages --- filtered
+                   team                      to this connection
+
+  Lien waivers     Waiver requests from GC + Bridge events + Sub\'s own
+                   their signed copies       signed documents
+  -----------------------------------------------------------------------
+
+**6.3 Sub\'s Job Costing for GC Work**
+
+When a Sub is working on a GC-connected project, their internal job
+costing runs normally against their own tenant:
+
+-   Time entries clock in against Sub\'s project p_200 --- captured in
+    Sub\'s time_entries table
+
+-   Material costs entered by Sub\'s office --- captured in Sub\'s
+    budget_line_items
+
+-   Sub runs their own job costing reports: labor hours × burdened rate
+    vs. their contract value with GC
+
+-   The GC sees NONE of this --- GC only sees total labor hours if the
+    Sub has enabled that permission
+
+-   Sub\'s profit margin on the GC job is completely invisible to the GC
+
+**7. GC\'s Dashboard Experience**
+
+The GC\'s project dashboard presents a unified view of the project even
+though some data originates from Sub tenants. The GC experiences this as
+a single coherent project --- not as a patchwork of connections.
+
+**7.1 Unified Project View**
+
+On the GC\'s project dashboard, connected sub scopes appear as part of
+the project naturally:
+
+-   Schedule: Sub phase completions appear as task completions on the
+    GC\'s Gantt --- same visual treatment as self-performed work
+
+-   Budget: Sub contract values appear as committed costs in the GC\'s
+    budget --- invoice approvals update actual costs
+
+-   Subcontractors panel: Each connected sub shows real-time status ---
+    current phase, last activity, open items count
+
+-   Inspections: All inspections across all scopes (self-performed and
+    sub) on one inspection log
+
+-   Daily reports: GC\'s own reports plus sub reports aggregated into a
+    single project daily log
+
+-   Documents: Sub-uploaded submittals and RFIs appear in the project
+    document center
+
+**7.2 What the GC Does NOT See**
+
+  -----------------------------------------------------------------------
+  **Hidden Data**        **Reason**
+  ---------------------- ------------------------------------------------
+  Sub\'s labor costs and Sub\'s internal financials are private --- GC
+  pay rates              sees only contract value and invoice amounts
+
+  Sub\'s profit margin   Commercially sensitive --- never shared
+  on the job             
+
+  Sub\'s other active    Completely separate tenants --- no
+  projects               cross-visibility
+
+  Sub\'s internal team   Private company data --- GC only sees who showed
+  or employee list       up if daily_report hours sharing is enabled
+
+  Sub\'s client          Private to Sub tenant
+  relationships          
+
+  Sub\'s QuickBooks or   Private --- integrations are per-tenant
+  other integrations     
+
+  Sub\'s overhead or     Private financial data --- always hidden
+  markup                 
+  -----------------------------------------------------------------------
+
+**8. Connection Lifecycle & Closeout**
+
+**8.1 Normal Closeout Flow**
+
+10. Project reaches substantial completion --- GC PM initiates closeout
+
+11. Platform generates a closeout checklist for the Sub\'s scope:
+
+    -   All lien waivers signed and received
+
+    -   Final invoice submitted and approved
+
+    -   All punch list items verified
+
+    -   All submittals approved
+
+    -   All open RFIs closed
+
+12. GC PM marks the connection as \'completed\'
+
+13. Sub receives notification --- confirms closeout
+
+14. Connection status moves to \'completed\'
+
+15. Shared project events bridge archived --- both tenants retain a
+    read-only copy
+
+16. Sub\'s project p_200 moves to \'completed\' status in their
+    dashboard
+
+17. GC\'s project retains all shared history for closeout record-keeping
+
+**8.2 Early Disconnection (Scope Termination)**
+
+Either party can disconnect at any time --- for scope termination,
+dispute, or other reasons:
+
+-   Disconnecting party selects \'Disconnect\' with a reason code:
+    completed \| terminated_for_cause \| mutual_agreement \| other
+
+-   Both parties receive immediate notification of the disconnection
+
+-   Shared bridge is archived --- no new events can be written to it
+
+-   Both parties retain their own copy of the bridge event history
+
+-   Sub\'s project p_200 moves to status=\'cancelled\' or \'completed\'
+    depending on reason code
+
+-   GC\'s project scope shows the sub as disconnected --- internal cost
+    records preserved
+
+**8.3 What Happens to Data After Disconnection**
+
+  -----------------------------------------------------------------------
+  **Data Type**      **GC Retains**     **Sub Retains**
+  ------------------ ------------------ ---------------------------------
+  Shared project     Yes --- read-only  Yes --- read-only archive in
+  event history      archive            their project record
+
+  Invoices submitted Yes --- in their   Yes --- in their own invoice
+  and paid           financial records  records
+
+  Signed lien        Yes --- stored in  Yes --- copy in Sub\'s document
+  waivers            GC\'s document     storage
+                     storage            
+
+  Approved change    Yes --- in GC\'s   Yes --- in Sub\'s CO record
+  orders             CO record          
+
+  Inspection results Yes --- in GC\'s   Yes --- in Sub\'s inspection log
+                     inspection log     
+
+  Sub\'s internal    No --- never had   Yes --- always in Sub\'s own
+  labor data         access             tenant
+
+  Sub\'s profit      No --- never had   Yes --- always in Sub\'s own
+  margin / costs     access             tenant
+
+  Sub\'s other       No --- never had   Yes --- fully private to Sub
+  projects           access             
+  -----------------------------------------------------------------------
+
+**9. Security & Privacy Model**
+
+**9.1 Cross-Tenant Data Access Security**
+
+Cross-tenant collaboration introduces a new challenge to the otherwise
+simple RLS model: some data legitimately needs to cross tenant
+boundaries. The security design:
+
+  -----------------------------------------------------------------------
+  **Security       **How Cross-Tenant Is Handled**
+  Layer**          
+  ---------------- ------------------------------------------------------
+  Database RLS     The shared_project_events table uses
+                   connection_id-based RLS --- only tenants that are
+                   parties to a connection can read its events. No
+                   tenant_id-based RLS (since events belong to a
+                   connection, not a single tenant). Policy: WHERE
+                   connection_id IN (SELECT id FROM tenant_connections
+                   WHERE initiating_tenant_id = current_tenant OR
+                   receiving_tenant_id = current_tenant)
+
+  API Layer        A dedicated CrossTenantService handles all bridge
+                   reads and writes. It validates the requesting tenant
+                   is a party to the connection before any data access.
+                   Standard tenant_id injection is bypassed for bridge
+                   operations --- replaced by connection_id validation.
+
+  Write Validation When a Sub writes an event (e.g. task_completed), the
+                   service validates: (1) the connection is active, (2)
+                   the Sub is the receiving_tenant_id on this connection,
+                   (3) the task being updated is within the Sub\'s
+                   assigned scope, (4) the event_type is permitted by the
+                   connection\'s permissions JSONB.
+
+  Read Validation  When the GC reads bridge events, the service
+                   validates: (1) the GC is the initiating_tenant_id on
+                   this connection, (2) the event_type is in the
+                   permitted list per the permissions JSONB, (3) the
+                   connection is active or archived (not rejected or
+                   pending).
+  -----------------------------------------------------------------------
+
+**9.2 Data Minimization Principle**
+
+Events written to the bridge carry the minimum data necessary. Examples:
+
+-   A task_completed event carries: task reference key, completion
+    timestamp, optional notes, optional photo URLs --- NOT the Sub\'s
+    internal task ID (which would reveal internal structure), NOT the
+    Sub\'s employee name who completed it, NOT the Sub\'s cost codes
+
+-   A daily_report_submitted event carries: date, total manpower count,
+    total hours, work performed summary --- NOT employee names, NOT
+    individual hours by employee, NOT any labor cost data
+
+-   An invoice_submitted event carries: invoice number, period, total
+    amount --- NOT the Sub\'s cost breakdown, NOT their markup, NOT
+    their labor rates
+
+**9.3 Connection Attempt Logging**
+
+-   All connection requests --- sent and received --- are logged in the
+    tenant audit trail for both parties
+
+-   Rejected connections are logged --- the GC cannot spam connection
+    requests to the same Sub
+
+-   After 3 rejected requests to the same Sub, further requests require
+    Owner-level authorization
+
+-   All bridge events are immutable once written --- cannot be edited or
+    deleted by either party
+
+**10. API Specification**
+
+**10.1 Connection Management Endpoints**
+
+  ----------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                   **Auth**   **Description**
+  ------------ ------------------------------ ---------- ---------------------------------
+  GET          /connections                   JWT        List all active and pending
+                                                         connections for the current
+                                                         tenant --- both as initiator and
+                                                         receiver
+
+  POST         /connections/initiate          JWT        Initiate a connection request ---
+                                                         project_id, target company
+                                                         email/name, scope description,
+                                                         permissions, contract value
+
+  POST         /connections/:id/accept        JWT        Sub accepts a connection request
+                                                         --- activates the connection
+
+  POST         /connections/:id/decline       JWT        Sub declines --- logs reason,
+                                                         notifies GC
+
+  POST         /connections/:id/complete      JWT        GC initiates closeout ---
+                                                         triggers closeout checklist
+
+  POST         /connections/:id/disconnect    JWT        Either party disconnects ---
+                                                         reason_code required
+
+  GET          /connections/:id/status        JWT        Full connection status --- shared
+                                                         project events summary, open
+                                                         items, closeout checklist
+                                                         progress
+
+  PUT          /connections/:id/permissions   JWT        Update permission settings ---
+                                                         both parties must re-accept on
+                                                         significant changes
+
+  GET          /connections/discover          JWT        Check if a company name or email
+                                                         matches an existing tenant ---
+                                                         returns confidence score, no PII
+  ----------------------------------------------------------------------------------------
+
+**10.2 Shared Project Events Endpoints**
+
+  ---------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                        **Auth**   **Description**
+  ------------ ----------------------------------- ---------- ---------------------------------
+  GET          /connections/:id/events             JWT        List all bridge events for a
+                                                              connection --- filterable by
+                                                              event_type, date range,
+                                                              source_tenant
+
+  POST         /connections/:id/events             JWT        Write a new event to the bridge
+                                                              --- validated against permissions
+                                                              and scope
+
+  GET          /connections/:id/events/:event_id   JWT        Get specific event detail
+
+  GET          /connections/:id/summary            JWT        Cross-tenant project summary ---
+                                                              current phase per scope, open
+                                                              item counts, last activity
+
+  GET          /connections/:id/invoices           JWT        Invoice workflow --- sub\'s
+                                                              invoices to GC with approval
+                                                              status
+
+  GET          /connections/:id/lien-waivers       JWT        Lien waiver status for this
+                                                              connection
+
+  GET          /connections/:id/messages           JWT        Message thread for this
+                                                              connection
+
+  POST         /connections/:id/messages           JWT        Send a message on this connection
+                                                              thread
+  ---------------------------------------------------------------------------------------------
+
+**11. Edge Cases & Decision Log**
+
+  ------------------------------------------------------------------------
+  **Scenario**          **Decision**             **Rationale**
+  --------------------- ------------------------ -------------------------
+  Sub is connected to   Allowed --- Sub sees     Real-world: a sub
+  multiple GCs          each GC job as a         frequently works for
+  simultaneously        separate project in      multiple GCs at the same
+                        their dashboard. Each    time. This is a core use
+                        connection is            case, not an edge case.
+                        independent.             
+
+  GC wants to connect a Allowed --- Sub\'s other Tenants\' business
+  Sub who is already    connections are          relationships are
+  connected to a        invisible to GC. The     private. No tenant can
+  competitor GC         platform does not reveal see another\'s
+                        who a Sub is working     connections.
+                        with.                    
+
+  Sub cancels their     Connection moves to      Platform availability
+  platform subscription \'disconnected\'. GC     must not jeopardize GC\'s
+  during an active      retains all bridge event project record-keeping.
+  connection            history. GC is notified. 
+                        GC can invite sub to     
+                        free portal for          
+                        remaining closeout       
+                        tasks.                   
+
+  GC cancels their      Connection moves to      Sub\'s data sovereignty
+  platform subscription \'disconnected\'. Sub    must be maintained even
+                        retains their project    if the GC leaves the
+                        record and all bridge    platform.
+                        history. Sub is          
+                        notified.                
+
+  Disputed task         GC can flag a task as    Platform does not enforce
+  completion --- Sub    disputed --- creates an  work quality --- it
+  marks complete, GC    open dispute event on    surfaces disputes.
+  disagrees             the bridge. Both parties Resolution is a human
+                        see it. Resolution is    business decision.
+                        manual (negotiation) or  
+                        via RFI.                 
+
+  Sub tries to write an API rejects with 403 --- Scope enforcement
+  event for a task      task is not in Sub\'s    prevents Sub from
+  outside their scope   assigned scope within    claiming completion of
+                        this connection.         work they were not
+                                                 awarded.
+
+  Two subs both claim a Both subs can log        Platform records both
+  shared work area      weather or access delays perspectives without
+  causes delays         on their daily reports   adjudicating.
+                        --- these are            
+                        independent records.     
+                        GC\'s PM is the arbiter. 
+
+  Connection            Either party can decline Informed consent is
+  permissions           or counter. Connections  required before any data
+  negotiation fails --- are not formed until     flows.
+  Sub wants different   both parties agree on    
+  terms                 permissions.             
+
+  GC wants to see       Not available --- Sub\'s Sub\'s HR data is
+  Sub\'s individual     employee list and        private. GC has no
+  crew members          individual hours are     employment or supervisory
+                        private. GC can see      relationship with Sub\'s
+                        total manpower and total employees.
+                        hours if that permission 
+                        is enabled.              
+
+  Sub accidentally      Sub can void the invoice Invoice immutability
+  sends an incorrect    (if not yet approved)    applies post-approval
+  invoice               and submit a corrected   only --- pre-approval
+                        one --- a void event is  corrections are
+                        written to the bridge.   supported.
+                        GC sees the void         
+                        notification.            
+  ------------------------------------------------------------------------

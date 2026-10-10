@@ -1,0 +1,53 @@
+{
+  "daily_reports": {
+    "title": "Daily Reports",
+    "create": "New Daily Report",
+    "date": "Report Date",
+    "weather": "Weather Conditions",
+    "notes": "Field Notes",
+    "empty": "No daily reports for this project."
+  },
+  "time_tracking": {
+    "title": "Time Tracking",
+    "log_time": "Log Time",
+    "hours": "Hours",
+    "date": "Date",
+    "worker": "Worker",
+    "cost_code": "Cost Code",
+    "total_hours": "Total Hours: {{hours}}"
+  },
+  "punch_list": {
+    "title": "Punch List",
+    "add_item": "Add Item",
+    "assigned_to": "Assigned To",
+    "due_date": "Due Date",
+    "status": {
+      "open": "Open",
+      "in_progress": "In Progress",
+      "complete": "Complete"
+    },
+    "empty": "Punch list is clear."
+  },
+  "inspections": {
+    "title": "Inspections",
+    "schedule": "Schedule Inspection",
+    "date": "Inspection Date",
+    "status": {
+      "scheduled": "Scheduled",
+      "passed": "Passed",
+      "failed": "Failed",
+      "requires_action": "Requires Action"
+    }
+  },
+  "photos": {
+    "title": "Photos",
+    "add": "Add Photo",
+    "caption": "Caption",
+    "taken_at": "Taken {{date}}"
+  },
+  "offline": {
+    "banner": "You're offline. Changes will sync when connection is restored.",
+    "syncing": "Syncing...",
+    "synced": "All changes synced."
+  }
+}

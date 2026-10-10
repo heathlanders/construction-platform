@@ -1,0 +1,45 @@
+# Record a roofing QA check AND a framing correction with NO network — both new offline
+# surfaces in one window, so the smoke doesn't grow another full login cycle.
+appId: com.thejobsite.app
+# PULL + CORRECTION are REQUIRED from the harness (-e …), randomised per run.
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+- scrollUntilVisible:
+    element: 'Structural'
+    direction: DOWN
+- tapOn: 'Structural'
+
+# ── Roofing: a fastener pull-out reading ───────────────────────────────────────
+- assertVisible: 'Asphalt Shingle'
+- tapOn: '🏠 QA checks ›'
+- tapOn: '+ New Check'
+- tapOn: 'Fastener pull'
+- assertVisible: 'Pull-out (lbf)'
+- tapOn:
+    text: '0'
+    below:
+      text: 'Pull-out (lbf)'
+- inputText: ${PULL}
+- hideKeyboard
+- scrollUntilVisible:
+    element: 'Save'
+    direction: DOWN
+- tapOn: 'Save'
+- assertVisible: '.*${PULL}.*'
+- back
+
+# ── Framing: raise a correction ────────────────────────────────────────────────
+- tapOn: 'Framing'
+- assertVisible: 'Exterior Walls'
+- tapOn: '🪵 Corrections ›'
+- tapOn: '+ New Correction'
+- tapOn: 'e.g. Missing hurricane tie'
+- inputText: ${CORRECTION}
+- hideKeyboard
+- tapOn: 'Major'
+- scrollUntilVisible:
+    element: 'Save'
+    direction: DOWN
+- tapOn: 'Save'
+- assertVisible: ${CORRECTION}

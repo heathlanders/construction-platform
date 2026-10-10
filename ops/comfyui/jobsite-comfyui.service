@@ -1,0 +1,15 @@
+[Unit]
+Description=ComfyUI (Design Studio open-model renders — owner testing only)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.local/comfyui
+# docker0 only — never the LAN. The api container reaches it via host.docker.internal.
+ExecStart=%h/.local/comfyui/venv/bin/python main.py --listen 172.17.0.1 --port 8188 --lowvram --disable-auto-launch
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

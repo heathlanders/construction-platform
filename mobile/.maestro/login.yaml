@@ -1,0 +1,43 @@
+# Login — the flow every other flow depends on, and the one that has broken three
+# separate times (missing tenant_slug → 422, Hermes has no atob, initialRouteName
+# read once). Cheap to run, catches the whole class.
+#
+#   maestro test mobile/.maestro/login.yaml
+# Accounts come from api/src/scripts/seed-e2e-tenant.ts (tenant `e2e-test`).
+appId: com.thejobsite.app
+# COMPANY / EMAIL / PASSWORD are REQUIRED from the caller — either `-e` from a harness
+# script or a `runFlow.env` block. Deliberately no defaults here: a flow-level `env:`
+# default silently WINS over `-e`, so keeping one would pin every run to a single role
+# while looking parameterised. That bit us once already (a "randomised" value that
+# never changed).
+---
+- clearState            # always start logged out — no leftover Keychain token
+- launchApp
+
+- assertVisible: 'Sign In'
+
+# Each field is selected by its PLACEHOLDER, which RN renders as a real text node
+# while the input is empty. (A coordinate tap put the email into the company field
+# and the flow still "passed" every step up to the assert — selectors matter.)
+- tapOn: 'your-company'
+- inputText: ${COMPANY}
+
+- tapOn: 'Email'
+- inputText: ${EMAIL}
+
+- tapOn: 'Password'
+- inputText: ${PASSWORD}
+
+- hideKeyboard
+- tapOn: 'Sign In'
+
+# `clearState` also wipes the "What's New" last-seen marker, so a fresh login always
+# lands on the release-notes popup before the app itself. Dismiss it (optional, so the
+# flow still works on a build where it doesn't fire).
+- tapOn:
+    text: 'Got it'
+    optional: true
+
+# Landing on Projects proves the JWT parsed (pure-JS base64 decode) AND that the
+# navigator remounted — the two bugs that made login look "successful" but stuck.
+- assertVisible: 'Projects'

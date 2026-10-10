@@ -1,0 +1,42 @@
+{
+  "invoices": {
+    "title": "Invoices",
+    "create": "Create Invoice",
+    "number": "Invoice #{{number}}",
+    "amount": "Amount",
+    "due_date": "Due Date",
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "paid": "Paid",
+      "void": "Void"
+    },
+    "send_confirm": "Send this invoice to the client?",
+    "void_confirm": "Void this invoice? This cannot be undone.",
+    "empty": "No invoices yet."
+  },
+  "change_orders": {
+    "title": "Change Orders",
+    "create": "Create Change Order",
+    "amount": "Change Order Amount",
+    "status": {
+      "pending": "Pending Approval",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    }
+  },
+  "budget": {
+    "title": "Budget",
+    "line_items": "Line Items",
+    "budgeted": "Budgeted",
+    "actual": "Actual",
+    "variance": "Variance",
+    "over_budget": "Over Budget"
+  },
+  "cost_codes": {
+    "title": "Cost Codes",
+    "code": "Code",
+    "name": "Name",
+    "category": "Category"
+  }
+}

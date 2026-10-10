@@ -1,0 +1,78 @@
+{
+  "app": {
+    "name": "Construction Platform",
+    "tagline": "The Operating System for Construction"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "financial": "Financial",
+    "documents": "Documents",
+    "field": "Field",
+    "safety": "Safety",
+    "estimating": "Estimating",
+    "team": "Team",
+    "settings": "Settings"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "add": "Add",
+    "remove": "Remove",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "upload": "Upload",
+    "download": "Download",
+    "view": "View",
+    "approve": "Approve",
+    "reject": "Reject"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "draft": "Draft",
+    "sent": "Sent",
+    "paid": "Paid",
+    "void": "Void",
+    "open": "Open",
+    "closed": "Closed",
+    "approved": "Approved",
+    "rejected": "Rejected"
+  },
+  "errors": {
+    "required": "This field is required",
+    "invalid_email": "Please enter a valid email address",
+    "generic": "Something went wrong. Please try again.",
+    "network": "Network error. Please check your connection.",
+    "unauthorized": "You don't have permission to perform this action.",
+    "not_found": "The requested item was not found.",
+    "upgrade_required": "This feature requires a plan upgrade."
+  },
+  "pagination": {
+    "loading": "Loading...",
+    "load_more": "Load more",
+    "showing": "Showing {{count}} of {{total}}"
+  },
+  "time": {
+    "just_now": "Just now",
+    "minutes_ago": "{{count}} minutes ago",
+    "hours_ago": "{{count}} hours ago",
+    "days_ago": "{{count}} days ago"
+  },
+  "currency": {
+    "format": "${{amount}}"
+  }
+}

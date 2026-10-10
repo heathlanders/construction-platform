@@ -1,0 +1,43 @@
+# The T-13/T-14 payoff: the stale push came back 409, the row is flagged `conflict`,
+# and the worker resolves it field by field.
+#
+# Asserts the whole visible chain, because each link has failed independently before:
+#   ⚠️ badge  → the conflict is DISCOVERABLE (a conflict-capable table missing from the
+#               badge registry is a row stuck forever that nobody can see)
+#   inbox     → the row is listed with its table's label
+#   resolve   → both values are shown side by side (T-14)
+#   apply     → the choice is accepted and the conflict clears
+appId: com.thejobsite.app
+---
+- launchApp
+
+# The badge only renders when a conflict exists — its presence IS the assertion that
+# the sweep pushed, got 409, and flagged the row.
+- extendedWaitUntil:
+    visible: '⚠️'
+    timeout: 30000
+- tapOn: '⚠️'
+
+- assertVisible: 'Sync Conflicts'
+- assertVisible: ${TITLE}
+- tapOn: ${TITLE}
+
+# Side-by-side diff. Status is the field both sides changed.
+- assertVisible: 'Status'
+- assertVisible: 'Yours'
+- assertVisible: 'Server'
+
+# Keep the field worker's value — they were standing at the thing being inspected.
+- tapOn:
+    text: 'Yours'
+    index: 0
+- tapOn: 'Apply Resolution'
+
+# Success alert first, then the inbox.
+- assertVisible: 'Conflict resolved'
+- tapOn: 'OK'
+
+# Back to an empty inbox: the conflict is gone, not merely hidden.
+- extendedWaitUntil:
+    visible: 'No conflicts to resolve.'
+    timeout: 20000

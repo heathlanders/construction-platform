@@ -1,0 +1,54 @@
+# Capture a JSA with NO network, then prove it reached the server.
+#
+# A JSA is the pre-task hazard briefing, run standing on the site — the one record most
+# likely to be created where there's no signal. Run via run-jsa-offline.sh, which owns
+# the radio flip; on its own this passes online too and proves less.
+#
+# The hazard is required by the form: a JSA with no hazards is a signature sheet, not a
+# hazard analysis, so the flow asserts that guard as well as the happy path.
+appId: com.thejobsite.app
+# TITLE is REQUIRED from the harness (-e TITLE=…), randomised per run.
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+- scrollUntilVisible:
+    element: 'JSA'
+    direction: DOWN
+- tapOn: 'JSA'
+
+- tapOn: '+ New JSA'
+- tapOn: 'e.g. Roof edge work — south slope'
+- inputText: ${TITLE}
+- hideKeyboard
+
+# Try to save with no hazards — must be refused.
+# The form is long; Create sits below the fold on a phone screen.
+- scrollUntilVisible:
+    element: 'Create'
+    direction: DOWN
+- tapOn: 'Create'
+- assertVisible: 'Add at least one hazard — a JSA with none is just a signature sheet.'
+- tapOn: 'OK'
+
+- tapOn: 'Worker name'
+- inputText: 'Sam Foreman'
+- hideKeyboard
+- tapOn: 'Add'
+
+- tapOn: 'Hazard identified'
+- inputText: 'Unprotected leading edge'
+- hideKeyboard
+- tapOn: 'Control measure'
+- inputText: 'Guardrail + harness tie-off'
+- hideKeyboard
+- tapOn: 'High'
+- tapOn: 'Add hazard'
+
+- scrollUntilVisible:
+    element: 'Create'
+    direction: DOWN
+- tapOn: 'Create'
+
+# Back on the list, captured locally with the `•` pending marker.
+- assertVisible: ${TITLE}
+- assertVisible: '1 hazards'

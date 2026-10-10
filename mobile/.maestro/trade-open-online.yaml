@@ -1,0 +1,12 @@
+# Prime the electrical cache ONLINE and prove it, before the radio goes off.
+appId: com.thejobsite.app
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+- scrollUntilVisible:
+    element: 'Trade Modules'
+    direction: DOWN
+- tapOn: 'Trade Modules'
+- extendedWaitUntil:
+    visible: 'Main Panel'
+    timeout: 45000

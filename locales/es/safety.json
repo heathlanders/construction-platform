@@ -1,0 +1,50 @@
+{
+  "incidents": {
+    "title": "Incidentes de Seguridad",
+    "report": "Reportar Incidente",
+    "date": "Fecha del Incidente",
+    "description": "Descripción",
+    "severity": {
+      "near_miss": "Casi Accidente",
+      "first_aid": "Primeros Auxilios",
+      "recordable": "Registrable",
+      "lost_time": "Tiempo Perdido",
+      "fatality": "Fatalidad"
+    },
+    "status": {
+      "open": "Abierto",
+      "under_investigation": "Bajo Investigación",
+      "closed": "Cerrado"
+    },
+    "required_note": "Todos los incidentes deben reportarse inmediatamente al Oficial de Seguridad."
+  },
+  "jsa": {
+    "title": "Análisis de Seguridad en el Trabajo",
+    "conduct": "Realizar AST",
+    "hazards": "Peligros Identificados",
+    "attendees": "Asistentes",
+    "sign_off": "Firmar"
+  },
+  "certifications": {
+    "title": "Certificaciones de Seguridad",
+    "add": "Agregar Certificación",
+    "expires": "Vence {{date}}",
+    "expired": "VENCIDA",
+    "expiring_soon": "Vence en {{days}} días"
+  },
+  "ppe": {
+    "title": "Requisitos de EPP",
+    "hard_hat": "Casco de Seguridad Requerido",
+    "safety_vest": "Chaleco de Seguridad Requerido",
+    "safety_glasses": "Lentes de Seguridad Requeridos",
+    "steel_toed_boots": "Botas con Puntera de Acero Requeridas",
+    "gloves": "Guantes Requeridos",
+    "harness": "Protección contra Caídas Requerida"
+  },
+  "emergency": {
+    "title": "Procedimientos de Emergencia",
+    "call_911": "Llame al 911 para emergencias que amenacen la vida",
+    "contact_supervisor": "Contacte a su supervisor inmediatamente",
+    "do_not_move": "No mueva a un trabajador lesionado a menos que esté en peligro inmediato"
+  }
+}

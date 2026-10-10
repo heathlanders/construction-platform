@@ -1,0 +1,42 @@
+{
+  "invoices": {
+    "title": "Facturas",
+    "create": "Crear Factura",
+    "number": "Factura #{{number}}",
+    "amount": "Monto",
+    "due_date": "Fecha de Vencimiento",
+    "status": {
+      "draft": "Borrador",
+      "sent": "Enviada",
+      "paid": "Pagada",
+      "void": "Anulada"
+    },
+    "send_confirm": "¿Enviar esta factura al cliente?",
+    "void_confirm": "¿Anular esta factura? Esta acción no se puede deshacer.",
+    "empty": "Aún no hay facturas."
+  },
+  "change_orders": {
+    "title": "Órdenes de Cambio",
+    "create": "Crear Orden de Cambio",
+    "amount": "Monto de la Orden de Cambio",
+    "status": {
+      "pending": "Pendiente de Aprobación",
+      "approved": "Aprobada",
+      "rejected": "Rechazada"
+    }
+  },
+  "budget": {
+    "title": "Presupuesto",
+    "line_items": "Líneas de Presupuesto",
+    "budgeted": "Presupuestado",
+    "actual": "Real",
+    "variance": "Variación",
+    "over_budget": "Sobre Presupuesto"
+  },
+  "cost_codes": {
+    "title": "Códigos de Costo",
+    "code": "Código",
+    "name": "Nombre",
+    "category": "Categoría"
+  }
+}

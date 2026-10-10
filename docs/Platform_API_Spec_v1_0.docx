@@ -1,0 +1,1329 @@
+**\[PLATFORM NAME\]**
+
+Construction Management Platform
+
+**API & INTEGRATION SPEC SHEET**
+
+*Document 5 of 9 \| Version 1.0 \| Confidential*
+
+March 2026
+
+FOR ENGINEERING --- CONFIDENTIAL
+
+**Table of Contents**
+
+**1. Overview & API Standards**
+
+This document specifies every API endpoint, request/response format,
+authentication pattern, and third-party integration for \[PLATFORM
+NAME\] v1.0. It serves as the primary reference for frontend engineers,
+mobile engineers, and any third-party integration developers.
+
+**1.1 API Design Standards**
+
+  -----------------------------------------------------------------------
+  **Standard**       **Specification**
+  ------------------ ----------------------------------------------------
+  API Style          RESTful JSON API --- consistent resource-based URL
+                     structure
+
+  Base URL           https://api.platformname.com/v1
+
+  Authentication     JWT Bearer token --- Authorization: Bearer \<token\>
+                     header on all protected routes
+
+  Content Type       application/json for all requests and responses
+
+  Versioning         URL-based versioning --- /v1/ prefix. Breaking
+                     changes increment to /v2/
+
+  Date Format        ISO 8601 --- all dates as TIMESTAMPTZ:
+                     2026-03-15T14:30:00Z
+
+  Monetary Values    All amounts in cents (integer) --- never floating
+                     point. \$1,500.00 = 150000
+
+  IDs                UUID v4 strings --- never expose integer IDs in API
+                     responses
+
+  Pagination         Cursor-based pagination ---
+                     ?cursor=\<uuid\>&limit=\<n\> (max 100 per page)
+
+  Sorting            ?sort=created_at&order=desc --- field name and
+                     direction
+
+  Filtering          ?status=active&project_id=\<uuid\> --- query param
+                     filters per resource
+
+  Error Format       Consistent JSON error envelope (see Section 1.3)
+
+  Rate Limiting      Per-tenant limits returned in X-RateLimit-Limit,
+                     X-RateLimit-Remaining headers
+
+  CORS               Strict origin allowlisting --- no wildcard. Web app
+                     domain + mobile deep link schemes
+  -----------------------------------------------------------------------
+
+**1.2 Standard Response Envelope**
+
+> // Success --- single resource
+>
+> {
+>
+> \"data\": { \"id\": \"uuid\", \"name\": \"Main St Office\", \... },
+>
+> \"meta\": { \"timestamp\": \"2026-03-15T14:30:00Z\" }
+>
+> }
+>
+> // Success --- collection
+>
+> {
+>
+> \"data\": \[ { \"id\": \"uuid\", \... }, \... \],
+>
+> \"meta\": {
+>
+> \"total\": 142,
+>
+> \"cursor\": \"uuid-of-last-item\",
+>
+> \"has_more\": true,
+>
+> \"timestamp\": \"2026-03-15T14:30:00Z\"
+>
+> }
+>
+> }
+
+**1.3 Error Response Format**
+
+> {
+>
+> \"error\": {
+>
+> \"code\": \"RESOURCE_NOT_FOUND\", // Machine-readable code
+>
+> \"message\": \"Project not found\", // Human-readable message
+>
+> \"field\": \"project_id\", // Field that caused error (validation
+> only)
+>
+> \"request_id\": \"req_abc123\" // For support log correlation
+>
+> }
+>
+> }
+
+**1.4 Standard HTTP Status Codes**
+
+  ------------------------------------------------------------------------------
+  **Code**        **Meaning**     **When Used**
+  --------------- --------------- ----------------------------------------------
+  200 OK          Success         GET, PUT, PATCH --- resource returned or
+                                  updated
+
+  201 Created     Resource        POST --- new resource created, returns created
+                  created         resource
+
+  204 No Content  Success, no     DELETE --- resource deleted
+                  body            
+
+  400 Bad Request Validation      Invalid input, missing required fields
+                  error           
+
+  401             Auth required   Missing or invalid JWT token
+  Unauthorized                    
+
+  403 Forbidden   Permission      Valid token but insufficient role/permission
+                  denied          
+
+  404 Not Found   Resource        Resource does not exist or belongs to
+                  missing         different tenant
+
+  409 Conflict    State conflict  Duplicate unique value, invalid state
+                                  transition
+
+  422             Business logic  Valid format but violates business rules
+  Unprocessable   error           
+
+  429 Too Many    Rate limited    Per-tenant rate limit exceeded
+  Requests                        
+
+  500 Internal    Server error    Unexpected server-side error --- logged and
+  Error                           alerted
+  ------------------------------------------------------------------------------
+
+**2. Authentication Endpoints**
+
+  ----------------------------------------------------------------------------------
+  **Method**   **Endpoint**             **Auth**   **Description**
+  ------------ ------------------------ ---------- ---------------------------------
+  **POST**     /auth/signup             None       Create new tenant and admin user.
+                                                   Triggers: tenant provisioning,
+                                                   Stripe customer creation, welcome
+                                                   email
+
+  **POST**     /auth/login              None       Authenticate user --- returns
+                                                   access_token (JWT) and sets
+                                                   refresh_token httpOnly cookie
+
+  **POST**     /auth/refresh            Cookie     Exchange refresh token for new
+                                                   access token --- silent token
+                                                   renewal
+
+  **POST**     /auth/logout             JWT        Revoke current session --- adds
+                                                   jti to Redis blacklist
+
+  **POST**     /auth/forgot-password    None       Send password reset email with
+                                                   secure time-limited token
+
+  **POST**     /auth/reset-password     None       Reset password using token from
+                                                   email
+
+  **POST**     /auth/verify-email       None       Verify email address using token
+                                                   from signup email
+
+  **POST**     /auth/mfa/setup          JWT        Generate TOTP secret and QR code
+                                                   for MFA setup
+
+  **POST**     /auth/mfa/verify         JWT        Verify TOTP code to activate MFA
+                                                   on user account
+
+  **POST**     /auth/mfa/challenge      None       Submit TOTP code during login
+                                                   when MFA is enabled
+  ----------------------------------------------------------------------------------
+
+**2.1 POST /auth/signup --- Request Body**
+
+> {
+>
+> \"company_name\": \"ABC General Contractors\",
+>
+> \"trade_type\": \"gc\",
+>
+> \"first_name\": \"John\",
+>
+> \"last_name\": \"Smith\",
+>
+> \"email\": \"john@abcgc.com\",
+>
+> \"password\": \"SecurePass123!\",
+>
+> \"subscription_tier\": \"professional\",
+>
+> \"billing_cycle\": \"monthly\",
+>
+> \"stripe_payment_method_id\": \"pm_stripe_id\" // from Stripe.js
+>
+> }
+
+**2.2 POST /auth/login --- Response**
+
+> {
+>
+> \"data\": {
+>
+> \"access_token\": \"eyJhbGci\...\",
+>
+> \"expires_in\": 86400,
+>
+> \"user\": { \"id\": \"uuid\", \"email\": \"\...\", \"role\":
+> \"owner\", \"tenant_id\": \"t_001\" },
+>
+> \"tenant\": { \"id\": \"t_001\", \"name\": \"ABC General
+> Contractors\", \"tier\": \"professional\" }
+>
+> }
+>
+> }
+
+**3. Tenant & User Management Endpoints**
+
+**3.1 Tenant**
+
+  ----------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                   **Auth**   **Description**
+  ------------ ------------------------------ ---------- ---------------------------------
+  **GET**      /tenant                        JWT        Get current tenant profile,
+                                                         settings, subscription details
+
+  **PUT**      /tenant                        JWT        Update tenant profile --- name,
+                                                         branding, default settings
+
+  **GET**      /tenant/subscription           JWT        Get full subscription details,
+                                                         add-ons, billing history
+
+  **POST**     /tenant/subscription/upgrade   JWT        Upgrade tier or add modules ---
+                                                         triggers Stripe proration
+
+  **DELETE**   /tenant                        JWT        Initiate tenant cancellation ---
+                                                         starts 30-day retention window.
+                                                         Owner only.
+  ----------------------------------------------------------------------------------------
+
+**3.2 Users**
+
+  ----------------------------------------------------------------------------------
+  **Method**   **Endpoint**             **Auth**   **Description**
+  ------------ ------------------------ ---------- ---------------------------------
+  **GET**      /users                   JWT        List all users for tenant ---
+                                                   paginated. Supports ?role= filter
+
+  **GET**      /users/:id               JWT        Get single user profile
+
+  **POST**     /users/invite            JWT        Send user invitation email ---
+                                                   creates pending invitation record
+
+  **PUT**      /users/:id               JWT        Update user profile, role, or
+                                                   notification preferences
+
+  **DELETE**   /users/:id               JWT        Deactivate user --- soft delete,
+                                                   data preserved. Admin only.
+
+  **GET**      /users/invitations       JWT        List pending invitations
+
+  **DELETE**   /users/invitations/:id   JWT        Revoke pending invitation
+
+  **POST**     /users/accept-invite     None       Accept invitation --- creates
+                                                   user account linked to tenant
+  ----------------------------------------------------------------------------------
+
+**4. Project Endpoints**
+
+**4.1 Projects**
+
+  ---------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                  **Auth**   **Description**
+  ------------ ----------------------------- ---------- ---------------------------------
+  **GET**      /projects                     JWT        List all projects --- paginated.
+                                                        Filters: ?status= ?job_type=
+                                                        ?client_id=
+
+  **POST**     /projects                     JWT        Create new project --- triggers
+                                                        default budget category creation
+
+  **GET**      /projects/:id                 JWT        Get full project detail including
+                                                        team, budget summary, open items
+
+  **PUT**      /projects/:id                 JWT        Update project details --- name,
+                                                        dates, contract value, status
+
+  **DELETE**   /projects/:id                 JWT        Archive project --- soft delete.
+                                                        PM or Admin only.
+
+  **GET**      /projects/:id/dashboard       JWT        Project dashboard --- schedule
+                                                        status, budget variance, open
+                                                        items count, recent activity
+
+  **GET**      /projects/:id/team            JWT        List project team members
+
+  **POST**     /projects/:id/team            JWT        Add team member to project
+
+  **DELETE**   /projects/:id/team/:user_id   JWT        Remove team member from project
+  ---------------------------------------------------------------------------------------
+
+**4.2 Budget**
+
+  ------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                           **Auth**   **Description**
+  ------------ -------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/budget                   JWT        Full budget --- all line items
+                                                                 with budgeted, committed, actual,
+                                                                 projected, variance
+
+  **POST**     /projects/:id/budget/line-items        JWT        Add budget line item
+
+  **PUT**      /projects/:id/budget/line-items/:lid   JWT        Update line item amounts
+
+  **DELETE**   /projects/:id/budget/line-items/:lid   JWT        Remove line item
+
+  **GET**      /projects/:id/budget/summary           JWT        Budget summary --- total
+                                                                 contract, total spent, total
+                                                                 committed, projected final,
+                                                                 margin
+  ------------------------------------------------------------------------------------------------
+
+**4.3 Change Orders**
+
+  ------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                 **Auth**   **Description**
+  ------------ -------------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/change-orders                  JWT        List all change orders ---
+                                                                       filters: ?status= ?direction=
+
+  **POST**     /projects/:id/change-orders                  JWT        Create new change order --- draft
+                                                                       status
+
+  **GET**      /projects/:id/change-orders/:co_id           JWT        Get change order detail
+
+  **PUT**      /projects/:id/change-orders/:co_id           JWT        Update CO --- only allowed in
+                                                                       draft or submitted status
+
+  **POST**     /projects/:id/change-orders/:co_id/submit    JWT        Submit CO for approval ---
+                                                                       triggers notification to approver
+
+  **POST**     /projects/:id/change-orders/:co_id/approve   JWT        Approve CO --- triggers DocuSign
+                                                                       envelope creation
+
+  **POST**     /projects/:id/change-orders/:co_id/reject    JWT        Reject CO with reason
+
+  **POST**     /projects/:id/change-orders/:co_id/void      JWT        Void CO --- immutable after void
+  ------------------------------------------------------------------------------------------------------
+
+**5. Scheduling Endpoints**
+
+  ----------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                     **Auth**   **Description**
+  ------------ ------------------------------------------------ ---------- ---------------------------------
+  **GET**      /projects/:id/schedule                           JWT        Full Gantt data --- all tasks,
+                                                                           dependencies, critical path
+                                                                           flags, baseline vs actual
+
+  **POST**     /projects/:id/schedule/tasks                     JWT        Create schedule task --- can
+                                                                           specify parent_task_id for
+                                                                           nesting
+
+  **PUT**      /projects/:id/schedule/tasks/:task_id            JWT        Update task --- dates, assignee,
+                                                                           percent complete, status
+
+  **DELETE**   /projects/:id/schedule/tasks/:task_id            JWT        Delete task --- cascades to
+                                                                           delete dependencies
+
+  **POST**     /projects/:id/schedule/tasks/:task_id/complete   JWT        Mark task complete --- sets
+                                                                           percent_complete=100,
+                                                                           actual_end=today
+
+  **POST**     /projects/:id/schedule/dependencies              JWT        Create task dependency ---
+                                                                           predecessor_id, successor_id,
+                                                                           type, lag
+
+  **DELETE**   /projects/:id/schedule/dependencies/:dep_id      JWT        Remove dependency
+
+  **POST**     /projects/:id/schedule/baseline                  JWT        Set schedule baseline --- copies
+                                                                           planned dates to baseline
+                                                                           columns. One-time per project.
+
+  **GET**      /projects/:id/schedule/critical-path             JWT        Return only critical path tasks
+                                                                           with float calculation
+
+  **GET**      /projects/:id/schedule/lookahead                 JWT        Two-week lookahead --- tasks
+                                                                           starting or active in next 14
+                                                                           days
+
+  **POST**     /projects/:id/schedule/weather-delays            JWT        Log weather delay --- date, hours
+                                                                           lost, description
+
+  **GET**      /projects/:id/milestones                         JWT        List milestones ---
+                                                                           ?client_visible=true for
+                                                                           portal-only view
+
+  **POST**     /projects/:id/milestones                         JWT        Create milestone
+
+  **PUT**      /projects/:id/milestones/:m_id                   JWT        Update milestone --- mark
+                                                                           complete, update dates, toggle
+                                                                           client visibility
+  ----------------------------------------------------------------------------------------------------------
+
+**6. Financial Endpoints**
+
+**6.1 Invoices**
+
+  --------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                             **Auth**   **Description**
+  ------------ ---------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/invoices                   JWT        List all invoices --- filters:
+                                                                   ?invoice_type= ?status=
+
+  **POST**     /projects/:id/invoices                   JWT        Create new invoice --- draft
+                                                                   status
+
+  **GET**      /projects/:id/invoices/:inv_id           JWT        Invoice detail with line items
+
+  **PUT**      /projects/:id/invoices/:inv_id           JWT        Update invoice --- draft only
+
+  **POST**     /projects/:id/invoices/:inv_id/submit    JWT        Submit for approval --- notifies
+                                                                   approver
+
+  **POST**     /projects/:id/invoices/:inv_id/approve   JWT        Approve invoice --- triggers
+                                                                   payment processing if Stripe ACH
+                                                                   configured
+
+  **POST**     /projects/:id/invoices/:inv_id/pay       JWT        Record manual payment or trigger
+                                                                   Stripe PaymentIntent
+
+  **GET**      /projects/:id/invoices/:inv_id/pdf       JWT        Generate and return PDF invoice
+                                                                   --- pre-signed URL to generated
+                                                                   PDF
+  --------------------------------------------------------------------------------------------------
+
+**6.2 Lien Waivers**
+
+  ------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                 **Auth**   **Description**
+  ------------ -------------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/lien-waivers                   JWT        List all lien waivers ---
+                                                                       filters: ?vendor_id= ?status=
+                                                                       ?waiver_type=
+
+  **POST**     /projects/:id/lien-waivers                   JWT        Create lien waiver --- linked to
+                                                                       invoice
+
+  **POST**     /projects/:id/lien-waivers/:lw_id/send       JWT        Send waiver to vendor for
+                                                                       e-signature via DocuSign
+
+  **POST**     /projects/:id/lien-waivers/:lw_id/received   JWT        Mark waiver as received (for
+                                                                       paper waivers --- upload
+                                                                       document)
+
+  **GET**      /projects/:id/lien-waivers/dashboard         JWT        Lien waiver status summary ---
+                                                                       pending, signed, received counts
+                                                                       with deadline alerts
+  ------------------------------------------------------------------------------------------------------
+
+**6.3 Vendors & Subcontractors**
+
+  -----------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                    **Auth**   **Description**
+  ------------ ------------------------------- ---------- ---------------------------------
+  **GET**      /vendors                        JWT        List vendor database --- filters:
+                                                          ?vendor_type= ?trade_type=
+                                                          ?is_preferred=
+
+  **POST**     /vendors                        JWT        Add vendor to database
+
+  **GET**      /vendors/:id                    JWT        Vendor detail --- profile, COI
+                                                          status, project history
+
+  **PUT**      /vendors/:id                    JWT        Update vendor profile
+
+  **DELETE**   /vendors/:id                    JWT        Soft delete vendor
+
+  **POST**     /vendors/:id/coi                JWT        Upload new COI document ---
+                                                          updates expiration date and
+                                                          document URL
+
+  **GET**      /projects/:id/subcontractors    JWT        List subs assigned to project
+                                                          with scope and payment status
+
+  **POST**     /projects/:id/subcontractors    JWT        Assign vendor as sub on project
+                                                          --- specify scope and contract
+                                                          value
+
+  **POST**     /projects/:id/bid-invitations   JWT        Send bid invitation to one or
+                                                          more vendors with scope documents
+
+  **GET**      /projects/:id/bids              JWT        List received bids for a project
+  -----------------------------------------------------------------------------------------
+
+**7. Document & Plan Endpoints**
+
+**7.1 Documents**
+
+  -----------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                          **Auth**   **Description**
+  ------------ ------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/documents               JWT        List project documents ---
+                                                                filters: ?document_type= ?tags=
+
+  **POST**     /projects/:id/documents/upload-url    JWT        Get pre-signed S3 upload URL ---
+                                                                client uploads directly to S3,
+                                                                then calls confirm
+
+  **POST**     /projects/:id/documents/confirm       JWT        Confirm document upload ---
+                                                                creates document record after S3
+                                                                upload completes
+
+  **GET**      /projects/:id/documents/:doc_id       JWT        Document metadata
+
+  **GET**      /projects/:id/documents/:doc_id/url   JWT        Get fresh pre-signed download URL
+                                                                (15 min expiry)
+
+  **PUT**      /projects/:id/documents/:doc_id       JWT        Update document metadata ---
+                                                                name, tags, description
+
+  **DELETE**   /projects/:id/documents/:doc_id       JWT        Soft delete document
+
+  **GET**      /company/documents                    JWT        Company library documents ---
+                                                                templates, policies
+
+  **POST**     /company/documents/upload-url         JWT        Upload to company library
+  -----------------------------------------------------------------------------------------------
+
+**7.2 Plan Sets & Revisions**
+
+  ----------------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                           **Auth**   **Description**
+  ------------ ------------------------------------------------------ ---------- ---------------------------------
+  **GET**      /projects/:id/plan-sets                                JWT        List all plan sets for project
+                                                                                 with current revision info
+
+  **POST**     /projects/:id/plan-sets                                JWT        Create new plan set --- name and
+                                                                                 discipline
+
+  **GET**      /projects/:id/plan-sets/:ps_id/revisions               JWT        List all revisions for a plan set
+
+  **POST**     /projects/:id/plan-sets/:ps_id/revisions/upload-url    JWT        Get pre-signed upload URL for new
+                                                                                 plan revision
+
+  **POST**     /projects/:id/plan-sets/:ps_id/revisions/confirm       JWT        Confirm revision upload --- set
+                                                                                 as current, supersede previous
+
+  **GET**      /projects/:id/plan-sets/:ps_id/revisions/:rev_id/url   JWT        Pre-signed URL for plan PDF
+                                                                                 download/view (15 min expiry)
+  ----------------------------------------------------------------------------------------------------------------
+
+**7.3 Photos**
+
+  --------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                       **Auth**   **Description**
+  ------------ ---------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/photos               JWT        List all photos --- filters:
+                                                             ?album_id= ?is_client_visible=
+                                                             ?date_from= ?date_to=
+
+  **POST**     /projects/:id/photos/upload-url    JWT        Batch pre-signed upload URLs ---
+                                                             pass array of filenames, get
+                                                             array of upload URLs
+
+  **POST**     /projects/:id/photos/confirm       JWT        Confirm batch photo upload ---
+                                                             create photo records with GPS,
+                                                             caption, album
+
+  **PUT**      /projects/:id/photos/:photo_id     JWT        Update photo --- caption, album,
+                                                             client visibility toggle
+
+  **DELETE**   /projects/:id/photos/:photo_id     JWT        Delete photo --- removes from
+                                                             storage and record
+
+  **GET**      /projects/:id/photos/client-feed   JWT        Client-visible photo feed ---
+                                                             ordered by taken_at desc
+  --------------------------------------------------------------------------------------------
+
+**7.4 RFIs**
+
+  ----------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                         **Auth**   **Description**
+  ------------ ------------------------------------ ---------- ---------------------------------
+  **GET**      /projects/:id/rfis                   JWT        List RFIs --- filters: ?status=
+                                                               ?assigned_to=
+
+  **POST**     /projects/:id/rfis                   JWT        Create RFI --- subject, question,
+                                                               drawing reference, due date
+
+  **GET**      /projects/:id/rfis/:rfi_id           JWT        RFI detail with all responses
+
+  **POST**     /projects/:id/rfis/:rfi_id/respond   JWT        Submit RFI response --- sets
+                                                               status to answered
+
+  **POST**     /projects/:id/rfis/:rfi_id/close     JWT        Close RFI --- PM marks as
+                                                               resolved
+  ----------------------------------------------------------------------------------------------
+
+**7.5 Submittals**
+
+  -------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                  **Auth**   **Description**
+  ------------ --------------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/submittals                      JWT        List submittals --- filters:
+                                                                        ?status= ?spec_section=
+
+  **POST**     /projects/:id/submittals                      JWT        Create submittal record ---
+                                                                        metadata only
+
+  **POST**     /projects/:id/submittals/:sub_id/upload-url   JWT        Pre-signed URL to upload
+                                                                        submittal document
+
+  **POST**     /projects/:id/submittals/:sub_id/review       JWT        Submit review decision ---
+                                                                        status, reviewer notes
+  -------------------------------------------------------------------------------------------------------
+
+**8. Field Operations Endpoints**
+
+**8.1 Daily Reports**
+
+  ------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                 **Auth**   **Description**
+  ------------ -------------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/daily-reports                  JWT        List daily reports --- filters:
+                                                                       ?date_from= ?date_to=
+                                                                       ?submitted_by=
+
+  **POST**     /projects/:id/daily-reports                  JWT        Create/submit daily report ---
+                                                                       weather auto-populated if GPS
+                                                                       provided
+
+  **GET**      /projects/:id/daily-reports/:dr_id           JWT        Report detail with crew list and
+                                                                       photos
+
+  **PUT**      /projects/:id/daily-reports/:dr_id           JWT        Update report --- draft only
+
+  **POST**     /projects/:id/daily-reports/:dr_id/submit    JWT        Submit report --- locks from
+                                                                       further edits, notifies PM
+
+  **POST**     /projects/:id/daily-reports/:dr_id/approve   JWT        PM approves report
+  ------------------------------------------------------------------------------------------------------
+
+**8.2 Time & Attendance**
+
+  -----------------------------------------------------------------------------------
+  **Method**   **Endpoint**              **Auth**   **Description**
+  ------------ ------------------------- ---------- ---------------------------------
+  **POST**     /time/clock-in            JWT        Clock in --- employee_id,
+                                                    project_id, GPS coordinates
+
+  **POST**     /time/clock-out           JWT        Clock out --- calculates regular
+                                                    and overtime hours
+
+  **POST**     /time/crew-clock-in       JWT        Batch clock-in --- foreman clocks
+                                                    in multiple employees
+                                                    simultaneously
+
+  **GET**      /time/entries             JWT        List time entries --- filters:
+                                                    ?project_id= ?employee_id=
+                                                    ?date_from= ?date_to=
+
+  **PUT**      /time/entries/:entry_id   JWT        Edit time entry --- PM/Admin
+                                                    only. Corrections with audit
+                                                    note.
+
+  **GET**      /time/summary             JWT        Labor summary --- hours by
+                                                    project, by employee, by week.
+                                                    Used for job costing.
+  -----------------------------------------------------------------------------------
+
+**8.3 Inspections**
+
+  --------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                   **Auth**   **Description**
+  ------------ ---------------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/inspections                      JWT        List inspections --- filters:
+                                                                         ?trade_module= ?status=
+                                                                         ?scheduled_date=
+
+  **POST**     /projects/:id/inspections                      JWT        Schedule inspection --- trade,
+                                                                         type, date, inspector contact
+
+  **GET**      /projects/:id/inspections/:insp_id             JWT        Inspection detail with result and
+                                                                         photos
+
+  **POST**     /projects/:id/inspections/:insp_id/result      JWT        Record inspection result ---
+                                                                         pass/fail/correction, notes,
+                                                                         photos. Triggers re-inspection if
+                                                                         failed.
+
+  **POST**     /projects/:id/inspections/:insp_id/reinspect   JWT        Schedule re-inspection ---
+                                                                         creates new inspection linked to
+                                                                         original
+  --------------------------------------------------------------------------------------------------------
+
+**8.4 Punch List**
+
+  ------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                 **Auth**   **Description**
+  ------------ -------------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/punch-list                     JWT        List punch list items ---
+                                                                       filters: ?status= ?assigned_to=
+                                                                       ?trade_module=
+
+  **POST**     /projects/:id/punch-list                     JWT        Create punch list item ---
+                                                                       description, location, trade,
+                                                                       assignee, priority
+
+  **PUT**      /projects/:id/punch-list/:item_id            JWT        Update item --- status, assignee,
+                                                                       due date
+
+  **POST**     /projects/:id/punch-list/:item_id/complete   JWT        Mark item complete --- requires
+                                                                       photo proof if configured
+
+  **POST**     /projects/:id/punch-list/:item_id/verify     JWT        PM verifies completion --- final
+                                                                       status update
+
+  **GET**      /projects/:id/punch-list/summary             JWT        Summary counts --- open, in
+                                                                       progress, complete, verified by
+                                                                       trade
+  ------------------------------------------------------------------------------------------------------
+
+**9. Trade Module Endpoints**
+
+All trade module endpoints follow the same pattern --- prefixed with
+/projects/:id/trades/:trade_module/. The trade_module path parameter
+identifies the discipline (electrical, plumbing, hvac, concrete, etc.).
+
+**9.1 Trade Phases (all modules)**
+
+  -------------------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                              **Auth**   **Description**
+  ------------ --------------------------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/trades/:module/phases                       JWT        List all phases for this trade on
+                                                                                    this project with status
+
+  **POST**     /projects/:id/trades/:module/phases/:phase_key/start      JWT        Mark phase as started
+
+  **POST**     /projects/:id/trades/:module/phases/:phase_key/complete   JWT        Mark phase as complete ---
+                                                                                    triggers inspection scheduling
+                                                                                    prompt
+  -------------------------------------------------------------------------------------------------------------------
+
+**9.2 Electrical Module**
+
+  ---------------------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                                **Auth**   **Description**
+  ------------ ----------------------------------------------------------- ---------- ---------------------------------
+  **GET**      /projects/:id/trades/electrical/panels                      JWT        List all panels for project
+
+  **POST**     /projects/:id/trades/electrical/panels                      JWT        Create panel --- name, location,
+                                                                                      amperage, voltage, phases
+
+  **PUT**      /projects/:id/trades/electrical/panels/:panel_id            JWT        Update panel details or status
+
+  **GET**      /projects/:id/trades/electrical/panels/:panel_id/circuits   JWT        List circuits for panel
+
+  **POST**     /projects/:id/trades/electrical/panels/:panel_id/circuits   JWT        Add circuit to panel
+
+  **PUT**      /projects/:id/trades/electrical/circuits/:circuit_id        JWT        Update circuit --- status, load,
+                                                                                      notes
+
+  **GET**      /projects/:id/trades/electrical/summary                     JWT        Electrical summary --- panel
+                                                                                      count, circuit completion %,
+                                                                                      inspection status
+  ---------------------------------------------------------------------------------------------------------------------
+
+**9.3 Plumbing Module**
+
+  ----------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                     **Auth**   **Description**
+  ------------ ------------------------------------------------ ---------- ---------------------------------
+  **GET**      /projects/:id/trades/plumbing/fixtures           JWT        List all fixtures for project
+
+  **POST**     /projects/:id/trades/plumbing/fixtures           JWT        Add fixture --- type, location,
+                                                                           model, rough-in dimensions
+
+  **PUT**      /projects/:id/trades/plumbing/fixtures/:fix_id   JWT        Update fixture status or details
+
+  **GET**      /projects/:id/trades/plumbing/pressure-tests     JWT        List pressure tests
+
+  **POST**     /projects/:id/trades/plumbing/pressure-tests     JWT        Record pressure test --- system,
+                                                                           type, pressure, duration, result
+
+  **GET**      /projects/:id/trades/plumbing/summary            JWT        Plumbing summary --- fixture
+                                                                           completion %, test results,
+                                                                           inspection status
+  ----------------------------------------------------------------------------------------------------------
+
+**10. Notifications & Communications**
+
+  -----------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                    **Auth**   **Description**
+  ------------ ------------------------------- ---------- ---------------------------------
+  **GET**      /notifications                  JWT        List notifications for current
+                                                          user --- filters: ?is_read=
+                                                          ?notification_type=
+
+  **POST**     /notifications/:id/read         JWT        Mark notification as read
+
+  **POST**     /notifications/read-all         JWT        Mark all notifications as read
+
+  **GET**      /notifications/unread-count     JWT        Unread notification count ---
+                                                          polled by client for badge
+
+  **GET**      /projects/:id/messages          JWT        List project message thread
+
+  **POST**     /projects/:id/messages          JWT        Post message to project thread
+                                                          --- supports \@mentions
+
+  **GET**      /projects/:id/messages/client   JWT        Client portal message thread ---
+                                                          filtered to client-visible
+                                                          messages only
+  -----------------------------------------------------------------------------------------
+
+**11. Client Portal Endpoints**
+
+Client portal endpoints are accessible to users with the \'client\'
+role. They return a subset of project data filtered for client
+visibility. All responses exclude internal cost data, sub pricing, and
+internal team communications.
+
+  -------------------------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                                        **Auth**   **Description**
+  ------------ --------------------------------------------------- ---------- ---------------------------------
+  **GET**      /portal/projects                                    JWT        List client\'s projects (only
+                                                                              projects where they are the
+                                                                              client)
+
+  **GET**      /portal/projects/:id/overview                       JWT        Project overview --- status,
+                                                                              percent complete, milestone
+                                                                              summary, next steps
+
+  **GET**      /portal/projects/:id/milestones                     JWT        Client-visible milestones only
+                                                                              --- is_client_visible=true
+
+  **GET**      /portal/projects/:id/photos                         JWT        Client-visible photo feed ---
+                                                                              is_client_visible=true, ordered
+                                                                              by date
+
+  **GET**      /portal/projects/:id/change-orders                  JWT        Change orders pending client
+                                                                              approval or recently executed
+
+  **POST**     /portal/projects/:id/change-orders/:co_id/approve   JWT        Client approves change order ---
+                                                                              triggers DocuSign or records
+                                                                              digital approval
+
+  **POST**     /portal/projects/:id/change-orders/:co_id/reject    JWT        Client rejects change order with
+                                                                              reason
+
+  **GET**      /portal/projects/:id/invoices                       JWT        Invoices pending approval or paid
+                                                                              history
+
+  **POST**     /portal/projects/:id/invoices/:inv_id/approve       JWT        Client approves invoice for
+                                                                              payment
+
+  **GET**      /portal/projects/:id/documents                      JWT        Client-accessible documents ---
+                                                                              permits, approved submittals,
+                                                                              warranties
+
+  **GET**      /portal/projects/:id/messages                       JWT        Project message thread ---
+                                                                              client-facing
+
+  **POST**     /portal/projects/:id/messages                       JWT        Post message from client to PM
+  -------------------------------------------------------------------------------------------------------------
+
+**12. Mobile-Specific Endpoints**
+
+The following endpoints are designed specifically for mobile use cases
+--- optimized for low-bandwidth conditions and offline sync
+requirements.
+
+  ---------------------------------------------------------------------------------------------
+  **Method**   **Endpoint**                        **Auth**   **Description**
+  ------------ ----------------------------------- ---------- ---------------------------------
+  **GET**      /mobile/sync                        JWT        Full sync payload for offline use
+                                                              --- returns all active project
+                                                              data, tasks, and plans metadata
+                                                              since last_sync_at timestamp
+
+  **POST**     /mobile/sync/push                   JWT        Push offline-created records to
+                                                              server --- batch upload of time
+                                                              entries, field reports, task
+                                                              completions, photos created while
+                                                              offline
+
+  **GET**      /mobile/projects/:id/plan-urls      JWT        Pre-signed download URLs for all
+                                                              current plan revisions --- for
+                                                              offline caching
+
+  **POST**     /mobile/photos/batch-upload-url     JWT        Get batch pre-signed URLs for
+                                                              multiple photos --- mobile
+                                                              uploads directly to S3
+
+  **POST**     /mobile/daily-reports/voice-draft   JWT        Accept voice transcription text
+                                                              --- returns formatted daily
+                                                              report draft for user review
+
+  **GET**      /mobile/schedule/today              JWT        Today\'s tasks for current user
+                                                              --- optimized single-call
+                                                              response for morning field
+                                                              check-in
+
+  **POST**     /mobile/device-token                JWT        Register device push notification
+                                                              token --- APNs (iOS) or FCM
+                                                              (Android)
+
+  **DELETE**   /mobile/device-token                JWT        Unregister device token on logout
+  ---------------------------------------------------------------------------------------------
+
+**12.1 Offline Sync Architecture**
+
+The mobile app operates in offline-first mode. When connectivity is
+lost, all writes are queued locally in SQLite on the device. When
+connectivity is restored, the sync engine runs:
+
+-   Step 1: POST /mobile/sync/push --- push all queued local writes to
+    the server in a single batch
+
+-   Step 2: Server processes writes in order --- returns
+    success/conflict status per record
+
+-   Step 3: GET /mobile/sync --- pull any server-side changes since last
+    sync timestamp
+
+-   Step 4: Apply server changes to local SQLite, resolve any conflicts
+    using last-write-wins per record
+
+-   Step 5: Update last_sync_at timestamp --- stored locally and sent
+    with every sync request
+
+> **Conflict Resolution Rule:**
+>
+> For field data (time entries, task completions, daily reports) the
+> server timestamp wins on conflict --- the server is the authoritative
+> record. The app surfaces a conflict notification to the user when a
+> local record was overwritten by a server update during sync.
+
+**13. QuickBooks Online Integration**
+
+QuickBooks Online (QBO) is the highest-priority integration in v1.0. It
+is a bi-directional sync --- data flows both from QBO into the platform
+and from the platform into QBO. The integration uses the Intuit QBO REST
+API (OAuth 2.0).
+
+**13.1 OAuth 2.0 Connection Flow**
+
+-   Step 1: Tenant clicks \'Connect QuickBooks\' in Settings
+
+-   Step 2: Platform redirects to Intuit OAuth 2.0 authorization page
+
+-   Step 3: Tenant logs into QuickBooks and grants permission
+
+-   Step 4: Intuit redirects back to platform with authorization code
+
+-   Step 5: Platform exchanges code for access_token + refresh_token
+
+-   Step 6: Platform stores encrypted tokens in tenant settings JSONB
+    --- realm_id (company ID) stored for all future API calls
+
+-   Step 7: Initial sync triggered --- imports chart of accounts,
+    customers, vendors
+
+**13.2 Bi-Directional Sync Mapping**
+
+  -----------------------------------------------------------------------------------------
+  **Platform     **Direction**   **QBO Entity** **Sync          **Notes**
+  Entity**                                      Trigger**       
+  -------------- --------------- -------------- --------------- ---------------------------
+  Client         Platform → QBO  Customer       On client       Creates/updates QBO
+                                                create/update   Customer. Sub-customer
+                                                                hierarchy for project-level
+                                                                P&L.
+
+  Vendor         Platform → QBO  Vendor         On vendor       Syncs vendor name, contact,
+                                                create/update   payment terms.
+
+  Project        Platform → QBO  Sub-Customer   On project      QBO sub-customer under
+                                                create          parent client. Enables
+                                                                per-project P&L reporting
+                                                                in QBO.
+
+  Invoice        Platform → QBO  Invoice        On invoice      Creates QBO invoice against
+  (owner)                                       approval        customer. Line items map to
+                                                                service items.
+
+  Invoice (sub)  QBO → Platform  Bill           On QBO bill     Sub bills entered in QBO
+                                                creation        sync back as sub invoice
+                                                                records in platform.
+
+  Payment        QBO → Platform  Payment        On QBO payment  Updates platform invoice
+  received                                      post            status to \'paid\' with
+                                                                payment date.
+
+  Chart of       QBO → Platform  Account        On initial      Populates budget category
+  Accounts                                      connect + daily and cost code options in
+                                                sync            platform.
+
+  Time entries   Platform → QBO  Time Activity  On payroll run  Exports labor hours by
+                                                trigger         employee and job for QBO
+                                                                Payroll or export.
+
+  Change order   Platform → QBO  Invoice line   On CO approval  Adds CO value to project
+  amount                         item                           invoice in QBO.
+
+  Expense/bill   QBO → Platform  Bill           On QBO bill     Syncs vendor bills to
+                                                creation        platform budget actuals by
+                                                                cost category.
+  -----------------------------------------------------------------------------------------
+
+**13.3 Sync Engine Design**
+
+-   Sync runs on a background job queue --- not on-demand API calls (too
+    slow for UX)
+
+-   Incremental sync every 15 minutes --- fetches only records modified
+    since last sync timestamp
+
+-   Full sync available on demand from Settings --- for initial setup or
+    after resolving conflicts
+
+-   Sync errors logged to a sync_log table --- visible to tenant admin
+    in Settings \> QuickBooks
+
+-   Conflict handling: platform changes take precedence for project/job
+    data; QBO takes precedence for accounting/payment data
+
+-   Webhook listener for real-time QBO events --- payments, bill
+    approvals, account changes
+
+**13.4 QBO API Endpoints Used**
+
+  --------------------------------------------------------------------------------------
+  **QBO Endpoint**                     **Method**   **Purpose**
+  ------------------------------------ ------------ ------------------------------------
+  /v3/company/{realmId}/customer       POST/PUT     Create and update customers and
+                                                    sub-customers
+
+  /v3/company/{realmId}/vendor         POST/PUT     Create and update vendors
+
+  /v3/company/{realmId}/invoice        POST/PUT     Create and update invoices
+
+  /v3/company/{realmId}/bill           GET          Retrieve vendor bills for expense
+                                                    sync
+
+  /v3/company/{realmId}/payment        GET          Retrieve customer payments
+
+  /v3/company/{realmId}/account        GET          Chart of accounts for budget mapping
+
+  /v3/company/{realmId}/timeactivity   POST         Post time entries for payroll
+
+  /v3/company/{realmId}/query          GET          FIQL query for incremental sync ---
+                                                    ?query=SELECT \* FROM Invoice WHERE
+                                                    MetaData.LastUpdatedTime \> \'\...\'
+  --------------------------------------------------------------------------------------
+
+**14. Other v1.0 Integrations**
+
+**14.1 DocuSign (E-Signatures)**
+
+Used for change order execution, contract signing, and lien waiver
+collection. Integration uses DocuSign eSignature REST API.
+
+  ----------------------------------------------------------------------------------------
+  **Action**         **DocuSign API Call**               **Platform Trigger**
+  ------------------ ----------------------------------- ---------------------------------
+  Create envelope    POST /envelopes                     Change order approved, contract
+                                                         generated, lien waiver sent
+
+  Get signing URL    POST /envelopes/:id/views/recipient Redirect user to DocuSign
+                                                         in-browser signing experience
+
+  Envelope status    GET /envelopes/:id                  Polled on document view; also
+                                                         received via webhook
+
+  Webhook --- signed Connect webhook: envelope-completed Update platform record status to
+                                                         \'executed\', store signed
+                                                         document URL
+
+  Webhook ---        Connect webhook: envelope-declined  Update platform record status to
+  declined                                               \'rejected\', notify PM
+
+  Download signed    GET                                 Store completed document in
+  doc                /envelopes/:id/documents/combined   tenant\'s S3 storage
+  ----------------------------------------------------------------------------------------
+
+**14.2 Stripe (Payments & Billing)**
+
+  -----------------------------------------------------------------------------
+  **Use Case**        **Stripe Object**  **Notes**
+  ------------------- ------------------ --------------------------------------
+  Tenant subscription Subscription +     Created at signup --- monthly/annual
+                      PaymentMethod      recurring billing per tier
+
+  Tier                Subscription       Prorates immediately --- generates
+  upgrade/downgrade   update             credit or charge
+
+  Failed payment      Invoice + retry    3 automatic retries over 7 days ---
+  handling            schedule           tenant notified each attempt
+
+  Client invoice      PaymentIntent      ACH or card --- initiated from client
+  payment                                portal or PM dashboard
+
+  Stripe webhook      stripe-signature   Verify all webhooks --- handle:
+                      header             invoice.paid,
+                                         payment_intent.succeeded,
+                                         customer.subscription.deleted
+  -----------------------------------------------------------------------------
+
+**14.3 Twilio (SMS Notifications)**
+
+  --------------------------------------------------------------------------
+  **Notification        **Recipient**   **SMS Content**
+  Event**                               
+  --------------------- --------------- ------------------------------------
+  Inspection scheduled  Assigned        Inspection scheduled: \[type\] on
+                        foreman         \[project\] for \[date\]. Log in to
+                                        view details.
+
+  Inspection failed     PM + Foreman    Inspection FAILED: \[type\] on
+                                        \[project\]. Correction required.
+                                        Log in to review.
+
+  Change order pending  Client          Change Order #\[num\] on \[project\]
+  approval                              requires your approval. Log in to
+                                        review.
+
+  Invoice pending       Client          Invoice #\[num\] for \[project\] is
+  approval                              ready for your review and approval.
+
+  Schedule change ---   Assigned crew   Schedule update on \[project\]:
+  task delayed          member          \[task name\] moved to \[new date\].
+
+  Crew clock-in         Employee        Clocked in to \[project\] at
+  confirmation                          \[time\]. Reply STOP to opt out of
+                                        SMS.
+  --------------------------------------------------------------------------
+
+**14.4 Weather API (OpenWeatherMap)**
+
+Used to auto-populate weather conditions on daily field reports. Called
+when a daily report is created with a GPS location.
+
+> GET https://api.openweathermap.org/data/2.5/weather
+>
+> ?lat={gps_lat}&lon={gps_lng}&appid={API_KEY}&units=imperial
+
+Response mapped to daily_reports.weather_conditions JSONB: temperature
+(F), condition description, wind speed (mph), precipitation (in). If the
+GPS location is unavailable, weather field is left null --- not required
+for report submission.
+
+**14.5 Google Maps / Apple Maps**
+
+-   Address validation: Google Places Autocomplete API on all address
+    input fields --- standardizes address format
+
+-   Geocoding: Google Geocoding API converts validated address to
+    lat/lng for site_address.lat and site_address.lng
+
+-   Geofencing: Platform computes distance between clock-in GPS and
+    project site coordinates --- alert if \> 500 feet
+
+-   Navigation: Deep-link to native Maps app from project detail ---
+    google.maps:// or maps:// scheme on mobile
+
+**15. Platform Outbound Webhooks (v2.0)**
+
+Outbound webhooks allow Enterprise tenants to receive real-time event
+notifications in their own systems. This feature is planned for v2.0
+when the API access tier is available. The event catalog is defined here
+for planning purposes.
+
+  -----------------------------------------------------------------------------
+  **Event**                **Payload Includes**  **Use Case**
+  ------------------------ --------------------- ------------------------------
+  project.created          Project ID, name,     ERP or external PM tool sync
+                           job_type, client      on new job
+
+  project.status_changed   Project ID,           Trigger external workflows on
+                           old_status,           project milestones
+                           new_status            
+
+  change_order.approved    CO ID, project ID,    Sync approved COs to external
+                           amount, executed_at   accounting
+
+  invoice.paid             Invoice ID, project   Payment confirmation to
+                           ID, amount, paid_at   external billing system
+
+  inspection.failed        Inspection ID,        Alert dispatch system for
+                           project ID, trade,    correction crews
+                           notes                 
+
+  inspection.passed        Inspection ID,        Trigger next-phase task
+                           project ID, trade     activation in external system
+
+  daily_report.submitted   Report ID, project    Archive or notify stakeholders
+                           ID, date,             of daily progress
+                           submitted_by          
+
+  user.clocked_in          Employee ID, project  Feed into external payroll or
+                           ID, timestamp, GPS    workforce management
+
+  lien_waiver.signed       Waiver ID, project    Trigger payment release in
+                           ID, vendor ID, type   external AP system
+  -----------------------------------------------------------------------------
+
+**16. Localization API Standards**
+
+Every API endpoint supports localization through a combination of the
+Accept-Language request header and the user\'s stored preferred_language
+preference. The API is locale-aware without requiring locale-specific
+endpoint variants.
+
+**16.1 Locale Resolution on Every Request**
+
+> Locale resolution order (highest to lowest priority):
+>
+> 1\. users.preferred_language (from JWT claims)
+>
+> 2\. Accept-Language header on the request
+>
+> 3\. tenants.default_language (from JWT claims)
+>
+> 4\. \'en\' fallback
+
+**16.2 Locale-Affected API Behaviors**
+
+  -----------------------------------------------------------------------
+  **API Behavior**      **Locale Effect**
+  --------------------- -------------------------------------------------
+  Error response        The data.error.message field is returned in the
+  messages              resolved locale. The error.code is always English
+                        --- machine-readable codes never change.
+
+  Notification dispatch When an API action triggers a notification (e.g.
+                        inspection recorded → notify PM), the
+                        notification service resolves the recipient\'s
+                        locale and selects the matching template.
+
+  Email dispatch        POST /projects/:id/invoices/:id/submit triggers
+  (SendGrid)            an email to approver --- email template selected
+                        by approver\'s preferred_language, not the
+                        submitter\'s.
+
+  SMS dispatch (Twilio) Same locale resolution as email --- recipient\'s
+                        language, not sender\'s.
+
+  PDF generation        PDF language is set by the requesting user\'s
+  (invoices, reports)   locale --- owner generates a Spanish PDF for a
+                        Spanish-speaking client.
+
+  Audit log entries     Always in English --- audit logs are internal
+                        records for compliance, never translated.
+
+  User-entered data     Returned as stored --- the API never translates
+                        user content. Only system-generated text is
+                        localized.
+  -----------------------------------------------------------------------
+
+**16.3 Language Preference Endpoints**
+
+  ------------------------------------------------------------------------------------
+  **Method**   **Endpoint**            **Auth**   **Description**
+  ------------ ----------------------- ---------- ------------------------------------
+  PUT          /users/me/language      JWT        Update current user\'s
+                                                  preferred_language --- body: {
+                                                  preferred_language: \'es\' }.
+                                                  Immediately affects all subsequent
+                                                  notifications and API responses.
+
+  PUT          /tenant/language        JWT        Update tenant default_language and
+                                                  supported_languages array. Owner
+                                                  only. Affects language options shown
+                                                  to all new team members.
+
+  GET          /locales                None       Returns list of supported language
+                                                  codes with display names --- used to
+                                                  populate language selector UI. No
+                                                  auth required.
+
+  GET          /locales/:code/status   JWT        Returns translation completeness
+                                                  status for a given locale --- what
+                                                  percentage of strings are
+                                                  translated. Used in Settings \>
+                                                  Language to show translation
+                                                  coverage.
+  ------------------------------------------------------------------------------------
+
+**16.4 Accept-Language Header Standard**
+
+-   All API clients (web app, mobile app) MUST include Accept-Language
+    header on every request
+
+-   Format: Accept-Language: es or Accept-Language: pt-BR --- standard
+    IETF BCP 47 language tag
+
+-   JWT token includes preferred_language claim --- refreshed when user
+    updates language preference
+
+-   Server ignores Accept-Language if preferred_language is set in JWT
+    --- JWT always wins
+
+-   For unauthenticated endpoints (signup, login, forgot-password), only
+    Accept-Language header is used for response locale

@@ -1,0 +1,41 @@
+{
+  "list": {
+    "title": "Proyectos",
+    "empty": "Aún no hay proyectos. Cree su primer proyecto para comenzar.",
+    "create_button": "Nuevo Proyecto"
+  },
+  "detail": {
+    "overview": "Resumen",
+    "members": "Miembros del Equipo",
+    "documents": "Documentos",
+    "financial": "Finanzas",
+    "schedule": "Cronograma",
+    "daily_reports": "Informes Diarios"
+  },
+  "form": {
+    "name": "Nombre del Proyecto",
+    "name_placeholder": "Ingrese el nombre del proyecto",
+    "status": "Estado",
+    "start_date": "Fecha de Inicio",
+    "end_date": "Fecha de Fin",
+    "address": "Dirección",
+    "city": "Ciudad",
+    "state": "Estado",
+    "zip": "Código Postal"
+  },
+  "status": {
+    "active": "Activo",
+    "completed": "Completado",
+    "on_hold": "En Pausa",
+    "cancelled": "Cancelado"
+  },
+  "members": {
+    "add": "Agregar Miembro",
+    "role": "Rol",
+    "remove_confirm": "¿Quitar a {{name}} de este proyecto?"
+  },
+  "limits": {
+    "reached": "Ha alcanzado su límite de proyectos ({{limit}}). Actualice su plan para crear más proyectos.",
+    "upgrade_cta": "Actualizar Plan"
+  }
+}

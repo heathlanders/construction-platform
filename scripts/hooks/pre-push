@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+#
+# Auto-ship mobile OTA on push to main.
+# Trigger: any push whose refs include refs/heads/main.
+# Gates (ALL must pass, else ship is skipped — push still proceeds):
+#   1. Files under mobile/ changed in the pushed range.
+#   2. `npx tsc --noEmit` in mobile/ is clean (pre-existing Checkout.tsx
+#      expo-camera errors are ignored — see mobile/CLAUDE.md).
+#   3. `npx jest` in mobile/ is green (i18n integrity + EN/ES parity, §C6).
+# After a successful ship, RUN_E2E=1 also smokes the SHIPPED bundle on the emulator
+# (post-ship, not a gate — see scripts/mobile-e2e-smoke.sh for why).
+# Ship: `eas update --branch production` (JS-only OTA; no native rebuild).
+#
+# Installed via:  git config core.hooksPath scripts/hooks
+# Skip once with: SKIP_OTA=1 git push   (or `git push --no-verify`)
+#
+# stdin lines:  <local ref> <local sha> <remote ref> <remote sha>
+set -euo pipefail
+
+ZERO="0000000000000000000000000000000000000000"
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+if [ "${SKIP_OTA:-0}" = "1" ]; then
+  echo "[pre-push] SKIP_OTA=1 — skipping mobile OTA."
+  exit 0
+fi
+
+pushing_main=""
+range=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$remote_ref" = "refs/heads/main" ] || continue
+  pushing_main="yes"
+  if [ "$local_sha" = "$ZERO" ]; then
+    # Deleting main — nothing to ship.
+    pushing_main=""
+  elif [ "$remote_sha" = "$ZERO" ]; then
+    # New main on remote — diff against the last commit as a safe fallback.
+    range="HEAD~1 $local_sha"
+  else
+    range="$remote_sha $local_sha"
+  fi
+done
+
+[ -n "$pushing_main" ] || exit 0
+
+# Gate 1 — did mobile/ change in the pushed range?
+# shellcheck disable=SC2086
+if ! git diff --name-only $range -- "$REPO_ROOT/mobile" 2>/dev/null | grep -q .; then
+  echo "[pre-push] No mobile/ changes in pushed range — skipping OTA."
+  exit 0
+fi
+echo "[pre-push] mobile/ changed — gating OTA ship…"
+
+# Gate 2 — mobile typecheck clean (ignore known pre-existing Checkout.tsx errors).
+cd "$REPO_ROOT/mobile"
+tsc_out="$(npx tsc --noEmit 2>&1 || true)"
+remaining="$(printf '%s\n' "$tsc_out" | grep -E 'error TS' | grep -v 'Checkout.tsx' || true)"
+if [ -n "$remaining" ]; then
+  echo "[pre-push] ✗ tsc not clean — OTA BLOCKED. Fix these (push still proceeds):"
+  printf '%s\n' "$remaining"
+  exit 0
+fi
+echo "[pre-push] ✓ tsc clean."
+
+# Gate 3 — mobile Jest unit tests green (i18n integrity + EN/ES parity, §C6).
+if npx jest --silent >/tmp/prepush-jest.log 2>&1; then
+  echo "[pre-push] ✓ jest green."
+else
+  echo "[pre-push] ✗ jest failing — OTA BLOCKED. Fix these (push still proceeds):"
+  tail -n 30 /tmp/prepush-jest.log
+  exit 0
+fi
+
+# Ship.
+if ! command -v eas >/dev/null 2>&1; then
+  echo "[pre-push] ✗ eas CLI not found — install \`npm i -g eas-cli\`. OTA skipped."
+  exit 0
+fi
+echo "[pre-push] Shipping OTA: eas update --branch production"
+if eas update --branch production --message "auto-ship: push to main" --non-interactive; then
+  echo "[pre-push] ✓ OTA shipped."
+  # Opt-in post-ship smoke (§C3/§C6). NOT a gate, on purpose: the emulator runs the
+  # bundle from the production channel, so anything run BEFORE `eas update` verifies
+  # the code you are replacing, not the code you are shipping — that looks like
+  # verification without being it. Verify after; roll back by republishing the last
+  # good update if red. See scripts/mobile-e2e-smoke.sh.
+  if [ "${RUN_E2E:-0}" = "1" ]; then
+    echo "[pre-push] RUN_E2E=1 — smoking the shipped bundle on the emulator…"
+    "$REPO_ROOT/scripts/mobile-e2e-smoke.sh" || echo "[pre-push] ⚠ E2E red against the shipped bundle — see above."
+  fi
+else
+  echo "[pre-push] ⚠ eas update failed — push still proceeds. Re-run manually:"
+  echo "           (cd mobile && eas update --branch production)"
+fi

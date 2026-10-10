@@ -1,0 +1,60 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`intake registry — catalog (DB) > concrete_flatwork: golden pricing for fixtures 1`] = `
+[
+  {
+    "fixture": "broom patio 12x16 on grass",
+    "lines": [
+      "B-FLAT-EXCAV-SF × 192",
+      "B-AGG-BASE-SY × 21.33",
+      "B-FLATWORK-SF × 192",
+      "B-FLAT-MESH-SF × 192",
+      "B-FLAT-SAWCUT-LF × 38.4",
+    ],
+    "range": [
+      320000,
+      400000,
+    ],
+    "total_cents": 362426,
+  },
+  {
+    "fixture": "stamped L driveway replacing asphalt, curb cut",
+    "lines": [
+      "G-SITE-DEMO-SF × 600",
+      "B-AGG-BASE-SY × 66.67",
+      "B-FLATWORK-SF × 600",
+      "B-FLAT-THICK-SF-IN × 600",
+      "B-REBAR-LF × 800",
+      "B-FLAT-STAMP-SF × 600",
+      "B-FLAT-BORDER-LF × 124",
+      "B-FLAT-SAWCUT-LF × 120",
+      "B-FLAT-SEAL-SF × 600",
+    ],
+    "range": [
+      2070000,
+      2550000,
+    ],
+    "total_cents": 2309219,
+  },
+  {
+    "fixture": "backyard walkway, pump + steps + drain",
+    "lines": [
+      "G-SITE-DEMO-SF × 180",
+      "B-FLAT-EXCAV-SF × 90",
+      "B-FLATWORK-SF × 180",
+      "B-FLAT-FIBER-SF × 180",
+      "B-FLAT-EXPOSED-SF × 180",
+      "B-FLAT-COLOR-SF × 180",
+      "B-FLAT-SAWCUT-LF × 36",
+      "B-FLAT-STEP-EA × 3",
+      "B-FLAT-DRAIN-LF × 12",
+      "EQUIP-CONCRETE_PUMP × 1",
+    ],
+    "range": [
+      800000,
+      980000,
+    ],
+    "total_cents": 889867,
+  },
+]
+`;

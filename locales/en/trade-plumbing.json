@@ -1,0 +1,25 @@
+{
+  "systems": {
+    "title": "Plumbing Systems",
+    "add": "Add System",
+    "name": "System Name",
+    "type": {
+      "supply": "Supply",
+      "drain": "Drain / Waste / Vent",
+      "gas": "Gas",
+      "fire": "Fire Suppression"
+    }
+  },
+  "fixtures": {
+    "title": "Fixtures",
+    "add": "Add Fixture",
+    "type": "Fixture Type",
+    "location": "Location",
+    "status": {
+      "planned": "Planned",
+      "rough_in": "Rough-In",
+      "trimmed": "Trimmed",
+      "complete": "Complete"
+    }
+  }
+}

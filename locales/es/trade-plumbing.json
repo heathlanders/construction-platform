@@ -1,0 +1,25 @@
+{
+  "systems": {
+    "title": "Sistemas de Plomería",
+    "add": "Agregar Sistema",
+    "name": "Nombre del Sistema",
+    "type": {
+      "supply": "Suministro",
+      "drain": "Drenaje / Desagüe / Ventilación",
+      "gas": "Gas",
+      "fire": "Supresión de Incendios"
+    }
+  },
+  "fixtures": {
+    "title": "Accesorios",
+    "add": "Agregar Accesorio",
+    "type": "Tipo de Accesorio",
+    "location": "Ubicación",
+    "status": {
+      "planned": "Planeado",
+      "rough_in": "Instalación Preliminar",
+      "trimmed": "Acabado",
+      "complete": "Completo"
+    }
+  }
+}

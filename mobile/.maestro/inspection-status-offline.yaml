@@ -1,0 +1,24 @@
+# Change the inspection's status with NO network. The row goes `sync_status='pending'`
+# (the card shows a `•` marker) and waits for the next sweep.
+#
+# Meanwhile the harness PATCHes the same row server-side, so the version the device
+# holds is stale before it ever gets to push — which is the whole point: this is how a
+# real conflict happens in the field, not a contrived one.
+appId: com.thejobsite.app
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+# The tile grid scrolls — a role with many tiles pushes Inspections below the fold.
+- scrollUntilVisible:
+    element: 'Inspections'
+    direction: DOWN
+- tapOn: 'Inspections'
+
+- scrollUntilVisible:
+    element: ${TITLE}
+    direction: DOWN
+- tapOn: ${TITLE}
+- assertVisible: 'Set status'
+- tapOn: 'PASSED'
+
+- assertVisible: 'PASSED'

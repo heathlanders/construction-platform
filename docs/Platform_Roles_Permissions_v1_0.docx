@@ -1,0 +1,716 @@
+**\[PLATFORM NAME\]**
+
+Construction Management Platform
+
+**USER ROLES & PERMISSIONS MATRIX**
+
+*Document 6 of 9 \| Version 1.0 \| Confidential*
+
+March 2026
+
+FOR ENGINEERING & PRODUCT --- CONFIDENTIAL
+
+**Table of Contents**
+
+**1. Overview & Role Definitions**
+
+This document defines every user role on the platform, the default
+permissions assigned to each role, and the complete permissions matrix
+spanning all functional areas. It is the authoritative reference for
+access control implementation.
+
+**1.1 Role Summary**
+
+  -------------------------------------------------------------------------------
+  **Role**         **Scope**        **Who This Is**              **Typical User
+                                                                 Count**
+  ---------------- ---------------- ---------------------------- ----------------
+  **Owner**        Company-wide     The company owner or         1--2 per tenant
+                                    principal. Full access to    
+                                    everything including billing 
+                                    and team management.         
+
+  **Project        Company-wide     Manages one or more projects 2--5 per tenant
+  Manager**                         end-to-end. Full project     
+                                    access, no billing access.   
+
+  **Estimator**    Company-wide     Prepares bids and estimates. 1--3 per tenant
+                                    Read access to projects,     
+                                    full access to estimating    
+                                    tools.                       
+
+  **Foreman**      Project-scoped   Leads crews on site. Field   3--10 per tenant
+                                    data entry, schedule         
+                                    visibility, daily reports,   
+                                    time management.             
+
+  **Field          Project-scoped   Individual crew member.      5--30 per tenant
+  Technician**                      Clock in/out, task           
+                                    completion, photo upload,    
+                                    daily report viewing.        
+
+  **Accountant**   Company-wide     Manages billing, invoicing,  1--2 per tenant
+                                    and financial reporting. No  
+                                    field or scheduling access.  
+
+  **Safety         Company-wide     Reviews safety reports,      1 per tenant
+  Officer**                         manages inspection records,  
+                                    uploads safety               
+                                    documentation.               
+
+  **Client**       Portal only      The project owner/client.    1--3 per project
+                                    Access only to their         
+                                    projects via the client      
+                                    portal.                      
+
+  **Sub Portal**   Portal only      Non-tenant subcontractor     Varies
+                                    invited by GC. Limited       
+                                    portal access --- no         
+                                    internal company data.       
+  -------------------------------------------------------------------------------
+
+**1.2 Legend**
+
+  -----------------------------------------------------------------------
+  **Symbol**             **Meaning**
+  ---------------------- ------------------------------------------------
+  **✓ Full Access**      Can perform this action without restriction
+
+  **◑ Limited / Own      Can perform on records they created or are
+  Only**                 assigned to; or partial view only
+
+  **✗ No Access**        Cannot view or perform this action --- blocked
+                         at API and UI layer
+
+  **--- Not Applicable** Feature does not apply to this role
+  -----------------------------------------------------------------------
+
+> **Implementation Note:**
+>
+> Permissions are enforced at two layers: (1) the API service layer
+> checks role before processing any request, and (2) the frontend hides
+> unavailable actions from the UI. Never rely solely on UI hiding ---
+> the API must enforce permissions independently.
+
+**2. Company & Administration Permissions**
+
+  ----------------------------------------------------------------------------------------------------------------------------------------
+  **Feature / Action**  **Owner**   **Proj   **Estimator**   **Foreman**   **Field   **Accountant**   **Safety**   **Client**   **Sub
+                                    Mgr**                                  Tech**                                               Portal**
+  --------------------- ----------- -------- --------------- ------------- --------- ---------------- ------------ ------------ ----------
+  **TENANT &                                                                                                                    
+  SUBSCRIPTION                                                                                                                  
+  MANAGEMENT**                                                                                                                  
+
+  View company profile  **✓**       **✓**    **✓**           **✓**         **✓**     **✓**            **✓**        **✗**        **✗**
+
+  Edit company profile  **✓**       **✗**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  & branding                                                                                                                    
+
+  View subscription &   **✓**       **✗**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  billing                                                                                                                       
+
+  Change subscription   **✓**       **✗**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  tier                                                                                                                          
+
+  Cancel tenant account **✓**       **✗**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  **USER MANAGEMENT**                                                                                                           
+
+  View user list        **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Invite new users      **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Change user roles     **✓**       **✗**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Deactivate users      **✓**       **✗**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  View own profile      **✓**       **✓**    **✓**           **✓**         **✓**     **✓**            **✓**        **✓**        **✓**
+
+  Edit own profile      **✓**       **✓**    **✓**           **✓**         **✓**     **✓**            **✓**        **✓**        **✗**
+
+  Configure own MFA     **✓**       **✓**    **✓**           **✓**         **✓**     **✓**            **✓**        **✓**        **✗**
+
+  **INTEGRATIONS &                                                                                                              
+  SETTINGS**                                                                                                                    
+
+  Connect QuickBooks    **✓**       **✗**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+
+  Configure DocuSign    **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Manage feature flags  **✓**       **✗**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  View audit log        **✓**       **✗**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  **VENDOR &                                                                                                                    
+  SUBCONTRACTOR                                                                                                                 
+  DATABASE**                                                                                                                    
+
+  View vendor database  **✓**       **✓**    **✓**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+
+  Add / edit vendors    **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Delete vendors        **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Upload COI documents  **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  View COI expiration   **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  alerts                                                                                                                        
+
+  **EMPLOYEE & CREW                                                                                                             
+  MANAGEMENT**                                                                                                                  
+
+  View employee list    **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✓**        **✗**        **✗**
+
+  Add / edit employees  **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  View pay rates        **✓**       **✗**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+
+  Edit pay rates        **✓**       **✗**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  ----------------------------------------------------------------------------------------------------------------------------------------
+
+**3. Project Management Permissions**
+
+  ----------------------------------------------------------------------------------------------------------------------------------------
+  **Feature / Action**  **Owner**   **Proj   **Estimator**   **Foreman**   **Field   **Accountant**   **Safety**   **Client**   **Sub
+                                    Mgr**                                  Tech**                                               Portal**
+  --------------------- ----------- -------- --------------- ------------- --------- ---------------- ------------ ------------ ----------
+  **PROJECT CREATION &                                                                                                          
+  SETUP**                                                                                                                       
+
+  View project list     **✓**       **✓**    **✓**           **◑**         **◑**     **✓**            **✓**        **✗**        **✗**
+
+  Create new project    **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Edit project details  **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Archive / delete      **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  project                                                                                                                       
+
+  View project          **✓**       **✓**    **✓**           **✓**         **✓**     **✓**            **✓**        **◑**        **◑**
+  dashboard                                                                                                                     
+
+  Assign team members   **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  **CLIENTS**                                                                                                                   
+
+  View client list      **✓**       **✓**    **✓**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+
+  Add / edit clients    **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Invite client to      **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  portal                                                                                                                        
+
+  **BUDGET & COST**                                                                                                             
+
+  View project budget   **✓**       **✓**    **✓**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+
+  Create / edit budget  **✓**       **✓**    **✓**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  lines                                                                                                                         
+
+  View budget vs        **✓**       **✓**    **✓**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  actuals                                                                                                                       
+
+  View projected margin **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+
+  Export budget report  **✓**       **✓**    **✓**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  ----------------------------------------------------------------------------------------------------------------------------------------
+
+**4. Scheduling Permissions**
+
+  ----------------------------------------------------------------------------------------------------------------------------------------
+  **Feature / Action**  **Owner**   **Proj   **Estimator**   **Foreman**   **Field   **Accountant**   **Safety**   **Client**   **Sub
+                                    Mgr**                                  Tech**                                               Portal**
+  --------------------- ----------- -------- --------------- ------------- --------- ---------------- ------------ ------------ ----------
+  **SCHEDULE & GANTT**                                                                                                          
+
+  View schedule / Gantt **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✗**        **◑**        **✗**
+
+  Create schedule tasks **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Edit task dates &     **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  details                                                                                                                       
+
+  Delete schedule tasks **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Mark task complete    **✓**       **✓**    **✓**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Update % complete     **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✗**        **✗**        **✗**
+
+  Add task dependencies **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Set schedule baseline **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  View critical path    **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  View 2-week lookahead **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✗**        **✗**        **✗**
+
+  Log weather delays    **✓**       **✓**    **✓**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  **MILESTONES**                                                                                                                
+
+  View milestones       **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✗**        **✓**        **✗**
+
+  Create / edit         **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  milestones                                                                                                                    
+
+  Toggle client         **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  visibility                                                                                                                    
+
+  Mark milestone        **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  complete                                                                                                                      
+  ----------------------------------------------------------------------------------------------------------------------------------------
+
+**5. Financial Permissions**
+
+  ----------------------------------------------------------------------------------------------------------------------------------------
+  **Feature / Action**  **Owner**   **Proj   **Estimator**   **Foreman**   **Field   **Accountant**   **Safety**   **Client**   **Sub
+                                    Mgr**                                  Tech**                                               Portal**
+  --------------------- ----------- -------- --------------- ------------- --------- ---------------- ------------ ------------ ----------
+  **CHANGE ORDERS**                                                                                                             
+
+  View change orders    **✓**       **✓**    **✓**           **✗**         **✗**     **✓**            **✗**        **✓**        **◑**
+
+  Create change order   **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  draft                                                                                                                         
+
+  Edit change order     **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  draft                                                                                                                         
+
+  Submit CO for         **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  approval                                                                                                                      
+
+  Approve CO (internal) **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Approve CO            ---         ---      ---             ---           ---       ---              ---          **✓**        ---
+  (client-side)                                                                                                                 
+
+  Reject CO             **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✓**        **✗**
+
+  Void CO               **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  **INVOICES**                                                                                                                  
+
+  View invoices         **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✓**        **✗**
+  (owner-to-client)                                                                                                             
+
+  View invoices (sub    **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **◑**
+  invoices)                                                                                                                     
+
+  Create invoice        **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **◑**
+
+  Submit invoice for    **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **◑**
+  approval                                                                                                                      
+
+  Approve invoice       **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  (internal PM)                                                                                                                 
+
+  Approve & pay invoice ---         ---      ---             ---           ---       ---              ---          **✓**        ---
+  (client)                                                                                                                      
+
+  Record / process      **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  payment                                                                                                                       
+
+  **LIEN WAIVERS**                                                                                                              
+
+  View lien waiver      **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  dashboard                                                                                                                     
+
+  Create lien waiver    **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  request                                                                                                                       
+
+  Send waiver for       **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  e-signature                                                                                                                   
+
+  Sign lien waiver      ---         ---      ---             ---           ---       ---              ---          ---          **✓**
+  (vendor side)                                                                                                                 
+
+  Mark waiver received  **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+
+  **REPORTING**                                                                                                                 
+
+  View financial        **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  reports                                                                                                                       
+
+  Export financial      **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  reports                                                                                                                       
+
+  View job costing      **✓**       **✓**    **✓**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+
+  View labor costs      **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+
+  View sub costs        **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  ----------------------------------------------------------------------------------------------------------------------------------------
+
+**6. Documents, Plans & Photos**
+
+  ----------------------------------------------------------------------------------------------------------------------------------------
+  **Feature / Action**  **Owner**   **Proj   **Estimator**   **Foreman**   **Field   **Accountant**   **Safety**   **Client**   **Sub
+                                    Mgr**                                  Tech**                                               Portal**
+  --------------------- ----------- -------- --------------- ------------- --------- ---------------- ------------ ------------ ----------
+  **DOCUMENTS**                                                                                                                 
+
+  View project          **✓**       **✓**    **✓**           **✓**         **✓**     **✓**            **✓**        **◑**        **◑**
+  documents                                                                                                                     
+
+  Upload documents      **✓**       **✓**    **✓**           **✓**         **✗**     **✓**            **✓**        **✗**        **✗**
+
+  Edit document         **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  metadata                                                                                                                      
+
+  Delete documents      **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  View company document **✓**       **✓**    **✓**           **✓**         **✗**     **✓**            **✗**        **✗**        **✗**
+  library                                                                                                                       
+
+  Upload to company     **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✓**        **✗**        **✗**
+  library                                                                                                                       
+
+  **PLAN SETS**                                                                                                                 
+
+  View plan sets        **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✗**        **◑**        **✗**
+
+  Upload plan revision  **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Set current revision  **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Download plan PDFs    **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✗**        **◑**        **✗**
+
+  **PHOTOS**                                                                                                                    
+
+  View all project      **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✓**        **◑**        **◑**
+  photos                                                                                                                        
+
+  Upload photos         **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✓**        **✗**        **✗**
+
+  Edit photo captions   **✓**       **✓**    **✓**           **◑**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Toggle client         **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  visibility                                                                                                                    
+
+  Delete photos         **✓**       **✓**    **✗**           **◑**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  View client photo     ---         ---      ---             ---           ---       ---              ---          **✓**        **✗**
+  feed (portal)                                                                                                                 
+
+  **RFIs & SUBMITTALS**                                                                                                         
+
+  View RFIs             **✓**       **✓**    **✓**           **✓**         **✗**     **✗**            **✗**        **✗**        **◑**
+
+  Create RFI            **✓**       **✓**    **✓**           **✓**         **✗**     **✗**            **✗**        **✗**        **◑**
+
+  Respond to RFI        **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **◑**
+
+  Close RFI             **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  View submittals       **✓**       **✓**    **✓**           **✓**         **✗**     **✗**            **✗**        **✗**        **◑**
+
+  Upload submittal      **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✓**
+
+  Review / approve      **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  submittal                                                                                                                     
+  ----------------------------------------------------------------------------------------------------------------------------------------
+
+**7. Field Operations Permissions**
+
+  ----------------------------------------------------------------------------------------------------------------------------------------
+  **Feature / Action**  **Owner**   **Proj   **Estimator**   **Foreman**   **Field   **Accountant**   **Safety**   **Client**   **Sub
+                                    Mgr**                                  Tech**                                               Portal**
+  --------------------- ----------- -------- --------------- ------------- --------- ---------------- ------------ ------------ ----------
+  **DAILY REPORTS**                                                                                                             
+
+  View daily reports    **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✓**        **✗**        **✗**
+
+  Create daily report   **✓**       **✓**    **✗**           **✓**         **✓**     **✗**            **✗**        **✗**        **✗**
+
+  Submit daily report   **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Approve daily report  **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  **TIME & ATTENDANCE**                                                                                                         
+
+  Clock in / out (own)  **✓**       **✓**    **✗**           **✓**         **✓**     **✗**            **✗**        **✗**        **✗**
+
+  Crew clock-in         **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+  (others)                                                                                                                      
+
+  View time entries     **✓**       **✓**    **✗**           **✓**         **◑**     **✗**            **✗**        **✗**        **✗**
+
+  Edit time entries     **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+
+  View labor summary    **✓**       **✓**    **✗**           **✗**         **✗**     **✓**            **✗**        **✗**        **✗**
+  report                                                                                                                        
+
+  **INSPECTIONS**                                                                                                               
+
+  View inspections      **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✓**        **✗**        **✗**
+
+  Schedule inspection   **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Record inspection     **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✓**        **✗**        **✗**
+  result                                                                                                                        
+
+  Upload inspection     **✓**       **✓**    **✗**           **✓**         **✓**     **✗**            **✓**        **✗**        **✗**
+  photos                                                                                                                        
+
+  Schedule              **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+  re-inspection                                                                                                                 
+
+  **PUNCH LIST**                                                                                                                
+
+  View punch list       **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✓**        **✗**        **◑**
+
+  Create punch list     **✓**       **✓**    **✓**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+  item                                                                                                                          
+
+  Update punch list     **✓**       **✓**    **✗**           **✓**         **◑**     **✗**            **✗**        **✗**        **✗**
+  status                                                                                                                        
+
+  Mark item complete    **✓**       **✓**    **✗**           **✓**         **◑**     **✗**            **✗**        **✗**        **✗**
+
+  Verify completion     **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  (final)                                                                                                                       
+
+  **SAFETY**                                                                                                                    
+
+  View safety documents **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✓**        **✗**        **✗**
+
+  Upload safety         **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✓**        **✗**        **✗**
+  documents                                                                                                                     
+
+  Create safety         **✓**       **✓**    **✗**           **✓**         **✓**     **✗**            **✓**        **✗**        **✗**
+  incident report                                                                                                               
+
+  View safety reports   **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✓**        **✗**        **✗**
+  ----------------------------------------------------------------------------------------------------------------------------------------
+
+**8. Trade Module Permissions**
+
+Trade module permissions follow a consistent pattern across all
+disciplines (Electrical, Plumbing, HVAC, Concrete, Framing, etc.). The
+following matrix applies to each trade module.
+
+  ----------------------------------------------------------------------------------------------------------------------------------------
+  **Feature / Action**  **Owner**   **Proj   **Estimator**   **Foreman**   **Field   **Accountant**   **Safety**   **Client**   **Sub
+                                    Mgr**                                  Tech**                                               Portal**
+  --------------------- ----------- -------- --------------- ------------- --------- ---------------- ------------ ------------ ----------
+  **TRADE PHASE                                                                                                                 
+  MANAGEMENT**                                                                                                                  
+
+  View trade phases &   **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✗**        **✗**        **◑**
+  status                                                                                                                        
+
+  Start trade phase     **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Complete trade phase  **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  **TRADE-SPECIFIC DATA                                                                                                         
+  (e.g. panels,                                                                                                                 
+  fixtures, pours)**                                                                                                            
+
+  View trade records    **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✓**        **✗**        **◑**
+
+  Create trade records  **✓**       **✓**    **✗**           **✓**         **✓**     **✗**            **✗**        **✗**        **✗**
+
+  Edit trade records    **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  Delete trade records  **✓**       **✓**    **✗**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+
+  **TRADE INSPECTIONS**                                                                                                         
+
+  View trade            **✓**       **✓**    **✓**           **✓**         **✓**     **✗**            **✓**        **✗**        **✗**
+  inspections                                                                                                                   
+
+  Schedule trade        **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+  inspection                                                                                                                    
+
+  Record inspection     **✓**       **✓**    **✗**           **✓**         **✗**     **✗**            **✓**        **✗**        **✗**
+  result                                                                                                                        
+
+  **TRADE REPORTING**                                                                                                           
+
+  View trade progress   **✓**       **✓**    **✓**           **✓**         **✗**     **✗**            **✗**        **✗**        **✗**
+  summary                                                                                                                       
+
+  Export trade report   **✓**       **✓**    **✓**           **✗**         **✗**     **✗**            **✗**        **✗**        **✗**
+  ----------------------------------------------------------------------------------------------------------------------------------------
+
+**9. Subcontractor Portal Permissions**
+
+The Sub Portal role is assigned to users representing non-tenant
+subcontractors invited to a project by a GC. These users have a
+constrained, project-specific view and cannot access any internal
+company data of the inviting GC tenant.
+
+**9.1 Sub Portal --- Full Access List**
+
+  -----------------------------------------------------------------------
+  **Feature**        **Sub       **Notes**
+                     Portal      
+                     Access**    
+  ------------------ ----------- ----------------------------------------
+  View assigned      Read-only   Sees project name, address, their scope
+  project overview               description only. No budget totals.
+
+  View their scope / Read-only   Only tasks assigned to their scope on
+  tasks                          this project
+
+  Update their task  Write       Can mark assigned tasks complete
+  completion status              
+
+  View schedule for  Read-only   Only phases and milestones relevant to
+  their scope                    their scope
+
+  Submit daily field Write       Reports captured under GC project ---
+  reports                        visible to GC PM
+
+  Upload progress    Write       Photos stored in GC tenant under GC
+  photos                         project --- sub cannot delete
+
+  Create and respond Write       Scoped to their assigned work
+  to RFIs                        
+
+  Upload submittals  Write       For their scope --- reviewed by GC PM
+
+  Respond to         Write       Can upload revisions when
+  submittal review               revise-and-resubmit
+  requests                       
+
+  View applicable    Read-only   Only plans shared by GC on this project
+  plan sets                      
+
+  View documents in  Read-only   Only documents the GC has designated as
+  their scope                    sub-visible
+
+  Submit invoices to Write       Invoice submitted to GC PM for approval
+  GC                             --- sub\'s copy retained
+
+  View invoice       Read-only   Track payment status on their invoices
+  approval status                
+
+  Sign lien waivers  Write       Received via DocuSign or platform e-sign
+
+  View lien waivers  Read-only   
+  they\'ve signed                
+
+  Receive and send   Write       Thread scoped to sub ↔ GC communication
+  project messages               only
+
+  Receive            Read-only   Inspection results, invoice approvals,
+  notifications                  task assignments
+  -----------------------------------------------------------------------
+
+**9.2 What the Sub Portal User CANNOT Access**
+
+-   GC company financials, budget, cost data, or margin information
+
+-   Other subcontractors on the project --- cannot see scope, pricing,
+    or status of other subs
+
+-   GC\'s client information or client portal
+
+-   GC\'s internal team, employee list, or pay rates
+
+-   Any other projects the GC is running
+
+-   Plan sets or documents not explicitly shared with them
+
+-   Inspection results for other scopes
+
+-   Any data from other tenants on the platform
+
+**10. Role Modification & Custom Permissions**
+
+**10.1 Role Assignment Rules**
+
+  -----------------------------------------------------------------------
+  **Rule**           **Details**
+  ------------------ ----------------------------------------------------
+  One role per user  Each user has exactly one role. No multi-role
+                     support in v1.0.
+
+  Role assigned at   The inviting user selects the role when sending an
+  invite             invitation.
+
+  Role change by     Only the Owner role can change another user\'s role.
+  Owner only         
+
+  Cannot demote self An Owner cannot change their own role --- prevents
+                     lockout.
+
+  Minimum one Owner  Tenant must always have at least one active Owner
+                     --- cannot deactivate the last Owner.
+
+  Client role by     Clients receive the Client role automatically when
+  portal invite      invited to the portal via the project client portal
+                     invite flow.
+
+  Sub Portal role by Sub Portal users receive their role when a GC
+  project invite     invites a sub contractor email that is not an
+                     existing platform tenant user.
+  -----------------------------------------------------------------------
+
+**10.2 v1.1 Roadmap: Custom Roles**
+
+In v1.1, Business and Enterprise tenants will gain the ability to create
+custom roles with granular permission overrides. The v1.0 permission
+matrix defines the defaults that custom roles will inherit and deviate
+from. Key design decisions for v1.1:
+
+-   Custom roles are tenant-scoped --- no cross-tenant role sharing
+
+-   Custom roles inherit from a base role and can have individual
+    permissions toggled on or off
+
+-   Permission changes require Owner approval and are logged in the
+    audit trail
+
+-   Custom roles are limited to Business and Enterprise tiers
+
+**10.3 Permission Enforcement Architecture**
+
+Permissions are enforced at multiple layers:
+
+  ---------------------------------------------------------------------------------------
+  **Layer**    **How Enforced**         **Example**
+  ------------ ------------------------ -------------------------------------------------
+  JWT Claim    Role is embedded in the  role: \'foreman\' in JWT payload
+               JWT token at login ---   
+               cannot be modified by    
+               client                   
+
+  API          Every API endpoint       POST /projects requires role in
+  Middleware   declares its minimum     \[\'owner\',\'project_manager\',\'estimator\'\]
+               required role(s).        
+               Middleware rejects       
+               requests that do not     
+               meet the role            
+               requirement before any   
+               business logic runs.     
+
+  Service      Complex permission       Foreman can only update tasks on projects they
+  Layer        checks beyond simple     are assigned to
+               role matching happen in  
+               the service layer ---    
+               e.g. \'can this foreman  
+               edit this specific       
+               task?\'                  
+
+  Database     Row-level security       Cannot be bypassed by application bugs
+  (RLS)        ensures tenant isolation 
+               --- a valid JWT for the  
+               wrong tenant cannot      
+               access that tenant\'s    
+               data even if the role    
+               check passes             
+
+  Frontend     UI elements are          Foreman does not see \'Edit Budget\' button
+               conditionally rendered   
+               based on role --- edit   
+               buttons, menu items, and 
+               forms are hidden for     
+               users without            
+               permission. This is a UX 
+               layer only --- not a     
+               security layer.          
+  ---------------------------------------------------------------------------------------

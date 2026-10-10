@@ -1,0 +1,46 @@
+# Record a concrete QA test with NO network.
+#
+# Slump is measured while the truck is at the pour — the reading exists for about a
+# minute and then it's gone. Run via run-concrete-test-offline.sh (it owns the radio).
+appId: com.thejobsite.app
+# MEASURED + SAMPLE are REQUIRED from the harness (-e …), randomised per run.
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+- scrollUntilVisible:
+    element: 'Structural'
+    direction: DOWN
+- tapOn: 'Structural'
+
+- tapOn: 'Concrete'
+# Rendered from the pull-only pour cache — with no signal this used to be empty.
+- assertVisible: 'Slab'
+- tapOn: '🧪 QA tests ›'
+
+- tapOn: '+ New Test'
+- assertVisible: 'Test Type'
+# 'Slump' is the default chip; tapping it is still worth doing so a default change
+# can't silently retarget the test.
+- tapOn: 'Slump'
+- tapOn:
+    text: '0'
+    below:
+      text: 'Measured (in)'
+- inputText: ${MEASURED}
+- hideKeyboard
+
+# The sample id is what identifies this run's row on the server — the slump reading alone
+# has ~90 possible values and can collide with a previous run.
+- scrollUntilVisible:
+    element: 'Sample ID'
+    direction: DOWN
+- tapOn: 'e.g. CYL-14'
+- inputText: ${SAMPLE}
+- hideKeyboard
+- scrollUntilVisible:
+    element: 'Save'
+    direction: DOWN
+- tapOn: 'Save'
+
+# Local write → row visible with the `•` pending marker.
+- assertVisible: '.*${MEASURED}.*'

@@ -1,0 +1,41 @@
+{
+  "list": {
+    "title": "Projects",
+    "empty": "No projects yet. Create your first project to get started.",
+    "create_button": "New Project"
+  },
+  "detail": {
+    "overview": "Overview",
+    "members": "Team Members",
+    "documents": "Documents",
+    "financial": "Financial",
+    "schedule": "Schedule",
+    "daily_reports": "Daily Reports"
+  },
+  "form": {
+    "name": "Project Name",
+    "name_placeholder": "Enter project name",
+    "status": "Status",
+    "start_date": "Start Date",
+    "end_date": "End Date",
+    "address": "Street Address",
+    "city": "City",
+    "state": "State",
+    "zip": "ZIP Code"
+  },
+  "status": {
+    "active": "Active",
+    "completed": "Completed",
+    "on_hold": "On Hold",
+    "cancelled": "Cancelled"
+  },
+  "members": {
+    "add": "Add Team Member",
+    "role": "Role",
+    "remove_confirm": "Remove {{name}} from this project?"
+  },
+  "limits": {
+    "reached": "You've reached your project limit ({{limit}}). Upgrade your plan to create more projects.",
+    "upgrade_cta": "Upgrade Plan"
+  }
+}

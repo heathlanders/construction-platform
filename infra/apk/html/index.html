@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Jobsite — Android App</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#0f1c2e; color:#eaf0f6;
+           display:flex; min-height:100vh; margin:0; align-items:center; justify-content:center; }
+    .card { max-width:420px; padding:32px; text-align:center; }
+    h1 { color:#fff; margin:0 0 4px; }
+    .tag { color:#7da7d9; margin:0 0 28px; }
+    a.btn { display:inline-block; background:#2f6fb3; color:#fff; text-decoration:none;
+            padding:14px 28px; border-radius:10px; font-size:18px; font-weight:600; }
+    a.btn:active { background:#255a92; }
+    ol { text-align:left; color:#b9c7d8; line-height:1.6; margin-top:28px; font-size:14px; }
+    .ver { margin-top:20px; color:#6b7d92; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>The Jobsite</h1>
+    <p class="tag">The Operating System for Construction</p>
+    <a class="btn" href="/thejobsite.apk">Download Android App</a>
+    <ol>
+      <li>Tap <b>Download Android App</b>.</li>
+      <li>Open the downloaded <code>.apk</code>.</li>
+      <li>If prompted, allow <b>Install unknown apps</b> for your browser.</li>
+      <li>Tap <b>Install</b>, then open the app.</li>
+    </ol>
+    <p class="ver">Already installed? In-app updates download automatically on launch.</p>
+    <p class="ver" id="ver"></p>
+  </div>
+  <script>
+    fetch('/version.txt', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (v) { if (v) document.getElementById('ver').textContent = 'Latest: ' + v.trim(); })
+      .catch(function () {});
+  </script>
+</body>
+</html>

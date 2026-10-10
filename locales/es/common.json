@@ -1,0 +1,78 @@
+{
+  "app": {
+    "name": "Construction Platform",
+    "tagline": "El Sistema Operativo para la Construcción"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "projects": "Proyectos",
+    "financial": "Finanzas",
+    "documents": "Documentos",
+    "field": "Campo",
+    "safety": "Seguridad",
+    "estimating": "Estimados",
+    "team": "Equipo",
+    "settings": "Configuración"
+  },
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "add": "Agregar",
+    "remove": "Quitar",
+    "submit": "Enviar",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "upload": "Subir",
+    "download": "Descargar",
+    "view": "Ver",
+    "approve": "Aprobar",
+    "reject": "Rechazar"
+  },
+  "status": {
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "pending": "Pendiente",
+    "completed": "Completado",
+    "cancelled": "Cancelado",
+    "draft": "Borrador",
+    "sent": "Enviado",
+    "paid": "Pagado",
+    "void": "Anulado",
+    "open": "Abierto",
+    "closed": "Cerrado",
+    "approved": "Aprobado",
+    "rejected": "Rechazado"
+  },
+  "errors": {
+    "required": "Este campo es obligatorio",
+    "invalid_email": "Por favor ingrese un correo electrónico válido",
+    "generic": "Algo salió mal. Por favor intente de nuevo.",
+    "network": "Error de red. Por favor verifique su conexión.",
+    "unauthorized": "No tiene permiso para realizar esta acción.",
+    "not_found": "El elemento solicitado no fue encontrado.",
+    "upgrade_required": "Esta función requiere una actualización del plan."
+  },
+  "pagination": {
+    "loading": "Cargando...",
+    "load_more": "Cargar más",
+    "showing": "Mostrando {{count}} de {{total}}"
+  },
+  "time": {
+    "just_now": "Ahora mismo",
+    "minutes_ago": "Hace {{count}} minutos",
+    "hours_ago": "Hace {{count}} horas",
+    "days_ago": "Hace {{count}} días"
+  },
+  "currency": {
+    "format": "${{amount}}"
+  }
+}

@@ -1,0 +1,35 @@
+node_modules/
+.env
+.env.local
+.env.production
+*.log
+dist/
+build/
+.DS_Store
+.claude/plans/
+prisma/.env
+
+# Next.js build output
+.next/
+out/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Published APK binary (republished by scripts/publish-apk.sh — do not commit)
+infra/apk/html/*.apk
+
+# Expo local cache
+mobile/.expo/
+
+# Local-only / private (public snapshot hygiene)
+.env.*
+!.env.example
+.claude/settings.local.json
+.claude/plans/
+coverage/
+*.apk
+infra/apk/html/*.apk
+# Private client plan fixtures (not distributed; dependent tests skip when absent)
+api/test/fixtures/madison-*
+api/test/fixtures/cjpia-*

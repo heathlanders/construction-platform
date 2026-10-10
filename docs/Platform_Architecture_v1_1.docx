@@ -1,0 +1,2895 @@
+**\[PLATFORM NAME\]**
+
+Construction Management Platform
+
+**MULTI-TENANT ARCHITECTURE DOCUMENT**
+
+Document 3 of 13 \| Version 1.1 \| Confidential
+
+March 2026
+
++-----------------------------------------------------------------------+
+| **Version 1.1 --- Updated March 2026**                                |
+|                                                                       |
+| This version incorporates resolutions to 14 architecture gaps         |
+| identified in the Session 6 review. New sections: 3.6, 3.7,           |
+| 4.6--4.14, 5.1, 6.7, 6.8, 9.5. Locked decisions T-10 through T-49     |
+| added.                                                                |
++-----------------------------------------------------------------------+
+
+**1. Overview & Architecture Goals**
+
+\[PLATFORM NAME\] is a multi-tenant SaaS platform. Every company that
+subscribes is a tenant --- an isolated, independent business environment
+sharing the same underlying infrastructure. This document defines how
+that isolation is achieved, how the system scales, how security is
+enforced, and how the cross-tenant collaboration feature bridges two
+separate tenants on shared projects.
+
+**1.1 Core Architecture Goals**
+
+-   Complete data isolation --- no tenant can ever access another
+    tenant\'s data
+
+-   Horizontal scalability --- the platform can grow from 10 tenants to
+    10,000 without architectural rework
+
+-   Single codebase --- all tenants run on the same application; no
+    per-tenant deployments
+
+-   Configurable per tenant --- branding, workflows, custom fields,
+    integrations differ per tenant without code changes
+
+-   Secure by design --- tenant isolation enforced at the database
+    layer, not just the application layer
+
+-   Cross-tenant collaboration --- a governed, permission-controlled
+    data bridge for GC-to-Sub project connections
+
+-   Performance isolation --- one high-traffic tenant cannot degrade the
+    experience for others
+
+**1.2 Tenancy Model Selection**
+
+  ------------------------------------------------------------------------------
+  **Model**        **Description**       **Selected?**   **Reason**
+  ---------------- --------------------- --------------- -----------------------
+  Separate         Each tenant gets      No              Operationally expensive
+  database per     their own database                    --- backup, migration,
+  tenant           instance                              and schema updates
+                                                         multiply with tenant
+                                                         count.
+
+  Separate schema  Same DB server, each  No              Better but still
+  per tenant       tenant gets their own                 creates migration
+                   schema                                complexity and limits
+                                                         cross-tenant query
+                                                         capability.
+
+  Shared schema    All tenants in the    YES             Industry standard for
+  with tenant_id   same tables, every                    SaaS at this scale.
+                   row tagged with                       Simple migrations,
+                   tenant_id                             efficient
+                                                         infrastructure,
+                                                         enforced at DB layer
+                                                         via RLS.
+  ------------------------------------------------------------------------------
+
+  -----------------------------------------------------------------------
+  **Selected Model: Shared schema with tenant_id isolation. Every table
+  includes a tenant_id column. Row-level security (RLS) policies enforce
+  that queries can only return rows where tenant_id matches the
+  authenticated session\'s tenant. This is enforced at the database layer
+  --- even a bug in application code cannot return another tenant\'s
+  data.**
+
+  -----------------------------------------------------------------------
+
+**2. Tenant Hierarchy & Structure**
+
+**2.1 Hierarchy Diagram**
+
++-----------------------------------------------------------------------+
+| PLATFORM SUPER ADMIN (Platform Operator)                              |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| ├── TENANT: ABC General Contractors \[tenant_id: t_001\]              |
+|                                                                       |
+| │ ├── Users (scoped to t_001)                                         |
+|                                                                       |
+| │ ├── Projects (scoped to t_001)                                      |
+|                                                                       |
+| │ ├── Financial Data (scoped to t_001)                                |
+|                                                                       |
+| │ ├── Documents (scoped to t_001)                                     |
+|                                                                       |
+| │ └── Integrations (QB account, DocuSign, etc.)                       |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| ├── TENANT: Smith Electrical Co. \[tenant_id: t_002\]                 |
+|                                                                       |
+| │ ├── Users (scoped to t_002)                                         |
+|                                                                       |
+| │ ├── Projects (scoped to t_002)                                      |
+|                                                                       |
+| │ └── \...                                                            |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| └── TENANT: Martinez Plumbing LLC \[tenant_id: t_003\]                |
+|                                                                       |
+| ├── Users (scoped to t_003)                                           |
+|                                                                       |
+| └── \...                                                              |
++-----------------------------------------------------------------------+
+
+Each tenant is completely blind to every other tenant. The Super Admin
+layer sits above all tenants and has read-only visibility into any
+tenant for support purposes, but cannot modify tenant data without
+explicit tenant consent.
+
+**2.2 Tenant Data Model**
+
++-----------------------------------------------------------------------+
+| TABLE: tenants                                                        |
+|                                                                       |
+| id UUID PRIMARY KEY                                                   |
+|                                                                       |
+| name VARCHAR(255) Company name                                        |
+|                                                                       |
+| slug VARCHAR(100) URL-safe identifier (e.g. abc-general)              |
+|                                                                       |
+| trade_type VARCHAR(50) Primary trade (gc, electrical, plumbing, etc.) |
+|                                                                       |
+| subscription_tier VARCHAR(20) starter \| professional \| business \|  |
+| enterprise                                                            |
+|                                                                       |
+| subscription_status VARCHAR(20) active \| trialing \| past_due \|     |
+| cancelled                                                             |
+|                                                                       |
+| stripe_customer_id VARCHAR(100) Stripe customer reference             |
+|                                                                       |
+| created_at TIMESTAMPTZ                                                |
+|                                                                       |
+| settings JSONB Tenant-level config (branding, module flags, etc.)     |
+|                                                                       |
+| is_active BOOLEAN Soft-delete flag                                    |
++-----------------------------------------------------------------------+
+
+**2.3 Tenant Isolation Enforcement**
+
+Isolation is enforced at three independent layers. All three must pass
+for data to be returned:
+
+  -----------------------------------------------------------------------------------------
+  **Layer**        **Mechanism**                                **What It Prevents**
+  ---------------- -------------------------------------------- ---------------------------
+  Database (RLS)   PostgreSQL Row-Level Security policies       A compromised API layer
+                   applied to every table. Policy: WHERE        still cannot return
+                   tenant_id =                                  cross-tenant data --- the
+                   current_setting(\'app.current_tenant_id\')   database rejects the query
+
+  API /            Every authenticated request extracts         Application bugs or missing
+  Application      tenant_id from the JWT token. All            WHERE clauses cannot
+                   service-layer queries include tenant_id as a accidentally return
+                   mandatory filter parameter                   cross-tenant rows
+
+  Authentication   JWT tokens include tenant_id claim. Users    A user from Tenant A cannot
+                   belong to exactly one tenant. Token          authenticate as a user in
+                   validation rejects requests where the        Tenant B, even with a valid
+                   tenant_id claim does not match the route     token
+                   tenant context                               
+  -----------------------------------------------------------------------------------------
+
+  -----------------------------------------------------------------------
+  **Security Principle: Defense in depth --- tenant isolation is NOT
+  solely dependent on application code correctness. The database enforces
+  it independently. Even if a developer forgets to add a WHERE tenant_id
+  clause to a query, the RLS policy at the database layer will reject the
+  query or return zero rows.**
+
+  -----------------------------------------------------------------------
+
+**3. Database Architecture**
+
+**3.1 Database Selection**
+
+Recommended database: PostgreSQL (v15+). Rationale:
+
+-   Native Row-Level Security (RLS) --- the core enforcement mechanism
+    for tenant isolation
+
+-   JSONB columns for flexible per-tenant settings and trade-specific
+    data fields without schema bloat
+
+-   Mature, battle-tested at SaaS scale --- used by major multi-tenant
+    platforms
+
+-   Strong support on all major cloud providers (AWS RDS/Aurora, GCP
+    Cloud SQL, DigitalOcean Managed PostgreSQL)
+
+-   UUID primary keys --- prevents ID enumeration attacks across tenants
+
+**3.2 Row-Level Security Implementation**
+
+**RLS Policy Pattern (applied to every tenant-scoped table)**
+
++-----------------------------------------------------------------------+
+| \-- Enable RLS on every tenant-scoped table                           |
+|                                                                       |
+| ALTER TABLE projects ENABLE ROW LEVEL SECURITY;                       |
+|                                                                       |
+| \-- Policy: users can only SELECT rows belonging to their tenant      |
+|                                                                       |
+| CREATE POLICY tenant_isolation_select ON projects                     |
+|                                                                       |
+| FOR SELECT                                                            |
+|                                                                       |
+| USING (tenant_id = current_setting(\'app.current_tenant_id\')::UUID); |
+|                                                                       |
+| \-- Policy: users can only INSERT rows for their tenant               |
+|                                                                       |
+| CREATE POLICY tenant_isolation_insert ON projects                     |
+|                                                                       |
+| FOR INSERT                                                            |
+|                                                                       |
+| WITH CHECK (tenant_id =                                               |
+| current_setting(\'app.current_tenant_id\')::UUID);                    |
+|                                                                       |
+| \-- Policy: users can only UPDATE rows belonging to their tenant      |
+|                                                                       |
+| CREATE POLICY tenant_isolation_update ON projects                     |
+|                                                                       |
+| FOR UPDATE                                                            |
+|                                                                       |
+| USING (tenant_id = current_setting(\'app.current_tenant_id\')::UUID); |
++-----------------------------------------------------------------------+
+
+**Session Configuration (set at connection time)**
+
++-----------------------------------------------------------------------+
+| \-- Set tenant context at the start of every database                 |
+| session/transaction                                                   |
+|                                                                       |
+| \-- Called by the API layer after JWT validation                      |
+|                                                                       |
+| SET LOCAL app.current_tenant_id = \'t_001\'; \-- extracted from       |
+| validated JWT                                                         |
++-----------------------------------------------------------------------+
+
+**3.3 Primary Key Strategy**
+
+All primary keys use UUID v4 (randomly generated). This is critical for
+multi-tenant security: prevents ID enumeration, globally unique, no
+information leakage.
+
+**3.4 Database Indexing Strategy**
+
+Every tenant-scoped table requires compound indexes that include
+tenant_id as the leading column:
+
++-----------------------------------------------------------------------+
+| CREATE INDEX idx_projects_tenant ON projects (tenant_id);             |
+|                                                                       |
+| CREATE INDEX idx_projects_tenant_status ON projects (tenant_id,       |
+| status);                                                              |
+|                                                                       |
+| CREATE INDEX idx_tasks_tenant_project ON tasks (tenant_id,            |
+| project_id);                                                          |
+|                                                                       |
+| CREATE INDEX idx_documents_tenant_proj ON documents (tenant_id,       |
+| project_id);                                                          |
++-----------------------------------------------------------------------+
+
+Without tenant_id as the leading index column, queries that filter by
+tenant_id will perform full table scans as the platform grows.
+
+**3.5 Database Scaling Strategy**
+
+  ------------------------------------------------------------------------
+  **Scale Stage** **Tenant        **Database Strategy**
+                  Count**         
+  --------------- --------------- ----------------------------------------
+  Launch (v1.0)   0--500 tenants  Single primary PostgreSQL instance with
+                                  1 read replica.
+
+  Growth          500--2,500      Primary + 2 read replicas. Read replicas
+  (v1.1--v2.0)    tenants         serve reporting queries and dashboard
+                                  loads.
+
+  Scale           2,500--10,000   Horizontal read replica scaling.
+                  tenants         Consider table partitioning by tenant_id
+                                  for largest tables.
+
+  Enterprise tier High-volume     Option to migrate a single large tenant
+                  single tenant   to a dedicated PostgreSQL instance.
+  ------------------------------------------------------------------------
+
+**3.6 Prisma + RLS Implementation Pattern**
+
+  -----------------------------------------------------------------------
+  **⚠️ Critical Implementation Note: Prisma does not natively support SET
+  LOCAL per-transaction tenant context injection. Read this section
+  before any data access code is written.**
+
+  -----------------------------------------------------------------------
+
+**3.6.1 The Incompatibility**
+
+Prisma\'s query engine manages a connection pool internally. When you
+call prisma.projects.findMany(), Prisma checks out a connection from its
+pool, executes the query, and returns the connection. There is no
+Prisma-native hook to execute SET LOCAL app.current_tenant_id before the
+query on that specific connection. If SET LOCAL is executed on
+connection A and Prisma\'s query runs on connection B, RLS sees no
+tenant context and returns zero rows or throws an error.
+
+**3.6.2 The Solution --- Dual Client Pattern**
+
++-----------------------------------------------------------------------+
+| import { PrismaClient } from \'@prisma/client\';                      |
+|                                                                       |
+| import { Pool } from \'pg\';                                          |
+|                                                                       |
+| // Prisma --- used for all standard queries (type-safe, migrations)   |
+|                                                                       |
+| export const prisma = new PrismaClient();                             |
+|                                                                       |
+| // Raw pg pool --- used ONLY for tenant context injection             |
+|                                                                       |
+| export const pgPool = new Pool({                                      |
+|                                                                       |
+| connectionString: process.env.DATABASE_URL,                           |
+|                                                                       |
+| max: 10,                                                              |
+|                                                                       |
+| });                                                                   |
++-----------------------------------------------------------------------+
+
+**3.6.3 withTenantContext Implementation**
+
++-----------------------------------------------------------------------+
+| export async function withTenantContext(tenantId, queryFn) {          |
+|                                                                       |
+| const client = await pgPool.connect();                                |
+|                                                                       |
+| try {                                                                 |
+|                                                                       |
+| await client.query(\'BEGIN\');                                        |
+|                                                                       |
+| await client.query(\'SET LOCAL app.current_tenant_id = \$1\',         |
+| \[tenantId\]);                                                        |
+|                                                                       |
+| const result = await queryFn(client);                                 |
+|                                                                       |
+| await client.query(\'COMMIT\');                                       |
+|                                                                       |
+| return result;                                                        |
+|                                                                       |
+| } catch (err) {                                                       |
+|                                                                       |
+| await client.query(\'ROLLBACK\');                                     |
+|                                                                       |
+| throw err;                                                            |
+|                                                                       |
+| } finally {                                                           |
+|                                                                       |
+| client.release();                                                     |
+|                                                                       |
+| }                                                                     |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
+
+Use client.query() (raw pg) for all tenant-scoped operations inside
+withTenantContext. Use Prisma for schema migrations, non-tenant-scoped
+lookups, and the Super Admin layer (BYPASSRLS).
+
+**3.6.4 Engineering Checklist**
+
+-   PgBouncer configured in transaction mode --- validated in staging
+
+-   withTenantContext wrapper reviewed and approved by tech lead
+
+-   All tenant-scoped service methods use withTenantContext --- enforced
+    in code review
+
+-   Linting rule added: flag any direct prisma.\* call on tenant-scoped
+    tables outside withTenantContext
+
+-   Integration test: verify query run without tenant context returns
+    zero rows (not an error)
+
+**3.7 withTenantContext Exception Safety**
+
+**3.7.1 Why SET LOCAL Is the Critical Choice**
+
++-----------------------------------------------------------------------+
+| SET app.current_tenant_id = \'t_001\'; \-- Session-scoped: persists   |
+| for connection lifetime                                               |
+|                                                                       |
+| SET LOCAL app.current_tenant_id = \'t_001\'; \-- Transaction-scoped:  |
+| cleared on COMMIT or ROLLBACK                                         |
++-----------------------------------------------------------------------+
+
+The architecture uses SET LOCAL. This is not a stylistic choice --- it
+is the safety mechanism. SET LOCAL variables are scoped to the
+transaction and automatically cleared on COMMIT or ROLLBACK. When
+PgBouncer kills a connection mid-transaction, the incomplete transaction
+is rolled back by PostgreSQL, clearing all SET LOCAL variables.
+PgBouncer discards the killed connection rather than returning it to the
+pool, replacing it with a fresh connection that has no stale state.
+
+**3.7.2 PgBouncer server_reset_query --- Backstop Configuration**
+
++-----------------------------------------------------------------------+
+| \# pgbouncer.ini                                                      |
+|                                                                       |
+| \[pgbouncer\]                                                         |
+|                                                                       |
+| pool_mode = transaction \# CRITICAL --- must be transaction, not      |
+| session                                                               |
+|                                                                       |
+| server_reset_query = DISCARD ALL \# Defense-in-depth: clears all      |
+| session state on connection return                                    |
++-----------------------------------------------------------------------+
+
+**3.7.3 What Would Make This Unsafe**
+
+  ------------------------------------------------------------------------
+  **Condition**         **Risk**                 **Mitigation**
+  --------------------- ------------------------ -------------------------
+  SET SESSION used      Session-scoped context   Always use SET LOCAL ---
+  instead of SET LOCAL  survives transaction end enforced in code review
+                        --- could leak to next   (T-48)
+                        tenant                   
+
+  PgBouncer in session  Connections returned to  PgBouncer must be in
+  mode                  pool after transaction   transaction mode (T-43)
+                        --- session variables    
+                        persist                  
+
+  server_reset_query    PgBouncer does not reset Configure
+  not configured        connection state between server_reset_query =
+                        uses                     DISCARD ALL (T-49)
+  ------------------------------------------------------------------------
+
+**4. Application Architecture**
+
+**4.1 Overall System Architecture**
+
++-----------------------------------------------------------------------+
+| ┌─────────────────────────────────────────────────────────┐           |
+|                                                                       |
+| │ CLIENT LAYER │                                                      |
+|                                                                       |
+| │ Web App (React/Next.js) Mobile App (RN) │                           |
+|                                                                       |
+| └─────────────────┬───────────────────────┬───────────────┘           |
+|                                                                       |
+| │ HTTPS / TLS 1.3 │                                                   |
+|                                                                       |
+| ┌─────────────────▼───────────────────────▼───────────────┐           |
+|                                                                       |
+| │ CDN / EDGE LAYER │                                                  |
+|                                                                       |
+| │ Static assets, plan files, image delivery │                         |
+|                                                                       |
+| └─────────────────────────────┬───────────────────────────┘           |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| ┌─────────────────────────────▼───────────────────────────┐           |
+|                                                                       |
+| │ API GATEWAY │                                                       |
+|                                                                       |
+| │ Rate limiting \| Auth validation \| Routing │                       |
+|                                                                       |
+| └────────┬──────────────────────────────────┬─────────────┘           |
+|                                                                       |
+| │ │                                                                   |
+|                                                                       |
+| ┌────────▼──────────┐ ┌──────────▼────────────┐                       |
+|                                                                       |
+| │ REST API │ │ WebSocket Server │                                     |
+|                                                                       |
+| │ (Node.js/Go) │ │ (Pusher/Ably) │                                    |
+|                                                                       |
+| └────────┬──────────┘ └──────────┬────────────┘                       |
+|                                                                       |
+| │ │                                                                   |
+|                                                                       |
+| ┌────────▼──────────────────────────────────▼────────────┐            |
+|                                                                       |
+| │ SERVICE LAYER │                                                     |
+|                                                                       |
+| │ TenantSvc \| ProjectSvc \| TradeModuleSvc \| FinancialSvc│          |
+|                                                                       |
+| └────────┬──────────────────────────────────┬────────────┘            |
+|                                                                       |
+| │ │                                                                   |
+|                                                                       |
+| ┌────────▼──────────┐ ┌──────────▼────────────┐                       |
+|                                                                       |
+| │ PostgreSQL DB │ │ Object Storage │                                  |
+|                                                                       |
+| │ (RLS enforced) │ │ (S3/Spaces) │                                    |
+|                                                                       |
+| │ Primary + Replicas│ │ per-tenant prefix │                           |
+|                                                                       |
+| └───────────────────┘ └───────────────────────┘                       |
++-----------------------------------------------------------------------+
+
+**4.2 API Gateway Responsibilities**
+
+-   TLS termination --- all traffic decrypted at the gateway
+
+-   JWT token validation --- every request must carry a valid, unexpired
+    JWT
+
+-   Tenant extraction --- tenant_id extracted from JWT and injected into
+    request context
+
+-   Rate limiting --- per-tenant rate limits enforced (1,000 req/min
+    Professional, 5,000 Enterprise)
+
+-   Request routing --- routes to appropriate backend service
+
+-   DDoS protection and IP allowlisting for Super Admin endpoints
+
+**4.3 Authentication & Session Management**
+
+**JWT Token Structure**
+
++-----------------------------------------------------------------------+
+| {                                                                     |
+|                                                                       |
+| \"sub\": \"user_uuid\", // User ID                                    |
+|                                                                       |
+| \"tenant_id\": \"t_001\", // Tenant ID --- CRITICAL claim             |
+|                                                                       |
+| \"role\": \"project_manager\", // User role within tenant             |
+|                                                                       |
+| \"email\": \"pm@abcgc.com\",                                          |
+|                                                                       |
+| \"iat\": 1711900000, // Issued at                                     |
+|                                                                       |
+| \"exp\": 1711986400, // Expires (24hr web, 30d mobile)                |
+|                                                                       |
+| \"jti\": \"unique_token_id\" // JWT ID for revocation                 |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
+
+**Token Lifecycle**
+
+-   Access token: 24-hour expiry for web, 30-day expiry for mobile
+
+-   Refresh token: 90-day expiry, stored httpOnly cookie (web) or secure
+    storage (mobile)
+
+-   Token revocation: jti stored in Redis cache --- checked on every
+    request
+
+-   MFA: enforced before token issuance when tenant admin has enabled it
+
+**4.4 File & Document Storage**
+
+All tenant files stored in object storage with per-tenant path
+isolation. Files exist in one of two prefixes --- quarantine (during
+scanning) or live (accessible). No file is accessible until it has been
+scanned.
+
++-----------------------------------------------------------------------+
+| /{tenant_id}/quarantine/{upload_id}/{filename} ← Held during scanning |
+|                                                                       |
+| /{tenant_id}/live/projects/{project_id}/plans/{filename}              |
+|                                                                       |
+| /{tenant_id}/live/projects/{project_id}/photos/{filename}             |
+|                                                                       |
+| /{tenant_id}/live/projects/{project_id}/documents/{filename}          |
+|                                                                       |
+| /{tenant_id}/live/company/templates/{filename}                        |
+|                                                                       |
+| /{tenant_id}/live/company/logos/{filename}                            |
++-----------------------------------------------------------------------+
+
+File access is never exposed directly by path. All file URLs are
+pre-signed URLs generated by the API with a 15-minute expiry.
+
+**4.5 Caching Strategy**
+
+  -------------------------------------------------------------------------------
+  **Cache Type**   **Technology**   **What is Cached**          **TTL**
+  ---------------- ---------------- --------------------------- -----------------
+  Session / token  Redis            JWT jti revocation list,    Token expiry
+  revocation                        active session metadata     duration
+
+  Tenant config    Redis            Tenant settings, feature    5 minutes
+                                    flags, subscription tier    
+
+  Dashboard data   Redis            Cross-project dashboard     2 minutes
+                                    aggregates per tenant       
+
+  Plan file        Redis            Plan set version list and   10 minutes
+  metadata                          latest revision pointers    
+
+  Pre-signed URLs  Redis            Cache generated pre-signed  10 minutes
+                                    URLs to avoid re-signing    
+
+  Rate limit       Redis            Per-tenant API request      Rolling 60-second
+  counters                          counters for rate limiting  window
+
+  Storage quotas   Redis            Per-tenant storage          Updated on write
+                                    consumption --- updated on  
+                                    upload/delete               
+
+  Unread counts    Redis            Per-user notification       Updated on write
+                                    unread badge count          
+
+  Circuit breaker  Redis            Per-integration circuit     Updated on
+  state                             state                       failure/success
+                                    (Closed/Open/Half-Open)     
+  -------------------------------------------------------------------------------
+
+**4.6 Background Job Architecture & Tenant Context**
+
+  -----------------------------------------------------------------------
+  **Every background job must carry tenant_id in the SQS message envelope
+  and apply withTenantContext() before any DB query. Superadmin bypass in
+  job workers is prohibited. --- T-10**
+
+  -----------------------------------------------------------------------
+
+**4.6.1 Overview**
+
+Background jobs (QuickBooks sync, email delivery, report generation,
+notification dispatch, data export) are processed asynchronously via SQS
+queues and Lambda/ECS workers. Because these jobs have no JWT token,
+tenant context must be carried in the job message envelope itself.
+
+**4.6.2 Job Message Envelope (Standard)**
+
++-----------------------------------------------------------------------+
+| {                                                                     |
+|                                                                       |
+| \"job_id\": \"uuid-v4\",                                              |
+|                                                                       |
+| \"job_type\": \"quickbooks_sync \| email_delivery \| report_generate  |
+| \| notification_dispatch \| data_export\",                            |
+|                                                                       |
+| \"tenant_id\": \"t_001\",                                             |
+|                                                                       |
+| \"initiated_by\": \"user_uuid \| system\",                            |
+|                                                                       |
+| \"enqueued_at\": \"2026-03-13T10:00:00Z\",                            |
+|                                                                       |
+| \"payload\": { /\* job-specific data \*/ }                            |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
+
+tenant_id is set by the API layer at the time the job is enqueued. It is
+never set by the job worker itself. The worker treats it as
+authoritative.
+
+**4.6.3 Worker Tenant Context Pattern**
+
++-----------------------------------------------------------------------+
+| async function processJob(message) {                                  |
+|                                                                       |
+| const { job_id, job_type, tenant_id, payload } = message;             |
+|                                                                       |
+| if (!tenant_id) {                                                     |
+|                                                                       |
+| logger.error({ job_id, job_type }, \'Job message missing tenant_id    |
+| --- dead-lettering\');                                                |
+|                                                                       |
+| throw new Error(\'MISSING_TENANT_ID\');                               |
+|                                                                       |
+| }                                                                     |
+|                                                                       |
+| await withTenantContext(tenant_id, async () =\> {                     |
+|                                                                       |
+| await executeJob(job_type, payload);                                  |
+|                                                                       |
+| });                                                                   |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
+
+Jobs that arrive without a tenant_id are rejected to the dead-letter
+queue immediately --- never processed with a superadmin bypass.
+
+**4.6.4 Queue Structure**
+
+  --------------------------------------------------------------------------
+  **Queue**                **Purpose**                        **DLQ
+                                                              Retention**
+  ------------------------ ---------------------------------- --------------
+  platform-jobs-standard   General async jobs ---             14 days
+                           notifications, emails, reports     
+
+  platform-jobs-sync       Integration sync jobs ---          14 days
+                           QuickBooks, DocuSign               
+
+  platform-jobs-export     Data export and large report       14 days
+                           generation                         
+
+  platform-jobs-dlq        Dead-letter queue --- all failed   30 days
+                           jobs land here                     
+  --------------------------------------------------------------------------
+
+**4.6.5 Failure & Retry Behavior**
+
+-   Standard retry: 3 attempts with exponential backoff (30s, 2min,
+    10min)
+
+-   After 3 failures: message moves to dead-letter queue (DLQ)
+
+-   DLQ alerts: CloudWatch alarm fires when DLQ depth \> 0 --- on-call
+    engineer notified
+
+-   DLQ messages are inspectable and replayable by super admin --- never
+    auto-discarded
+
+-   Failed integration jobs trigger in-app notification to tenant admin
+
+**4.7 API Versioning Strategy**
+
+  -----------------------------------------------------------------------
+  **All API endpoints launch under /v1/. Breaking changes introduce a new
+  version prefix. Deprecated versions supported for minimum 6 months. All
+  clients must send User-Agent with app version. --- T-11**
+
+  -----------------------------------------------------------------------
+
+**4.7.1 Versioning Mechanism**
+
+All API endpoints are versioned by URL path prefix. The full v1.0 API
+launches under /v1/:
+
++-----------------------------------------------------------------------+
+| https://api.platformname.com/v1/projects                              |
+|                                                                       |
+| https://api.platformname.com/v1/tenants/{tenant_id}/users             |
+|                                                                       |
+| https://api.platformname.com/v1/financials/invoices                   |
++-----------------------------------------------------------------------+
+
+**4.7.2 What Constitutes a Breaking Change**
+
+  -------------------------------------------------------------------------
+  **Change Type**            **Example**              **Breaking?**
+  -------------------------- ------------------------ ---------------------
+  Removing a field from a    Removing                 YES
+  response                   project.job_number       
+
+  Renaming a field           status → project_status  YES
+
+  Changing a field\'s data   contract_value string →  YES
+  type                       integer                  
+
+  Removing an endpoint       DELETE /v1/invoices/{id} YES
+                             removed                  
+
+  Adding a new optional      Adding                   NO
+  field                      project.weather_zone     
+
+  Adding a new optional      Adding                   NO
+  request parameter          ?include_archived=true   
+
+  Adding a new endpoint      New /v1/lien-waivers     NO
+
+  Expanding an enum with new Adding status: on_hold   NO
+  values                                              
+  -------------------------------------------------------------------------
+
+**4.7.3 Deprecation Policy**
+
+-   /v1/ supported for minimum 6 months after /v2/ launches
+
+-   Deprecated endpoints return Deprecation, Sunset, and Link response
+    headers from day of new version launch
+
+-   Tenant admins receive in-app banner when their app version is
+    calling a deprecated endpoint
+
+-   At sunset date: deprecated endpoints return 410 Gone with migration
+    guide URL --- never silently removed
+
+**4.7.4 Client Version Tracking**
+
++-----------------------------------------------------------------------+
+| \# Web app                                                            |
+|                                                                       |
+| User-Agent: PlatformWeb/1.0.0                                         |
+|                                                                       |
+| \# Mobile app                                                         |
+|                                                                       |
+| User-Agent: PlatformMobile/2.3.1 (iOS 17.4)                           |
+|                                                                       |
+| User-Agent: PlatformMobile/2.3.1 (Android 14)                         |
++-----------------------------------------------------------------------+
+
+The API Gateway logs the User-Agent on every request. This feeds a Super
+Admin console dashboard showing active client version distribution.
+Requests missing a User-Agent header are accepted but flagged in logs
+--- field workers on old app versions must not be locked out.
+
+**4.8 Offline Conflict Resolution**
+
+  -----------------------------------------------------------------------
+  **Optimistic locking via version integer trigger. Tiered field policy.
+  Side-by-side resolution UI. --- T-12, T-13, T-14**
+
+  -----------------------------------------------------------------------
+
+**4.8.1 The Conflict Scenario**
+
+The mobile app is offline-first. Field workers write to local SQLite
+(WatermelonDB) without connectivity. When connectivity is restored, the
+sync queue processes local writes against the server. A conflict occurs
+when the server record has been modified by another user while the field
+worker was offline.
+
+**4.8.2 Optimistic Locking --- Data Model**
+
++-----------------------------------------------------------------------+
+| \-- Every mobile-writable table carries a version integer             |
+|                                                                       |
+| ALTER TABLE tasks ADD COLUMN version INTEGER NOT NULL DEFAULT 1;      |
+|                                                                       |
+| ALTER TABLE daily_reports ADD COLUMN version INTEGER NOT NULL DEFAULT |
+| 1;                                                                    |
+|                                                                       |
+| ALTER TABLE inspections ADD COLUMN version INTEGER NOT NULL DEFAULT   |
+| 1;                                                                    |
+|                                                                       |
+| ALTER TABLE invoices ADD COLUMN version INTEGER NOT NULL DEFAULT 1;   |
+|                                                                       |
+| ALTER TABLE punch_list_items ADD COLUMN version INTEGER NOT NULL      |
+| DEFAULT 1;                                                            |
+|                                                                       |
+| ALTER TABLE change_orders ADD COLUMN version INTEGER NOT NULL DEFAULT |
+| 1;                                                                    |
+|                                                                       |
+| \-- Version incremented by DB trigger --- never trusted from client   |
+| payload                                                               |
+|                                                                       |
+| CREATE OR REPLACE FUNCTION increment_version()                        |
+|                                                                       |
+| RETURNS TRIGGER AS \$\$                                               |
+|                                                                       |
+| BEGIN                                                                 |
+|                                                                       |
+| NEW.version = OLD.version + 1;                                        |
+|                                                                       |
+| NEW.updated_at = NOW();                                               |
+|                                                                       |
+| RETURN NEW;                                                           |
+|                                                                       |
+| END;                                                                  |
+|                                                                       |
+| \$\$ LANGUAGE plpgsql;                                                |
++-----------------------------------------------------------------------+
+
+**4.8.3 Sync Write Protocol**
+
+When the mobile app syncs an offline write, it includes the version it
+held when the record was last fetched. The server checks: if versions
+match, write succeeds. If server version is higher, 409 Conflict is
+returned with the current server state.
+
+**4.8.4 Tiered Field Sensitivity Policy**
+
+  -------------------------------------------------------------------------------
+  **Tier**      **Field Types**  **Examples**               **Conflict Behavior**
+  ------------- ---------------- -------------------------- ---------------------
+  Financial     Monetary values, invoice_amount,            Strict --- conflict
+                contract amounts contract_value,            always surfaced to
+                                 budget_allocated           user. Write blocked
+                                                            until resolved.
+
+  Operational   Status fields,   task_status,               Conflict surfaced to
+                scheduled dates, scheduled_date,            user. Write blocked
+                assignments      assigned_to                until resolved.
+
+  Append-only   Photos, notes,   photos\[\], field_notes,   Last write wins ---
+                daily report     daily_report_entries\[\]   additive by nature.
+                entries                                     No conflict possible.
+
+  System        Ownership and    tenant_id, created_at,     Server always wins
+                integrity fields version, created_by        --- client values
+                                                            ignored on sync.
+  -------------------------------------------------------------------------------
+
+**4.8.5 Conflict Resolution UI --- Side-by-Side**
+
++-----------------------------------------------------------------------+
+| ┌─────────────────────────────────────────────────┐                   |
+|                                                                       |
+| │ ⚠️ Sync Conflict --- Task: Rough Electrical │                       |
+|                                                                       |
+| │ Someone updated this while you were offline │                       |
+|                                                                       |
+| ├────────────────────┬────────────────────────────┤                   |
+|                                                                       |
+| │ YOUR VERSION │ CURRENT VERSION │                                    |
+|                                                                       |
+| │ (offline) │ (server) │                                              |
+|                                                                       |
+| ├────────────────────┼────────────────────────────┤                   |
+|                                                                       |
+| │ Status │ Status │                                                   |
+|                                                                       |
+| │ ● Complete \[✓\] │ ○ Blocked │                                      |
+|                                                                       |
+| ├────────────────────┼────────────────────────────┤                   |
+|                                                                       |
+| │ Notes │ Notes │                                                     |
+|                                                                       |
+| │ ● \"Wiring done\" │ ○ \"Waiting on inspect\" \[✓\] │                |
+|                                                                       |
+| ├────────────────────┴────────────────────────────┤                   |
+|                                                                       |
+| │ \[Cancel\] \[Apply My Selections\] │                                |
+|                                                                       |
+| └─────────────────────────────────────────────────┘                   |
++-----------------------------------------------------------------------+
+
+-   Only fields that differ between client and server are shown ---
+    identical fields merged silently
+
+-   Financial tier fields show a warning label: \'This affects billing
+    --- choose carefully\'
+
+-   Field worker must select a value for each conflicting field before
+    submission
+
+-   \'Cancel\' leaves the record in the sync queue --- other records
+    continue syncing normally
+
+-   Unresolved conflicts surfaced in a \'Sync Issues\' badge on the
+    mobile app home screen
+
+**4.8.6 Conflict Logging**
+
++-----------------------------------------------------------------------+
+| CREATE TABLE offline_conflicts (                                      |
+|                                                                       |
+| id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                        |
+|                                                                       |
+| tenant_id UUID NOT NULL REFERENCES tenants(id),                       |
+|                                                                       |
+| user_id UUID NOT NULL REFERENCES users(id),                           |
+|                                                                       |
+| table_name VARCHAR(100) NOT NULL,                                     |
+|                                                                       |
+| record_id UUID NOT NULL,                                              |
+|                                                                       |
+| client_version INTEGER NOT NULL,                                      |
+|                                                                       |
+| server_version INTEGER NOT NULL,                                      |
+|                                                                       |
+| conflicting_fields JSONB,                                             |
+|                                                                       |
+| resolution JSONB,                                                     |
+|                                                                       |
+| resolved_by VARCHAR(20), \-- \'user\' \| \'system\'                   |
+|                                                                       |
+| created_at TIMESTAMPTZ DEFAULT NOW(),                                 |
+|                                                                       |
+| resolved_at TIMESTAMPTZ                                               |
+|                                                                       |
+| );                                                                    |
++-----------------------------------------------------------------------+
+
+**4.9 Inbound Webhook Architecture**
+
+  -----------------------------------------------------------------------
+  **One endpoint per provider. Signature validation first --- before any
+  DB write. Async processing. Event ID deduplication. --- T-18, T-19,
+  T-20**
+
+  -----------------------------------------------------------------------
+
+**4.9.1 Webhook Endpoints**
+
+  --------------------------------------------------------------------------
+  **Provider**   **Endpoint**              **Registered Where**
+  -------------- ------------------------- ---------------------------------
+  Stripe         POST /v1/webhooks/stripe  Stripe Dashboard → Webhooks
+
+  QuickBooks     POST                      QuickBooks Developer Portal
+                 /v1/webhooks/quickbooks   
+
+  DocuSign       POST                      DocuSign Connect configuration
+                 /v1/webhooks/docusign     
+
+  Twilio         POST /v1/webhooks/twilio  Twilio Console → Messaging
+  --------------------------------------------------------------------------
+
+**4.9.2 Receiver Handler Pattern**
+
++-----------------------------------------------------------------------+
+| async function handleWebhook(provider, req, res) {                    |
+|                                                                       |
+| // Step 1 --- Validate signature (provider-specific) FIRST            |
+|                                                                       |
+| const isValid = validateSignature(provider, req);                     |
+|                                                                       |
+| if (!isValid) {                                                       |
+|                                                                       |
+| logger.warn({ provider, ip: req.ip }, \'Webhook signature validation  |
+| failed\');                                                            |
+|                                                                       |
+| return res.status(403).end();                                         |
+|                                                                       |
+| }                                                                     |
+|                                                                       |
+| const eventId = extractEventId(provider, req.body);                   |
+|                                                                       |
+| const eventType = extractEventType(provider, req.body);               |
+|                                                                       |
+| // Step 2 --- Persist raw event                                       |
+|                                                                       |
+| await db.query(\`                                                     |
+|                                                                       |
+| INSERT INTO inbound_webhooks (provider, event_id, event_type,         |
+| raw_payload)                                                          |
+|                                                                       |
+| VALUES (\$1, \$2, \$3, \$4)                                           |
+|                                                                       |
+| ON CONFLICT (provider, event_id) DO NOTHING                           |
+|                                                                       |
+| \`, \[provider, eventId, eventType, req.body\]);                      |
+|                                                                       |
+| // Step 3 --- Enqueue background job                                  |
+|                                                                       |
+| await sqs.sendMessage({ QueueUrl: WEBHOOK_QUEUE_URL,                  |
+|                                                                       |
+| MessageBody: JSON.stringify({ provider, event_id: eventId }),         |
+|                                                                       |
+| MessageDeduplicationId: \`\${provider}-\${eventId}\`                  |
+|                                                                       |
+| });                                                                   |
+|                                                                       |
+| // Step 4 --- Acknowledge immediately (\<500ms)                       |
+|                                                                       |
+| return res.status(200).end();                                         |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
+
+**4.9.3 Inbound Webhooks Table**
+
++-----------------------------------------------------------------------+
+| CREATE TABLE inbound_webhooks (                                       |
+|                                                                       |
+| id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                        |
+|                                                                       |
+| provider VARCHAR(20) NOT NULL,                                        |
+|                                                                       |
+| event_id VARCHAR(255) NOT NULL,                                       |
+|                                                                       |
+| event_type VARCHAR(100) NOT NULL,                                     |
+|                                                                       |
+| tenant_id UUID REFERENCES tenants(id),                                |
+|                                                                       |
+| raw_payload JSONB NOT NULL,                                           |
+|                                                                       |
+| status VARCHAR(20) NOT NULL DEFAULT \'pending\',                      |
+|                                                                       |
+| attempts INTEGER NOT NULL DEFAULT 0,                                  |
+|                                                                       |
+| last_error TEXT,                                                      |
+|                                                                       |
+| received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),                       |
+|                                                                       |
+| processed_at TIMESTAMPTZ,                                             |
+|                                                                       |
+| UNIQUE (provider, event_id)                                           |
+|                                                                       |
+| );                                                                    |
++-----------------------------------------------------------------------+
+
+**4.9.4 Key Events Per Provider**
+
+  ----------------------------------------------------------------------------------
+  **Provider**   **Event**                       **Platform Action**
+  -------------- ------------------------------- -----------------------------------
+  Stripe         invoice.payment_succeeded       Mark invoice paid, trigger
+                                                 QuickBooks sync
+
+  Stripe         customer.subscription.deleted   Move tenant to cancelled state
+
+  QuickBooks     dataChangeEvent (Invoice)       Sync invoice status changes back to
+                                                 platform
+
+  DocuSign       envelope-completed              Mark contract signed, notify
+                                                 project team
+
+  DocuSign       envelope-declined               Alert contract owner, update
+                                                 contract status
+
+  Twilio         delivered                       Confirm SMS delivery, update
+                                                 notification log
+
+  Twilio         failed                          Log delivery failure, trigger
+                                                 fallback notification
+  ----------------------------------------------------------------------------------
+
+**4.10 External Integration Resilience**
+
+  -----------------------------------------------------------------------
+  **Exponential backoff with jitter. Per-integration circuit breaker.
+  Integration failures are never silent. --- T-21, T-22, T-23**
+
+  -----------------------------------------------------------------------
+
+**4.10.1 Core Principle**
+
+The platform always works. Integration failures affect sync and delivery
+--- never core data entry, project management, or financial record
+keeping. A QuickBooks outage means sync is delayed, not that the
+platform is down.
+
+**4.10.2 Retry Strategy --- Exponential Backoff with Jitter**
+
++-----------------------------------------------------------------------+
+| const RETRY_SCHEDULE = \[30, 120, 600, 3600, 21600\]; // seconds      |
+|                                                                       |
+| // ±20% random jitter applied to each interval to prevent retry       |
+| storms                                                                |
+|                                                                       |
+| // Attempt 1 failure → retry in \~30s (24--36s)                       |
+|                                                                       |
+| // Attempt 2 failure → retry in \~2min (96--144s)                     |
+|                                                                       |
+| // Attempt 3 failure → retry in \~10min (8--12min)                    |
+|                                                                       |
+| // Attempt 4 failure → retry in \~1hr (48--72min)                     |
+|                                                                       |
+| // Attempt 5 failure → retry in \~6hr (4.8--7.2hr)                    |
++-----------------------------------------------------------------------+
+
+**4.10.3 Failure Classification**
+
+  -----------------------------------------------------------------------
+  **Failure Type**   **HTTP /        **Retry Behavior**
+                     Error**         
+  ------------------ --------------- ------------------------------------
+  Transient / server 500, 502, 503,  Retry with backoff --- likely
+  error              504             recovers
+
+  Rate limited       429             Retry after Retry-After header
+                                     interval
+
+  Timeout            Network timeout Retry with backoff
+
+  Authentication     401, 403        Do NOT retry --- alert tenant admin
+  failure                            immediately
+
+  Not found          404             Do NOT retry --- log and mark failed
+
+  Bad request        400             Do NOT retry --- alert engineering
+  -----------------------------------------------------------------------
+
+**4.10.4 Circuit Breaker States**
+
++-----------------------------------------------------------------------+
+| CLOSED (normal) ──── 5 consecutive failures ──→ OPEN (blocked)        |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| 5-min recovery timeout                                                |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| probe succeeds ←── HALF-OPEN ←──────┘                                 |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| CLOSED ←── (circuit closes, failures reset to 0)                      |
++-----------------------------------------------------------------------+
+
+Circuit breaker state stored in Redis --- shared across all worker
+instances. Opens after 5 consecutive failures. Half-open probe allowed
+after 5-minute recovery timeout. Authentication failures bypass circuit
+breaker and go directly to tenant notification.
+
+**4.10.5 User Communication Tiers**
+
+  -----------------------------------------------------------------------
+  **Trigger**           **Communication**               **Audience**
+  --------------------- ------------------------------- -----------------
+  First retry cycle     In-app notification:            Tenant admin
+  fails (attempt 2)     \'QuickBooks sync is            
+                        experiencing issues ---         
+                        retrying automatically.\'       
+
+  Attempt 4 fails       In-app notification + email:    Tenant admin
+  (\~1hr of retrying)   \'Sync has been failing for     
+                        over an hour. Contact support   
+                        if this persists.\'             
+
+  Circuit breaker opens In-app banner showing last      All tenant users
+                        successful sync time and        
+                        current status                  
+
+  Authentication        Immediate notification + email: Tenant admin
+  failure               \'Connection lost --- please    
+                        reconnect your account.\' with  
+                        reconnect link                  
+
+  Circuit closes / sync In-app notification: \'Sync has Tenant admin
+  recovers              recovered. All pending changes  
+                        have been synced.\'             
+  -----------------------------------------------------------------------
+
+**4.10.6 Graceful Degradation**
+
+  -------------------------------------------------------------------------
+  **Integration**   **Degraded Behavior**
+  ----------------- -------------------------------------------------------
+  QuickBooks        Platform continues normally. Invoices and financial
+                    records created and stored. Sync queue accumulates and
+                    replays on recovery. Users see \'last synced\'
+                    timestamp.
+
+  DocuSign          Contracts managed locally. E-signature requests queued.
+                    Manual signature workflow available as fallback.
+
+  Stripe            Existing subscriptions unaffected. New subscription
+                    changes queued. Tenant admin notified if billing action
+                    is delayed.
+
+  Twilio            SMS notifications fall back to email. Push
+                    notifications (APNs/FCM) unaffected. Users notified SMS
+                    is temporarily unavailable.
+  -------------------------------------------------------------------------
+
+**4.11 File Upload Security**
+
+  -----------------------------------------------------------------------
+  **All uploads quarantined before accessible. Triple validation.
+  Per-type size limits. Per-tier storage quotas. --- T-27, T-28, T-29,
+  T-30**
+
+  -----------------------------------------------------------------------
+
+**4.11.1 Upload Pipeline**
+
++-----------------------------------------------------------------------+
+| Client → API Layer → Triple Validation → Write to /quarantine/ → Scan |
+| → Move to /live/                                                      |
+|                                                                       |
+| Triple Validation (all three must pass):                              |
+|                                                                       |
+| 1\. Extension allowlist check                                         |
+|                                                                       |
+| 2\. Magic byte validation (actual file content matches extension)     |
+|                                                                       |
+| 3\. Content-Type header must match expected MIME types                |
+|                                                                       |
+| If any validation fails → 422 Unprocessable Entity (before storage    |
+| write)                                                                |
+|                                                                       |
+| If scan passes → move to /live/ → generate pre-signed URL → notify    |
+| via WebSocket                                                         |
+|                                                                       |
+| If scan fails → delete from quarantine → notify uploader → log        |
+| security event                                                        |
++-----------------------------------------------------------------------+
+
+**4.11.2 Permitted File Types**
+
+  -------------------------------------------------------------------------------
+  **Extension**   **Magic        **MIME Types**                       **Max
+                  Bytes**                                             Size**
+  --------------- -------------- ------------------------------------ -----------
+  pdf             %PDF           application/pdf                      50MB
+
+  jpg/jpeg        FF D8          image/jpeg                           25MB
+
+  png             89 50          image/png                            25MB
+
+  heic            varies         image/heic                           25MB
+
+  dwg             AC10           image/vnd.dwg                        250MB
+
+  docx            50 4B          application/vnd.openxmlformats\...   50MB
+
+  mp4             varies         video/mp4                            500MB
+  -------------------------------------------------------------------------------
+
+**4.11.3 Per-Tenant Storage Quotas**
+
+  -------------------------------------------------------------------------
+  **Tier**        **Storage       **At 80%**           **At 100%**
+                  Quota**                              
+  --------------- --------------- -------------------- --------------------
+  Starter         10GB            In-app warning to    Uploads blocked
+                                  admin                
+
+  Professional    50GB            In-app warning to    Uploads blocked
+                                  admin                
+
+  Business        250GB           In-app warning to    Uploads blocked
+                                  admin                
+
+  Enterprise      Unlimited       Alert at 500GB+      No hard cap
+                                  (monitoring)         
+  -------------------------------------------------------------------------
+
+**4.11.4 Scanner Provider Interface**
+
+The scanner is behind a provider-agnostic interface. SCANNER_PROVIDER
+environment variable determines the active provider. No upload handler
+code changes required when migrating from Cloudmersive to GuardDuty at
+Stage 3.
+
+-   Stage 1--2 (DigitalOcean): Cloudmersive Virus Scan API (\~\$0/mo
+    free tier, \~\$50/mo paid)
+
+-   Stage 3+ (AWS): GuardDuty Malware Protection for S3 (\~\$0.60/GB
+    scanned)
+
+**4.12 Audit Log Architecture**
+
+  -----------------------------------------------------------------------
+  **Six-category comprehensive log. Append-only, hash-chained for tamper
+  evidence. Tenant admin read-only access. 7-year retention. SOC 2
+  evidence begins at v1.0 launch. --- T-31, T-32, T-33, T-34**
+
+  -----------------------------------------------------------------------
+
+**4.12.1 Core Principles**
+
+-   Entries are append-only --- never updated, never deleted
+
+-   Every entry is hash-chained to the previous --- tampering is
+    detectable
+
+-   All entries stored in English regardless of user locale
+
+-   Logging happens in the same transaction as the action --- no log
+    entry means the action didn\'t happen
+
+-   Two scopes: tenant-level (visible to tenant admins) and
+    platform-level (super admins only)
+
+**4.12.2 Audit Log Schema**
+
++-----------------------------------------------------------------------+
+| CREATE TABLE audit_log (                                              |
+|                                                                       |
+| id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                        |
+|                                                                       |
+| tenant_id UUID REFERENCES tenants(id), \-- NULL for platform-level    |
+| events                                                                |
+|                                                                       |
+| scope VARCHAR(20) NOT NULL, \-- \'tenant\' \| \'platform\'            |
+|                                                                       |
+| actor_id UUID,                                                        |
+|                                                                       |
+| actor_email VARCHAR(255), \-- Denormalized --- user may be deleted    |
+| later                                                                 |
+|                                                                       |
+| actor_role VARCHAR(50),                                               |
+|                                                                       |
+| actor_type VARCHAR(20) NOT NULL, \-- \'user\' \| \'system\' \|        |
+| \'superadmin\' \| \'api\'                                             |
+|                                                                       |
+| actor_ip INET,                                                        |
+|                                                                       |
+| actor_user_agent TEXT,                                                |
+|                                                                       |
+| event_category VARCHAR(50) NOT NULL,                                  |
+|                                                                       |
+| event_type VARCHAR(100) NOT NULL,                                     |
+|                                                                       |
+| resource_type VARCHAR(50),                                            |
+|                                                                       |
+| resource_id UUID,                                                     |
+|                                                                       |
+| before_state JSONB,                                                   |
+|                                                                       |
+| after_state JSONB,                                                    |
+|                                                                       |
+| metadata JSONB,                                                       |
+|                                                                       |
+| entry_hash VARCHAR(64) NOT NULL, \-- SHA-256 of this entry\'s content |
+|                                                                       |
+| previous_hash VARCHAR(64), \-- Hash of previous entry in chain        |
+|                                                                       |
+| created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()                         |
+|                                                                       |
+| );                                                                    |
++-----------------------------------------------------------------------+
+
+**4.12.3 Event Taxonomy --- Six Categories**
+
+  ------------------------------------------------------------------------------------------------
+  **Category**       **Key Events Captured**
+  ------------------ -----------------------------------------------------------------------------
+  1\. Authentication login_success, login_failed, logout, mfa_enabled/disabled, password_changed,
+  & Access           account_locked, token_revoked, impersonation_started/ended
+
+  2\. User &         user.created/deactivated/reactivated/role_changed/deleted,
+  Permission         permission.override_set/removed
+  Management         
+
+  3\. Financial      invoice.created/submitted/approved/rejected/paid/voided,
+  Events             change_order.issued/approved/rejected, budget.updated,
+                     lien_waiver.issued/signed, contract.created/signed, payment.recorded
+
+  4\. Project &      project.created/status_changed/deleted, task.status_changed,
+  Operational Events inspection.submitted/failed, daily_report.submitted,
+                     punch_list.item_created/resolved, schedule.milestone_changed,
+                     rfi.created/responded, submittal.created/approved/rejected
+
+  5\. Document &     document.uploaded/downloaded/deleted/scan_rejected/version_added
+  File Events        
+
+  6\. Cross-Tenant & connection.request_sent/accepted/declined/disconnected/permissions_changed,
+  Platform Events    tenant.created/suspended/reactivated/cancelled/purged,
+                     subscription.tier_changed, integration.connected/disconnected
+  ------------------------------------------------------------------------------------------------
+
+**4.12.4 Hash Chaining --- Tamper Evidence**
+
++-----------------------------------------------------------------------+
+| function computeEntryHash(entry, previousHash) {                      |
+|                                                                       |
+| const content = JSON.stringify({                                      |
+|                                                                       |
+| tenant_id: entry.tenant_id, scope: entry.scope,                       |
+|                                                                       |
+| actor_id: entry.actor_id, actor_email: entry.actor_email,             |
+|                                                                       |
+| event_category: entry.event_category, event_type: entry.event_type,   |
+|                                                                       |
+| resource_type: entry.resource_type, resource_id: entry.resource_id,   |
+|                                                                       |
+| before_state: entry.before_state, after_state: entry.after_state,     |
+|                                                                       |
+| created_at: entry.created_at.toISOString(),                           |
+|                                                                       |
+| previous_hash: previousHash ?? \'GENESIS\',                           |
+|                                                                       |
+| });                                                                   |
+|                                                                       |
+| return crypto.createHash(\'sha256\').update(content).digest(\'hex\'); |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
+
+A nightly background job verifies the hash chain. Any modification to a
+past entry changes its hash, breaking the chain from that point forward
+--- detectable immediately. Chain break triggers a critical security
+alert.
+
+**4.12.5 Retention Policy**
+
+  -------------------------------------------------------------------------
+  **Scope**          **Retention**   **Rationale**
+  ------------------ --------------- --------------------------------------
+  Tenant audit log   7 years         Construction contract disputes and
+                                     lien claims surface years after
+                                     project completion
+
+  Platform audit log 7 years         SOC 2 and internal security
+                                     investigation requirements
+
+  Authentication     7 years         Security investigation and compliance
+  events                             
+
+  Purged tenant data Audit log       actor_email denormalized --- legal
+                     retained after  obligation survives data deletion
+                     tenant purge    
+  -------------------------------------------------------------------------
+
+**4.13 Tenant Data Export**
+
+  -----------------------------------------------------------------------
+  **Async ZIP archive. One CSV per domain plus all tenant files.
+  Delivered via 7-day pre-signed URL. CCPA data portability compliant
+  from v1.0 launch. --- T-35, T-36, T-37**
+
+  -----------------------------------------------------------------------
+
+**4.13.1 Export Contents**
+
++-----------------------------------------------------------------------+
+| export\_{tenant_id}\_{date}.zip                                       |
+|                                                                       |
+| ├── README.txt ← Field definitions, export date, platform version     |
+|                                                                       |
+| ├── data/                                                             |
+|                                                                       |
+| │ ├── projects.csv                                                    |
+|                                                                       |
+| │ ├── tasks.csv, users.csv, invoices.csv, change_orders.csv           |
+|                                                                       |
+| │ ├── contracts.csv, lien_waivers.csv, budget_lines.csv, payments.csv |
+|                                                                       |
+| │ ├── daily_reports.csv, inspections.csv, punch_list_items.csv        |
+|                                                                       |
+| │ ├── rfis.csv, submittals.csv, schedule_milestones.csv               |
+|                                                                       |
+| │ ├── vendors.csv, subcontractors.csv                                 |
+|                                                                       |
+| │ └── audit_log.csv ← Full 7-year audit history                       |
+|                                                                       |
+| └── files/                                                            |
+|                                                                       |
+| └── {project_id}/                                                     |
+|                                                                       |
+| ├── plans/                                                            |
+|                                                                       |
+| ├── photos/                                                           |
+|                                                                       |
+| └── documents/                                                        |
++-----------------------------------------------------------------------+
+
+**4.13.2 Policies**
+
+-   Maximum one active export job per tenant at a time
+
+-   Download URL expires after 7 days --- tenant can request new export
+    after expiry
+
+-   Export files in storage deleted after 7 days via nightly cleanup job
+
+-   Available during Active, Cancelled, and Grace Period states --- not
+    after Purge
+
+-   Tenant admin receives email with estimated completion time when job
+    is enqueued
+
+-   Tenant admin receives email with pre-signed download URL when export
+    is ready
+
+**4.14 Notification Infrastructure**
+
+  -----------------------------------------------------------------------
+  **APNs (iOS) + FCM (Android). Delivery fallback chain: in-app → push →
+  email → SMS. Per-user preferences. Safety events cannot be disabled.
+  --- T-38, T-39, T-40, T-41**
+
+  -----------------------------------------------------------------------
+
+**4.14.1 Notification Channels**
+
+  -------------------------------------------------------------------------
+  **Channel**    **Provider**          **Use Case**
+  -------------- --------------------- ------------------------------------
+  In-app         WebSocket             Real-time --- user is active in the
+                 (Pusher/Ably)         app
+
+  Push           APNs (iOS) + FCM      User is not active --- mobile
+  notification   (Android)             background alert
+
+  Email          SendGrid              Digest, important alerts, export
+                                       delivery
+
+  SMS            Twilio                Time-sensitive field alerts only ---
+                                       user must opt in
+  -------------------------------------------------------------------------
+
+**4.14.2 Delivery Fallback Chain**
+
++-----------------------------------------------------------------------+
+| Is user currently active in app?                                      |
+|                                                                       |
+| ├── YES → Deliver via WebSocket (in-app) only                         |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| └── NO → Deliver push notification                                    |
+|                                                                       |
+| ├── Push delivered → Done                                             |
+|                                                                       |
+| └── Push fails / no device token                                      |
+|                                                                       |
+| └── Email fallback                                                    |
+|                                                                       |
+| └── SMS (high-priority events only)                                   |
++-----------------------------------------------------------------------+
+
+**4.14.3 Device Token Lifecycle**
+
+-   Tokens upserted on every app launch --- handles token rotation
+    automatically
+
+-   APNs returns 410 Gone for expired tokens --- immediate deactivation
+
+-   FCM returns UNREGISTERED for invalid tokens --- immediate
+    deactivation
+
+-   Platform never retries against a known-bad token
+
+**4.14.4 Per-User Notification Preferences**
+
+-   Per-channel opt-out: push_enabled, email_enabled, sms_enabled (SMS
+    off by default --- user must opt in)
+
+-   Per-category opt-out: task_updates, inspection_results,
+    invoice_activity, change_orders, daily_reports, schedule_changes,
+    document_uploads, rfis, payment_events
+
+-   Safety events (notify_safety_events): cannot be disabled ---
+    preference column exists but is ignored
+
+-   Quiet hours: user-configurable local-time window where push and SMS
+    are suppressed
+
+**4.14.5 Notification Read/Unread State**
+
+All notifications stored in notifications table. Unread count cached in
+Redis per user for badge display. Unread count incremented on
+notification creation, decremented on mark-read. All notifications
+stored in user\'s preferred_language.
+
+**5. Tenant Provisioning & Lifecycle**
+
+**5.1 Real-Time Architecture & WebSocket Tenant Isolation**
+
+  -----------------------------------------------------------------------
+  **One private channel per tenant. Authorization endpoint validates JWT
+  tenant_id against requested channel. Server fan-out for cross-tenant
+  events. --- T-15, T-16, T-17**
+
+  -----------------------------------------------------------------------
+
+**5.1.1 Channel Naming Convention**
+
+  --------------------------------------------------------------------------------------
+  **Channel Type**   **Format**                   **Example**            **Who
+                                                                         Subscribes**
+  ------------------ ---------------------------- ---------------------- ---------------
+  Tenant private     private-tenant-{tenant_id}   private-tenant-t_001   All
+  channel                                                                authenticated
+                                                                         users of that
+                                                                         tenant
+
+  Super admin        private-superadmin           private-superadmin     Super admin
+  channel                                                                console only
+  --------------------------------------------------------------------------------------
+
+Channel names are never constructed from user-supplied input --- always
+derived server-side from the validated JWT tenant_id claim. No public
+channels exist on the platform.
+
+**5.1.2 Channel Authorization Flow**
+
++-----------------------------------------------------------------------+
+| // POST /v1/realtime/auth                                             |
+|                                                                       |
+| async function authorizeChannel(req, res) {                           |
+|                                                                       |
+| const { tenant_id, user_id } = req.jwt;                               |
+|                                                                       |
+| const { channel_name, socket_id } = req.body;                         |
+|                                                                       |
+| // Channel must match the requesting tenant --- no exceptions         |
+|                                                                       |
+| const expectedChannel = \`private-tenant-\${tenant_id}\`;             |
+|                                                                       |
+| if (channel_name !== expectedChannel) {                               |
+|                                                                       |
+| return res.status(403).json({ error: \'CHANNEL_FORBIDDEN\' });        |
+|                                                                       |
+| }                                                                     |
+|                                                                       |
+| const authToken = pusher.authorizeChannel(socket_id, channel_name);   |
+|                                                                       |
+| return res.json(authToken);                                           |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
+
+**5.1.3 Standard Event Types**
+
+  ------------------------------------------------------------------------------
+  **Event**                     **Trigger**            **Channel**
+  ----------------------------- ---------------------- -------------------------
+  task.status_changed           Task updated           Tenant channel
+
+  inspection.submitted          Inspection result      Tenant channel
+                                submitted              
+
+  daily_report.submitted        Daily report filed     Tenant channel
+
+  invoice.status_changed        Invoice approved /     Tenant channel
+                                rejected               
+
+  change_order.issued           Change order created   Tenant channel
+
+  notification.new              Any in-app             Tenant channel
+                                notification           
+
+  file.scan_complete            File scan result       Tenant channel
+                                available              
+
+  sync.conflict_detected        Offline sync conflict  Tenant channel
+
+  connection.request_received   Cross-tenant           Tenant channel
+                                connection invite      
+  ------------------------------------------------------------------------------
+
+**5.1.4 Cross-Tenant Fan-Out Architecture**
+
++-----------------------------------------------------------------------+
+| Sub (t_002) completes task                                            |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| ▼                                                                     |
+|                                                                       |
+| API writes to sub\'s DB tables (tenant_id = t_002)                    |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| ├──▶ Publish to private-tenant-t_002                                  |
+|                                                                       |
+| │ Full event payload                                                  |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| └──▶ shared_project_events record written                             |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| ▼                                                                     |
+|                                                                       |
+| Fan-out service applies permission matrix                             |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| ▼                                                                     |
+|                                                                       |
+| Publish to private-tenant-t_001 (GC)                                  |
+|                                                                       |
+| Scoped payload --- permitted fields only                              |
+|                                                                       |
+| (no internal cost data, no markup, no other jobs)                     |
++-----------------------------------------------------------------------+
+
+Both publishes happen in the same operation --- GC\'s dashboard updates
+at the same moment as the sub\'s. The fan-out service applies the data
+sharing permission matrix before constructing the GC payload.
+
+**5.1.5 WebSocket Connection Limits**
+
+  ------------------------------------------------------------------------
+  **Tier**        **Max Concurrent       **Behavior at Limit**
+                  Connections**          
+  --------------- ---------------------- ---------------------------------
+  Starter         25                     New connections rejected ---
+                                         client falls back to 30s polling
+
+  Professional    100                    Same fallback
+
+  Business        500                    Same fallback
+
+  Enterprise      Unlimited              No limit enforced
+  ------------------------------------------------------------------------
+
+**5.2 Self-Serve Tenant Provisioning Flow**
+
+-   User visits signup page --- enters company name, email, password,
+    trade type
+
+-   Email verification sent --- user must verify before proceeding
+
+-   Stripe customer created --- subscription initialized at selected
+    tier
+
+-   Tenant record created --- tenant_id (UUID) generated, slug created
+
+-   Default data seeded: trade module, budget categories, quality
+    checklists, document templates
+
+-   Admin user record created and linked to tenant
+
+-   Welcome email sent with onboarding wizard link
+
+-   Tenant enters onboarding wizard --- company profile, first project,
+    invite team, connect QuickBooks
+
+Provisioning is fully automated. A new tenant goes from signup to first
+active project in under 10 minutes.
+
+**5.3 Tenant Lifecycle States**
+
+  ------------------------------------------------------------------------
+  **State**     **Description**          **Data Access**    **Billing**
+  ------------- ------------------------ ------------------ --------------
+  Trialing      14-day free trial ---    Full               No charge ---
+                full Professional tier                      card required
+                access                                      at signup
+
+  Active        Paid subscription in     Full (within tier) Monthly or
+                good standing                               annual via
+                                                            Stripe
+
+  Past Due      Payment failed --- grace Full --- grace     Retry logic
+                period (7 days)          period             --- 3 attempts
+                                                            over 7 days
+
+  Suspended     Grace period expired --- Read-only --- no   Subscription
+                payment unresolved       new data entry     paused
+
+  Cancelled     Tenant cancelled         Read-only for 30   No further
+                subscription             days               charges
+
+  Purged        30 days                  None               None
+                post-cancellation ---                       
+                data deleted                                
+  ------------------------------------------------------------------------
+
+**5.4 Data Retention & Deletion Policy**
+
+-   On cancellation: tenant moves to read-only state for 30 days --- all
+    data preserved
+
+-   During 30-day grace period: tenant can reactivate and resume full
+    access instantly
+
+-   At day 30 post-cancellation: automated purge job deletes all tenant
+    data from database and file storage
+
+-   Purge is irreversible --- tenants warned via email at day 1, 7, 21,
+    and 28
+
+-   Tenant data export available at any time during active or
+    cancelled/grace period states
+
+-   Audit log entries are NEVER purged --- retained for 7 years even
+    after tenant purge
+
+**6. Cross-Tenant Collaboration Architecture**
+
+  -----------------------------------------------------------------------
+  **v1.1 Feature: Cross-tenant collaboration is NOT in v1.0. The database
+  schema and API layer will be designed to accommodate it from day one,
+  but the feature will not be activated until v1.1.**
+
+  -----------------------------------------------------------------------
+
+**6.1 The Shared Project Layer Model**
+
++-----------------------------------------------------------------------+
+| TENANT A (GC): ABC General Contractors \[tenant_id: t_001\]           |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| │ Project: Main Street Office Build \[project_id: p_100\]             |
+|                                                                       |
+| │ ├── Scope: Electrical (awarded to Smith Electric)                   |
+|                                                                       |
+| │ └── Scope: Plumbing (awarded to Martinez Plumbing)                  |
+|                                                                       |
+| │                                                                     |
+|                                                                       |
+| │ CONNECTION REQUEST ──────────────────────────────────┐              |
+|                                                                       |
+| │ │                                                                   |
+|                                                                       |
+| │ ┌─────────────────────────────────────────────────┐ │               |
+|                                                                       |
+| │ │ SHARED PROJECT LAYER │ │                                          |
+|                                                                       |
+| │ │ \[shared_project_id: sp_200\] │ │                                 |
+|                                                                       |
+| │ │ Governed data bridge --- only permitted fields │ │                |
+|                                                                       |
+| │ └──────────────┬──────────────────────────────────┘ │               |
+|                                                                       |
+| │ │ │                                                                 |
+|                                                                       |
+| ▼ ▼ ▼                                                                 |
+|                                                                       |
+| GC Dashboard Shared View TENANT B (Sub): Smith Electrical             |
+|                                                                       |
+| (full project) (scoped) \[tenant_id: t_002\]                          |
+|                                                                       |
+| Own dashboard, own financials, own jobs                               |
++-----------------------------------------------------------------------+
+
+**6.2 Cross-Tenant Connection Data Model**
+
++-----------------------------------------------------------------------+
+| TABLE: tenant_connections                                             |
+|                                                                       |
+| id UUID PRIMARY KEY                                                   |
+|                                                                       |
+| initiating_tenant_id UUID FK -\> tenants(id) \-- GC tenant            |
+|                                                                       |
+| receiving_tenant_id UUID FK -\> tenants(id) \-- Sub tenant            |
+|                                                                       |
+| project_id UUID FK -\> projects(id) \-- The specific project          |
+|                                                                       |
+| scope_description TEXT                                                |
+|                                                                       |
+| contract_value DECIMAL(12,2)                                          |
+|                                                                       |
+| status VARCHAR(20) \-- pending \| active \| completed \| disconnected |
+|                                                                       |
+| initiated_at TIMESTAMPTZ                                              |
+|                                                                       |
+| accepted_at TIMESTAMPTZ                                               |
+|                                                                       |
+| permissions JSONB \-- Governs exactly what data crosses               |
+|                                                                       |
+| TABLE: shared_project_events                                          |
+|                                                                       |
+| id UUID PRIMARY KEY                                                   |
+|                                                                       |
+| connection_id UUID FK -\> tenant_connections(id)                      |
+|                                                                       |
+| event_type VARCHAR(50)                                                |
+|                                                                       |
+| source_tenant_id UUID                                                 |
+|                                                                       |
+| payload JSONB                                                         |
+|                                                                       |
+| created_at TIMESTAMPTZ                                                |
++-----------------------------------------------------------------------+
+
+**6.3 Data Sharing Permission Matrix**
+
+  ------------------------------------------------------------------------
+  **Data Type**              **GC Sees** **Sub       **Shared (Both)**
+                                         Sees**      
+  -------------------------- ----------- ----------- ---------------------
+  Sub\'s contract value with Yes         Yes         Yes --- this is the
+  GC                                                 shared contract
+
+  Sub\'s internal labor cost No          Yes         No --- private to Sub
+  breakdown                                          
+
+  Sub\'s markup / profit     No          Yes         No --- private to Sub
+  margin                                             
+
+  Sub\'s other active jobs / No          Yes         No --- private to Sub
+  clients                                            
+
+  Task completion status by  Yes         Yes         Yes --- core
+  phase                                              collaboration data
+
+  Inspection results and     Yes         Yes         Yes --- core
+  photos                                             compliance data
+
+  Daily field reports        Yes         Yes         Yes --- GC needs
+  (sub\'s)                                           visibility
+
+  Schedule for sub\'s scope  Yes         Yes         Yes --- shared
+                                                     scheduling
+
+  Change orders (sub\'s      Yes         Yes         Yes --- contract
+  scope)                                             modification
+
+  Sub\'s invoice to GC       Yes         Yes         Yes --- billing
+                                                     workflow
+
+  RFIs relevant to sub\'s    Yes         Yes         Yes --- design
+  scope                                              clarifications
+
+  GC\'s overall project      Yes         No          No --- private to GC
+  budget                                             
+
+  GC\'s other subcontractor  Yes         No          No --- private to GC
+  costs                                              
+
+  GC\'s client information   Yes         No          No --- private to GC
+  ------------------------------------------------------------------------
+
+**6.4 Connection Workflow**
+
+-   GC creates scope assignment on their project, selects a
+    subcontractor
+
+-   If sub\'s email domain matches an existing tenant, system flags
+    potential platform connection
+
+-   GC sends Connection Request --- sub receives email invite or in-app
+    notification
+
+-   Sub reviews proposed permissions and contract value, then accepts or
+    declines
+
+-   On acceptance: tenant_connection record created with status =
+    \'active\'
+
+-   Shared Project Layer instantiated --- sub\'s project dashboard shows
+    this job
+
+-   Both tenants see shared data in real time via server fan-out
+
+-   At project closeout: either party can close connection --- shared
+    data archived independently
+
+**6.5 Non-Tenant Subcontractor Handling (Free Portal)**
+
+If a sub is NOT a platform tenant, the GC can invite them to a free
+limited portal. This sub gets a portal_user account. Portal users can:
+view assigned scope and schedule, submit invoices, upload submittals,
+respond to RFIs, submit daily field reports.
+
+Portal users cannot create their own company environment, manage
+independent projects, or access financial management tools. Their data
+lives within the GC\'s tenant.
+
+**6.6 Cross-Tenant Data Consistency**
+
+-   Sub\'s action writes to their own tenant\'s tables normally
+    (tenant_id = t_002)
+
+-   A shared_project_events record is written simultaneously in the same
+    transaction
+
+-   The GC\'s dashboard reads from shared_project_events for the sub\'s
+    scope --- never directly from sub\'s tables
+
+-   Sub\'s data never lives in the GC\'s tenant tables --- no
+    cross-tenant data ownership confusion
+
+-   If the connection is closed, the GC retains the
+    shared_project_events history --- the sub retains their own records
+
+**6.7 shared_project_events Access Control**
+
+  -----------------------------------------------------------------------
+  **shared_project_events is explicitly exempt from standard tenant RLS.
+  Access controlled at application layer via connection membership
+  validation. --- T-44, T-45**
+
+  -----------------------------------------------------------------------
+
+**6.7.1 Why Standard RLS Cannot Apply**
+
+Rows are written by the sub\'s tenant context (tenant_id = t_002) but
+must be readable by the GC\'s tenant context (tenant_id = t_001).
+Standard policy WHERE tenant_id =
+current_setting(\'app.current_tenant_id\') cannot satisfy both
+requirements simultaneously.
+
+**6.7.2 Resolution --- Exempt Table with Application-Layer Guard**
+
++-----------------------------------------------------------------------+
+| \-- shared_project_events does NOT use standard tenant RLS            |
+|                                                                       |
+| ALTER TABLE shared_project_events DISABLE ROW LEVEL SECURITY;         |
+|                                                                       |
+| \-- Access controlled by dedicated roles                              |
+|                                                                       |
+| CREATE ROLE cross_tenant_reader;                                      |
+|                                                                       |
+| GRANT SELECT ON shared_project_events TO cross_tenant_reader;         |
+|                                                                       |
+| GRANT SELECT ON tenant_connections TO cross_tenant_reader;            |
+|                                                                       |
+| CREATE ROLE cross_tenant_writer;                                      |
+|                                                                       |
+| GRANT INSERT ON shared_project_events TO cross_tenant_writer;         |
++-----------------------------------------------------------------------+
+
+**6.7.3 Application-Layer Connection Validation**
+
++-----------------------------------------------------------------------+
+| async function writeSharedEvent(connectionId, tenantId, eventType,    |
+| payload) {                                                            |
+|                                                                       |
+| // Validate the writing tenant is a party to this connection          |
+|                                                                       |
+| const connection = await db.query(\`                                  |
+|                                                                       |
+| SELECT \* FROM tenant_connections                                     |
+|                                                                       |
+| WHERE id = \$1                                                        |
+|                                                                       |
+| AND (initiating_tenant_id = \$2 OR receiving_tenant_id = \$2)         |
+|                                                                       |
+| AND status = \'active\'                                               |
+|                                                                       |
+| \`, \[connectionId, tenantId\]);                                      |
+|                                                                       |
+| if (!connection) throw new                                            |
+| AuthorizationError(\'UNAUTHORIZED_CONNECTION_WRITE\');                |
+|                                                                       |
+| await db.query(\`                                                     |
+|                                                                       |
+| INSERT INTO shared_project_events (connection_id, event_type,         |
+| source_tenant_id, payload)                                            |
+|                                                                       |
+| VALUES (\$1, \$2, \$3, \$4)                                           |
+|                                                                       |
+| \`, \[connectionId, eventType, tenantId, payload\]);                  |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
+
+All reads and writes to shared_project_events pass through connection
+membership validation. Authorization failure throws immediately ---
+never bypassed for performance. All cross-tenant access logged in audit
+log.
+
+**6.8 Portal User to Full Tenant Migration**
+
+  -----------------------------------------------------------------------
+  **Portal user migration copies records to new tenant with new UUIDs.
+  Soft-delete originals. Super admin approval required. --- T-46, T-47**
+
+  -----------------------------------------------------------------------
+
+**6.8.1 The Data Ownership Problem**
+
+Portal user data is created within the GC\'s tenant (tenant_id = t_001).
+When the portal user subscribes and becomes a full tenant, they want
+this history in their own environment. Re-stamping tenant_id on existing
+rows is prohibited by RLS and would corrupt the GC\'s records.
+
+**6.8.2 Migration Approach --- Copy, Don\'t Re-Stamp**
+
+Portal data is copied to the new tenant with new UUIDs and the new
+tenant_id. Original records in the GC tenant are soft-deleted (marked as
+migrated --- not purged). Cross-references between copied records are
+re-mapped to the new UUIDs. The entire migration runs in a single
+database transaction with pre- and post-migration validation.
+
+**6.8.3 Migratable Domains**
+
+  ------------------------------------------------------------------------
+  **Domain**      **What Migrates**          **GC Record After Migration**
+  --------------- -------------------------- -----------------------------
+  daily_reports   All reports authored by    Soft-deleted, marked
+                  portal user                migrated_to_tenant_id
+
+  invoices        All invoices submitted by  Soft-deleted
+                  portal user                
+
+  file_uploads    All files uploaded by      Soft-deleted --- files copied
+                  portal user                in storage
+
+  inspections     Inspection results filed   Soft-deleted
+                  by portal user             
+
+  submittals      Submittals uploaded by     Soft-deleted
+                  portal user                
+  ------------------------------------------------------------------------
+
+Project records, schedule data, and contract records are NOT migrated
+--- these belong to the GC\'s project environment. Migration requires
+super admin approval and execution --- not self-serve. Full audit trail
+logged as platform-scope events.
+
+**7. Super Admin Layer**
+
+The Super Admin console is a separate, secured application accessible
+only to \[PLATFORM NAME\] platform operators. It sits above all tenant
+environments and is accessed via a separate subdomain
+(admin.platformname.com) with its own authentication system ---
+completely separate from the tenant login flow.
+
+**7.1 Super Admin Capabilities**
+
+  --------------------------------------------------------------------------
+  **Capability**            **Description**
+  ------------------------- ------------------------------------------------
+  Tenant management         View all tenants, subscription status, user
+                            counts, storage usage, creation date
+
+  Tenant provisioning       Manually create or configure tenants for
+                            enterprise/sales-assisted onboarding
+
+  Tenant                    Suspend or reactivate tenants --- e.g. for
+  suspension/reactivation   payment issues or policy violations
+
+  Billing management        View Stripe subscription details, manually apply
+                            credits, override billing
+
+  Feature flag control      Enable or disable platform features globally or
+                            per tenant
+
+  Impersonation (read-only) View a tenant\'s environment as a read-only
+                            observer for support --- cannot modify data
+
+  Global template           Manage the global library of trade checklists,
+  management                document templates, and workflows
+
+  Usage analytics           Platform-wide: tenant count, active users, API
+                            call volume, storage consumption, revenue
+                            metrics
+
+  Infrastructure health     Real-time status of database, API, storage,
+                            integration services, and circuit breaker states
+
+  Audit log (platform-wide) Cross-tenant audit log for security events and
+                            support investigations
+
+  Integration health        Real-time visibility into which integrations are
+  dashboard                 degraded across the platform
+
+  Failed webhook log        Inspectable and replayable webhook DLQ entries
+                            with full raw payload
+
+  Client version            Dashboard showing distribution of active mobile
+  distribution              and web app versions
+
+  Portal user migration     Approve and execute portal user to full tenant
+                            data migrations
+
+  Chain integrity status    Audit log hash chain verification status ---
+                            nightly report
+  --------------------------------------------------------------------------
+
+**7.2 Super Admin Security Requirements**
+
+-   Separate authentication system --- no shared session with tenant
+    login
+
+-   Hardware MFA required (FIDO2/WebAuthn) for all super admin accounts
+
+-   IP allowlisting --- super admin access restricted to known IP ranges
+
+-   All super admin actions logged with user, timestamp, and action
+    detail
+
+-   Impersonation sessions are time-limited (30 minutes max), read-only,
+    and always logged
+
+-   No super admin can access the super admin system from a tenant user
+    account --- separate credentials required
+
+**8. Security Architecture**
+
+**8.1 Encryption**
+
+  -------------------------------------------------------------------------------
+  **Data State**     **Standard**        **Implementation**
+  ------------------ ------------------- ----------------------------------------
+  Data in transit    TLS 1.3             Enforced at API Gateway --- no HTTP
+                                         allowed, HSTS headers set
+
+  Data at rest       AES-256             Cloud provider managed encryption at
+  (database)                             storage layer
+
+  Data at rest (file AES-256             S3/Spaces server-side encryption on all
+  storage)                               buckets
+
+  Sensitive fields   AES-256             SSN, EIN, bank account data encrypted at
+  (PII, financial)   application-layer   application layer with tenant-specific
+                                         keys before DB write
+
+  Backup data        AES-256             Automated backups inherit storage
+                                         encryption --- backup access logged
+  -------------------------------------------------------------------------------
+
+**8.2 Authentication Security**
+
+-   Passwords: bcrypt with cost factor 12 minimum --- never stored in
+    plain text
+
+-   Account lockout: 5 failed login attempts triggers 15-minute lockout
+    with email alert
+
+-   MFA: TOTP authenticator app --- optional per user, enforceable by
+    tenant admin
+
+-   Session management: JWT with short expiry + refresh token rotation
+
+-   Token revocation: real-time via Redis jti blacklist
+
+**8.3 API Security**
+
+-   All API endpoints require authentication --- no unauthenticated
+    endpoints except login and signup
+
+-   Role-based access control enforced at the service layer --- not just
+    the route layer
+
+-   Input validation: all API inputs validated and sanitized ---
+    parameterized queries only
+
+-   CORS: strict origin allowlisting --- no wildcard CORS
+
+-   Rate limiting: per-tenant limits enforced at API Gateway
+
+-   SQL injection: impossible by design --- ORM-based queries with
+    parameterized inputs only
+
+-   File upload: triple validation (extension + magic bytes +
+    Content-Type) before storage write
+
+-   File download: pre-signed URLs only --- 15-minute expiry, never
+    direct storage path exposure
+
+**8.4 Compliance Roadmap**
+
+  ------------------------------------------------------------------------
+  **Standard**    **Target         **Priority**
+                  Timeline**       
+  --------------- ---------------- ---------------------------------------
+  SOC 2 Type I    12 months        High --- required for Enterprise sales.
+                  post-launch      Audit log (Sec 4.12) begins collecting
+                                   evidence at v1.0 launch.
+
+  SOC 2 Type II   18--24 months    High --- required for large GC and
+                  post-launch      enterprise customers
+
+  GDPR readiness  Before any EU    Medium --- not required for US/Canada
+                  market entry     v1.0 launch
+
+  CCPA compliance v1.0 launch      Required --- California customers from
+                                   day one. Data export (Sec 4.13)
+                                   satisfies portability requirement.
+
+  PCI DSS         v1.0 launch      Stripe handles card data --- platform
+  (payments)                       never touches raw card numbers; Stripe
+                                   is PCI DSS Level 1
+  ------------------------------------------------------------------------
+
+**8.5 Security Testing**
+
+-   Automated security scanning in CI/CD pipeline --- run on every pull
+    request
+
+-   Dependency vulnerability scanning --- npm audit, Snyk, or Dependabot
+
+-   Static application security testing (SAST) --- detect common
+    vulnerabilities in code
+
+-   Tenant isolation penetration test --- before beta launch
+
+-   Full penetration test --- before v1.0 public launch
+
+-   Quarterly penetration tests post-launch
+
+-   PgBouncer tenant context isolation test --- against staging config
+    before any production deployment (see Sec 3.7.3)
+
+**9. Infrastructure & Deployment**
+
+**9.1 Staged Infrastructure Plan**
+
+  -----------------------------------------------------------------------
+  **The platform launches on DigitalOcean. AWS migration triggered at
+  300+ tenants or first enterprise customer requiring SOC 2. Migration
+  requires 1--2 sprints --- no architectural rework. --- T-24**
+
+  -----------------------------------------------------------------------
+
+**9.1.1 Stage 1 --- Pre-Revenue / Design Partners (0--50 Tenants)**
+
+Provider: DigitalOcean \| Target monthly cost: \~\$200--350
+
+  -----------------------------------------------------------------------
+  **Component**      **DigitalOcean Service** **Spec**
+  ------------------ ------------------------ ---------------------------
+  API servers        App Platform             2 containers, 1vCPU/1GB
+                     (containers)             each
+
+  Database           Managed PostgreSQL       db-s-2vcpu-4gb, daily
+                                              backups, 1 standby node
+
+  Cache              Managed Redis            db-s-1vcpu-1gb
+
+  File storage       Spaces (S3-compatible)   Per-tenant prefix ---
+                                              identical path structure to
+                                              S3
+
+  CDN                Spaces CDN               Static assets and plan file
+                                              delivery
+
+  Background workers App Platform workers     Same container, worker
+                                              role. pg-boss for job
+                                              queue.
+
+  Email              SendGrid free tier       Up to 100 emails/day
+
+  Real-time          Pusher Sandbox           Free up to 200 connections
+
+  File scanning      Cloudmersive Virus Scan  Free tier --- 800
+                     API                      scans/month
+
+  Monitoring         DigitalOcean built-in +  Basic metrics + error
+                     Sentry free              tracking
+  -----------------------------------------------------------------------
+
+**9.1.2 Stage 2 --- Early Revenue (50--300 Tenants)**
+
+Provider: DigitalOcean (scaled) \| Target monthly cost: \~\$500--700
+
+-   Scale to 4--6 API containers, larger instances
+
+-   Upgrade database to db-s-4vcpu-8gb, add 1 read replica
+
+-   Migrate background jobs to dedicated worker fleet
+
+-   Pusher Growth plan (\~\$100/month), SendGrid Essentials
+    (\~\$25/month)
+
+-   Add Datadog --- 3 hosts (\~\$75/month)
+
+**9.1.3 Stage 3 --- Growth (300--500 Tenants) --- AWS Migration**
+
+Provider: Amazon Web Services \| Target monthly cost: \~\$1,000--1,200
+
+Migration triggered when any condition is met: 300+ active paying
+tenants, enterprise customer requires SOC 2 Type I, DigitalOcean standby
+failover insufficient for customer SLA commitments, or Cloudmersive
+pricing unfavorable vs GuardDuty.
+
+  -----------------------------------------------------------------------
+  **Component**      **DigitalOcean → AWS**         **Code Change
+                                                    Required?**
+  ------------------ ------------------------------ ---------------------
+  PostgreSQL         Managed PostgreSQL → RDS       None --- same
+                     PostgreSQL Multi-AZ            Postgres, same RLS
+
+  Redis              Managed Redis → ElastiCache    None --- same Redis
+                                                    API
+
+  File storage       Spaces → S3                    None --- Spaces is
+                                                    S3-compatible. Swap
+                                                    endpoint env var.
+
+  CDN                Spaces CDN → CloudFront        Minor --- update
+                                                    asset URL config
+
+  Containers         App Platform → ECS Fargate     None --- same Docker
+                                                    containers
+
+  Background jobs    pg-boss → SQS + Lambda         Low --- job envelope
+                                                    structure unchanged,
+                                                    queue client swaps
+
+  File scanning      Cloudmersive → GuardDuty       Low --- swap scanning
+                                                    provider in upload
+                                                    handler
+
+  Monitoring         Sentry + DO → Datadog +        None --- add
+                     CloudWatch                     CloudWatch alongside
+
+  Connection pooling Built-in → PgBouncer on ECS    Low --- add PgBouncer
+                                                    container, update DB
+                                                    connection string
+  -----------------------------------------------------------------------
+
+**9.1.4 Stage 4 --- Scale (500--2,500 Tenants)**
+
+Provider: AWS (scaled) \| Target monthly cost: \~\$2,400
+
+Standard AWS scaling playbook --- additional read replicas, larger RDS
+instance, expanded ECS cluster. No architectural changes required until
+2,500+ tenants, at which point table partitioning by tenant_id is
+evaluated for the largest tables.
+
+**9.1.5 Infrastructure Decisions That Are Stage-Invariant**
+
+These work identically on DigitalOcean and AWS regardless of stage:
+
+-   PostgreSQL RLS with SET LOCAL app.current_tenant_id
+
+-   UUID primary keys
+
+-   Per-tenant storage prefix isolation --- path structure identical
+
+-   JWT structure and token lifecycle
+
+-   withTenantContext() wrapper pattern
+
+-   Exponential backoff retry strategy
+
+-   Circuit breaker pattern (Redis-backed)
+
+**9.2 Core AWS Infrastructure Components (Stage 3+)**
+
+  ------------------------------------------------------------------------
+  **Component**         **AWS Service**       **Purpose**
+  --------------------- --------------------- ----------------------------
+  Application servers   ECS (Fargate) or EC2  Stateless API containers ---
+                        Auto Scaling          horizontally scalable
+
+  Database              RDS PostgreSQL        Primary database with
+                        (Multi-AZ)            automatic failover standby
+
+  Read replicas         RDS Read Replicas     1 read replica at launch ---
+                                              scaled up as reporting load
+                                              grows
+
+  Caching               ElastiCache (Redis)   Session tokens, rate
+                                              limiting, tenant config,
+                                              dashboard caches
+
+  File storage          S3                    All tenant documents, plans,
+                                              photos --- per-tenant prefix
+                                              isolation
+
+  CDN                   CloudFront            Global delivery of static
+                                              assets, plan files, and
+                                              images
+
+  Background jobs       SQS + Lambda or ECS   Async tasks: QuickBooks
+                        tasks                 sync, email delivery, report
+                                              generation
+
+  File scanning         GuardDuty Malware     Automated S3 object scanning
+                        Protection            --- triggers on PutObject to
+                                              quarantine prefix
+
+  Email delivery        SendGrid (via API)    Transactional email ---
+                                              maintained for
+                                              deliverability and analytics
+
+  SMS                   Twilio                Crew and client SMS
+                                              notifications
+
+  Push notifications    APNs + FCM            iOS and Android push
+                                              delivery
+
+  Load balancer         Application Load      HTTPS termination, health
+                        Balancer (ALB)        checks, request distribution
+
+  DNS                   Route 53              Domain management, failover
+                                              routing
+
+  Secrets management    AWS Secrets Manager   API keys, database
+                                              credentials, integration
+                                              tokens --- never hardcoded
+
+  Monitoring            CloudWatch + Datadog  Infrastructure metrics,
+                                              application performance,
+                                              error tracking, alerting
+
+  Logging               CloudWatch Logs +     Centralized application and
+                        OpenSearch            audit logging with search
+                                              capability
+  ------------------------------------------------------------------------
+
+**9.3 Availability & Disaster Recovery**
+
+  ---------------------------------------------------------------------------
+  **Scenario**       **Strategy**                   **RTO**     **RPO**
+  ------------------ ------------------------------ ----------- -------------
+  Single AZ failure  Multi-AZ RDS automatic         \< 2        0 ---
+                     failover, ALB routes around    minutes     synchronous
+                     unhealthy instances                        standby
+
+  Database           Point-in-time recovery from    \< 1 hour   5 minutes
+  corruption         automated backups (retained 30             
+                     days)                                      
+
+  Region-wide outage Manual failover to backup      \< 4 hours  15 minutes
+                     region (warm standby) --- S3               
+                     cross-region replication                   
+
+  Accidental data    30-day backup retention ---    \< 2 hours  5 minutes
+  deletion           restore to point before                    
+                     deletion                                   
+  ---------------------------------------------------------------------------
+
+**9.4 CI/CD Pipeline**
+
+-   All code changes require pull request review --- no direct pushes to
+    main
+
+-   Automated test suite runs on every PR: unit tests, integration
+    tests, tenant isolation tests
+
+-   Security scanning on every PR --- SAST, dependency vulnerability
+    check
+
+-   PgBouncer tenant context isolation test runs against staging before
+    any production deployment
+
+-   Staging environment mirrors production --- every release deployed to
+    staging first
+
+-   Database migrations run automatically via migration tool (Flyway or
+    Liquibase) --- versioned, reversible
+
+-   Blue/green or rolling deployments for zero-downtime releases
+
+-   Feature flags control new feature rollout --- deploy code before
+    enabling for tenants
+
+**10. Performance & Scalability Targets**
+
+  ------------------------------------------------------------------------
+  **Metric**                     **Target**      **Measurement Method**
+  ------------------------------ --------------- -------------------------
+  API response time (P50)        \< 200ms        Datadog APM --- measured
+                                                 at API Gateway
+
+  API response time (P95)        \< 500ms        Datadog APM
+
+  API response time (P99)        \< 1,500ms      Datadog APM ---
+                                                 acceptable for complex
+                                                 report queries
+
+  Web app page load (primary     \< 2 seconds    Lighthouse / Real User
+  screens)                                       Monitoring
+
+  Mobile app cold start          \< 3 seconds    Mobile performance
+                                                 testing
+
+  Plan viewer initial render     \< 5 seconds    End-to-end test with
+  (50MB file)                                    large plan set
+
+  Dashboard load (50 active      \< 2 seconds    Load test with
+  projects)                                      representative data
+                                                 volume
+
+  Report generation (standard)   \< 10 seconds   Async job timing
+
+  File upload throughput         100MB max,      Upload test with large
+                                 resumable       plan set
+
+  File scan time (standard       \< 30 seconds   End-to-end scan timing
+  document)                                      
+
+  Concurrent users per tenant    500+ without    Load test per tenant
+                                 degradation     isolation
+
+  Platform concurrent users      10,000+ at      Platform-wide load test
+  (total)                        launch          
+                                 architecture    
+  ------------------------------------------------------------------------
+
+**10.1 Tenant Noisy Neighbor Mitigation**
+
+-   Per-tenant rate limiting at API Gateway --- configurable by
+    subscription tier
+
+-   Database query timeout enforcement --- long-running queries killed
+    before they block others
+
+-   Read replica routing for reporting --- heavy report queries routed
+    to read replicas
+
+-   Background job queue isolation --- a tenant\'s bulk export does not
+    block real-time API responses
+
+-   Circuit breaker pattern --- a failing integration for one tenant
+    does not cascade to others
+
+-   Option to migrate extremely high-volume tenants to dedicated
+    database infrastructure
+
+**11. Open Technical Decisions**
+
+The following architectural decisions must be made before development
+begins. Each has meaningful implications for the build.
+
+  ---------------------------------------------------------------------------
+  **Decision**       **Options**          **Recommendation**    **Decision
+                                                                Owner**
+  ------------------ -------------------- --------------------- -------------
+  Backend language / Node.js              Node.js (Fastify) for Engineering
+  framework          (Express/Fastify),   speed of development  Lead
+                     Go, Python           and large talent      
+                     (FastAPI), Rust      pool; Go if team has  
+                                          experience            
+
+  Frontend framework React + Next.js,     React + Next.js ---   Engineering
+                     Vue + Nuxt,          dominant ecosystem,   Lead
+                     SvelteKit            SSR support, best     
+                                          hiring pool           
+
+  Mobile app         React Native,        React Native ---      Engineering
+  framework          Flutter, Native      shares code with web  Lead
+                                          frontend, Expo        
+                                          managed workflow      
+
+  ORM / query        Prisma, Drizzle,     Prisma for DX and     Engineering
+  builder            TypeORM, raw pg      type safety --- MUST  Lead
+                                          use dual client       
+                                          pattern for RLS (see  
+                                          Sec 3.6)              
+
+  Cloud provider     DigitalOcean,        DigitalOcean ---      Engineering
+  (Stage 1--2)       Railway, Render,     managed PostgreSQL,   Lead /
+                     Fly.io               S3-compatible Spaces, Founder
+                                          cleanest AWS          
+                                          migration path        
+
+  Cloud provider     AWS, GCP, Azure      AWS --- broadest      Engineering
+  (Stage 3+)                              managed service       Lead /
+                                          coverage, best        Founder
+                                          PostgreSQL managed    
+                                          options               
+
+  Connection pooling PgBouncer            PgBouncer in          Engineering
+                     (transaction mode),  transaction mode ---  Lead
+                     RDS Proxy            critical for RLS with 
+                                          SET LOCAL. Must be    
+                                          validated in staging. 
+
+  Real-time          Pusher, Ably         Either --- both       Engineering
+  WebSocket                               support private       Lead
+                                          channels and auth     
+                                          endpoint pattern      
+                                          required for tenant   
+                                          isolation             
+
+  Search capability  PostgreSQL FTS,      PostgreSQL FTS at     Engineering
+                     Elasticsearch,       launch --- sufficient Lead
+                     Typesense            for v1.0. Typesense   
+                                          if needed at scale.   
+
+  Background jobs    pg-boss, BullMQ, Que pg-boss ---           Engineering
+  (Stage 1--2)       (Ruby)               PostgreSQL-backed, no Lead
+                                          additional            
+                                          infrastructure, clean 
+                                          migration to SQS at   
+                                          Stage 3               
+  ---------------------------------------------------------------------------
+
+  -----------------------------------------------------------------------
+  **Critical Note on Connection Pooling + RLS: PgBouncer must be
+  configured in transaction mode (not session mode) when using PostgreSQL
+  RLS with SET LOCAL for tenant context. In session mode, connections are
+  reused across requests and tenant context bleeds between sessions.
+  Transaction mode resets SET LOCAL on each transaction --- ensuring
+  isolation. Validate this configuration before any data is written to
+  production. (See Section 3.7)**
+
+  -----------------------------------------------------------------------
+
+**12. Internationalization Architecture**
+
+i18n is architected as a first-class concern across all layers. The goal
+is that adding a new language in v1.1 or v2.0 requires translation files
+only --- no code changes, no schema migrations, no frontend component
+updates.
+
+**12.1 Frontend i18n Stack (Web + Mobile)**
+
+  --------------------------------------------------------------------------
+  **Component**      **Technology**                **Configuration**
+  ------------------ ----------------------------- -------------------------
+  i18n library       react-i18next (web + React    Same library, same API,
+                     Native)                       same translation key
+                                                   namespace on both
+                                                   platforms
+
+  Translation file   JSON --- one file per         Namespace structure:
+  format             language per namespace        common.json,
+                                                   schedule.json,
+                                                   financials.json,
+                                                   field.json, portal.json,
+                                                   notifications.json,
+                                                   safety.json
+
+  Locale detection   navigator.language →          User preference always
+  --- web            user.preferred_language →     wins over browser default
+                     tenant.default_language →     
+                     \'en\'                        
+
+  Locale detection   expo-localization.locale →    Device locale detected on
+  --- mobile         user.preferred_language →     first launch. User can
+                     \'en\'                        override in Profile \>
+                                                   Language.
+
+  Lazy loading       Translations loaded by        Field screens load
+                     namespace on demand           field.json; financial
+                                                   screens load
+                                                   financials.json. Reduces
+                                                   bundle size.
+
+  Date formatting    Intl.DateTimeFormat(locale,   en-US: March 13, 2026 \|
+                     options)                      es: 13 de marzo de 2026
+
+  Number formatting  Intl.NumberFormat(locale,     Decimal separator: period
+                     {style: \'decimal\'})         (en-US) vs comma (es,
+                                                   pt-BR). Handled
+                                                   automatically.
+
+  Currency           Intl.NumberFormat(locale,     All monetary amounts
+  formatting         {style: \'currency\',         display in user\'s locale
+                     currency: \'USD\'})           format. Wire format
+                                                   always in cents.
+
+  RTL support        CSS logical properties        Arabic (v2.0+) RTL layout
+                     throughout                    enabled by adding
+                                                   dir=\'rtl\' to root ---
+                                                   no component rewrites
+                                                   needed
+  --------------------------------------------------------------------------
+
+**12.2 Translation File Structure**
+
++-----------------------------------------------------------------------+
+| /locales                                                              |
+|                                                                       |
+| /en                                                                   |
+|                                                                       |
+| common.json ← buttons, labels, status values, navigation              |
+|                                                                       |
+| field.json ← daily reports, inspections, punch list, clock-in         |
+|                                                                       |
+| schedule.json ← Gantt, tasks, milestones, delays                      |
+|                                                                       |
+| financials.json ← invoices, change orders, lien waivers, budget       |
+|                                                                       |
+| notifications.json ← all push, email, SMS message templates           |
+|                                                                       |
+| safety.json ← safety warnings, incident reports, hazard labels        |
+|                                                                       |
+| portal.json ← client portal + sub portal                              |
+|                                                                       |
+| /es ← mirrors /en structure --- same keys, Spanish values             |
++-----------------------------------------------------------------------+
+
+**12.3 Backend Locale Handling**
+
+  -----------------------------------------------------------------------
+  **Layer**          **Implementation**
+  ------------------ ----------------------------------------------------
+  Accept-Language    All API requests include Accept-Language header.
+  header             Backend uses this for server-rendered content,
+                     notification templates, and error message locale.
+
+  User locale        preferred_language VARCHAR(10) stored on users
+  preference         table. Set at signup or in Profile settings. Takes
+                     precedence over Accept-Language header.
+
+  Notification       When queuing a notification, the service reads
+  delivery           recipient.preferred_language and selects the correct
+                     template from the notifications.json namespace.
+
+  Error messages     API error responses include a localized message
+                     field in the user\'s language alongside the
+                     machine-readable error.code.
+
+  Audit log          Audit log entries always stored in English
+                     regardless of user locale --- never translate stored
+                     audit data.
+  -----------------------------------------------------------------------
+
+**12.4 Translation Management Pipeline**
+
+-   Phrase (or Lokalise) integrated with GitHub CI --- new i18n keys in
+    a PR auto-create translation tasks
+
+-   English source file is the single source of truth --- all other
+    languages are derived
+
+-   Professional human translators for: safety content, legal
+    terminology, field-worker UI, notification templates
+
+-   DeepL machine translation acceptable for: internal admin text,
+    low-stakes labels --- human review before merge
+
+-   Native speaker QA required for each new language before GA ---
+    construction-domain knowledge required
+
+-   Spanish string freeze 30 days before v1.0 launch --- translation and
+    QA complete before code freeze
+
+**12.5 Language Support Roadmap**
+
+  -----------------------------------------------------------------------
+  **Tier**           **Languages**              **Target Release**
+  ------------------ -------------------------- -------------------------
+  1 --- Required     English (EN) + Spanish     v1.0 --- Spanish is a
+  (launch gate)      (ES)                       launch gate, not optional
+
+  2 --- High         Portuguese Brazilian       v1.1
+  Priority           (PT-BR) + Haitian Creole   
+                     (HT)                       
+
+  3 --- Planned      Polish (PL), Ukrainian     v2.0
+                     (UK), Vietnamese (VI)      
+
+  4 --- Future       Tagalog (TL), Arabic (AR   v2.0+
+                     --- RTL), Mandarin         
+                     Simplified (ZH-CN)         
+  -----------------------------------------------------------------------

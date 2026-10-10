@@ -1,0 +1,698 @@
+**\[PLATFORM NAME\]**
+
+Construction Management Platform
+
+**COMPETITIVE ANALYSIS**
+
+*Business Document 1 of 4 \| Version 1.0 \| Confidential*
+
+March 2026
+
+FOR LEADERSHIP & INVESTORS --- CONFIDENTIAL
+
+**Table of Contents**
+
+**1. Market Overview**
+
+The construction management software market is one of the
+fastest-growing verticals in enterprise SaaS. The global market reached
+approximately \$11 billion in 2025 and is projected to exceed \$23
+billion by 2032, driven by an industry-wide shift away from paper,
+spreadsheets, and fragmented point solutions toward integrated digital
+workflows.
+
+  ------------------------------------------------------------------------
+  **Metric**               **Figure**       **Source / Notes**
+  ------------------------ ---------------- ------------------------------
+  Global construction mgmt \~\$11B          IDC / Gartner estimates
+  software market (2025)                    
+
+  Projected market size    \~\$23B          11.2% CAGR --- driven by cloud
+  (2032)                                    adoption and mobile-first
+                                            workflows
+
+  North America share      \~47%            \~\$5.2B addressable ---
+                                            primary initial market
+
+  US construction          3.7 million      US Census Bureau --- majority
+  businesses                                small/mid-size, the most
+                                            underserved segment
+
+  Average revenue per      \$280,000+       High-value industry ---
+  employee in construction                  software ROI argument is
+                                            compelling
+
+  Construction industry    \< 35%           McKinsey Global Institute ---
+  digitization rate                         construction is one of the
+                                            least digitized major
+                                            industries
+
+  Estimated TAM (US, all   \~\$4.8B         Based on 3.7M businesses ×
+  tiers)                                    average potential subscription
+                                            value
+
+  Estimated SAM (US,       \~\$1.2B         Companies with 5--100
+  small/mid, 3 trades)                      employees in GC, electrical,
+                                            plumbing trades
+
+  Estimated SOM (realistic \~\$48M ARR      \~4% of SAM --- 3,200 paying
+  5-year capture)                           tenants at average \$15K ARR
+  ------------------------------------------------------------------------
+
+**2. Competitor Profiles**
+
+**2.1 Procore Technologies**
+
+  -----------------------------------------------------------------------
+  **Attribute**    **Detail**
+  ---------------- ------------------------------------------------------
+  Founded / HQ     2002 / Carpinteria, CA. IPO 2021 (NYSE: PCOR). Market
+                   cap \~\$11B.
+
+  Target market    Large general contractors, ENR 400 companies, \$50M+
+                   annual volume
+
+  Pricing          \$375--\$1,200+/month --- notoriously opaque,
+                   sales-required, annual contracts. Frequently
+                   \$5,000--\$30,000/year for mid-size GCs.
+
+  Core strengths   Dominant brand in enterprise GC market. Deep feature
+                   set. Large partner ecosystem. Strong compliance and
+                   AIA billing.
+
+  Core weaknesses  Completely inaccessible to small/mid contractors on
+                   price. No trade-specific workflows. Single-tenant
+                   architecture --- no sub collaboration. Overkill for
+                   most jobs.
+
+  Trade support    Generic project management --- no native trade
+                   modules. Electrical and plumbing tracked as generic
+                   tasks.
+
+  Mobile app       Solid but complex --- designed for office PMs, not
+                   field workers. Known for steep learning curve.
+
+  Market position  Dominant in enterprise (\$50M+ revenue contractors).
+                   Largely absent in small/mid market.
+
+  Our advantage vs Price (10× cheaper for SMB), trade-specific workflows,
+  Procore          cross-tenant collaboration, mobile field-first design,
+                   faster onboarding
+  -----------------------------------------------------------------------
+
+**2.2 Buildertrend**
+
+  -----------------------------------------------------------------------
+  **Attribute**    **Detail**
+  ---------------- ------------------------------------------------------
+  Founded / HQ     2006 / Omaha, NE. Acquired by TZP Group (PE) 2021.
+
+  Target market    Residential homebuilders, remodelers, custom home GCs
+
+  Pricing          \$99--\$599/month (3 tiers). More accessible than
+                   Procore.
+
+  Core strengths   Strong residential GC workflow. Good client portal and
+                   selections. Lead management built in. Reasonable
+                   pricing.
+
+  Core weaknesses  Residential-only --- limited commercial functionality.
+                   No trade-specific modules. No sub collaboration
+                   architecture. No electrical/plumbing/mechanical depth.
+                   Poor for commercial TI or multi-trade projects.
+
+  Trade support    None --- generic task management only. Does not
+                   understand trade phases, inspection types, or
+                   trade-specific data.
+
+  Mobile app       Functional but feature-limited. Not optimized for
+                   field workers.
+
+  Market position  Strong in residential remodel/custom home market.
+                   Declining relevance as projects get more complex.
+
+  Our advantage vs Commercial capability, trade modules, cross-tenant
+  Buildertrend     architecture, stronger financial workflows, better
+                   mobile field experience
+  -----------------------------------------------------------------------
+
+**2.3 CoConstruct (now Buildertrend)**
+
+CoConstruct merged with Buildertrend in 2021. Previously focused on
+custom homebuilders with strong client communication tools. The merged
+platform has not significantly addressed commercial or trade contractor
+needs. Considered the same competitive profile as Buildertrend above.
+
+**2.4 eSUB Construction Software**
+
+  -----------------------------------------------------------------------
+  **Attribute**    **Detail**
+  ---------------- ------------------------------------------------------
+  Founded / HQ     2012 / San Diego, CA. PE-backed.
+
+  Target market    Trade subcontractors --- electrical, mechanical,
+                   plumbing, specialty. The only major platform
+                   explicitly targeting subs.
+
+  Pricing          \~\$150--\$500/month. Pricing not fully public ---
+                   quote-required for larger teams.
+
+  Core strengths   Purpose-built for trade contractors. Strong field
+                   management, T&M billing, and sub-side workflow. Good
+                   mobile app. Understands trade-specific operations.
+
+  Core weaknesses  Subs only --- no GC module or GC collaboration. Cannot
+                   manage projects as a prime. No client portal. Does not
+                   handle GC-sub data exchange. No cross-tenant
+                   architecture.
+
+  Trade support    Good for electrical and mechanical. Limited breadth
+                   --- not all trades covered equally.
+
+  Mobile app       Strong field focus --- clock-in/out, daily reports,
+                   T&M documentation.
+
+  Market position  Niche leader for trade subs. Significant product gap:
+                   subs who grow into prime roles outgrow eSUB.
+
+  Our advantage vs GC module + prime capability, cross-tenant
+  eSUB             collaboration (both sides of the GC-sub relationship),
+                   client portal, broader trade coverage, better
+                   financial workflows
+  -----------------------------------------------------------------------
+
+**2.5 Fieldwire (Hilti)**
+
+  -----------------------------------------------------------------------
+  **Attribute**    **Detail**
+  ---------------- ------------------------------------------------------
+  Founded / HQ     2013 / San Francisco. Acquired by Hilti Group (2022)
+                   for \$300M.
+
+  Target market    Field management, plan management --- used by GCs and
+                   trade contractors for field coordination
+
+  Pricing          \$54--\$89/user/month. Per-user pricing becomes
+                   expensive for larger teams.
+
+  Core strengths   Excellent plan viewer. Strong punch list and task
+                   management. Good mobile app. Used on large commercial
+                   projects.
+
+  Core weaknesses  Plan viewing and field coordination only --- not a
+                   full platform. No financial management, no estimating,
+                   no invoicing, no time tracking. Per-user pricing model
+                   punishes team growth.
+
+  Trade support    None --- discipline-agnostic task and plan management.
+
+  Market position  Point solution for field coordination. Customers
+                   frequently use alongside another financial or PM
+                   platform.
+
+  Our advantage vs Full platform (financial + field + documents),
+  Fieldwire        trade-specific workflows, better pricing model (not
+                   per-user), cross-tenant collaboration, integrated
+                   invoicing and QBO sync
+  -----------------------------------------------------------------------
+
+**2.6 Jonas Construction Software**
+
+  -----------------------------------------------------------------------
+  **Attribute**    **Detail**
+  ---------------- ------------------------------------------------------
+  Founded / HQ     1990 / Ontario, Canada. Vertafore parent company.
+
+  Target market    Mid-size to enterprise general contractors and
+                   mechanical contractors. On-premise and hosted.
+
+  Pricing          \$10,000--\$50,000+ implementation +
+                   \$500--\$2,000/month. Enterprise pricing.
+
+  Core strengths   Deep accounting integration, certified payroll, union
+                   payroll, AIA billing. Long-standing relationships with
+                   mid-market GCs.
+
+  Core weaknesses  Legacy architecture --- on-premise roots showing. Poor
+                   mobile experience. Complex implementation. No
+                   cross-tenant architecture. No modern field app.
+
+  Market position  Entrenched in mid-size GC market, but losing to
+                   cloud-native alternatives. High switching cost keeps
+                   customers, not product quality.
+
+  Our advantage vs Modern cloud architecture, mobile-first, faster
+  Jonas            onboarding, fraction of the cost, better field UX,
+                   cross-tenant collaboration
+  -----------------------------------------------------------------------
+
+**3. Feature Comparison Matrix**
+
+The following matrix compares \[PLATFORM NAME\] against the five primary
+competitors across key product dimensions. This is the honest comparison
+--- including areas where competitors currently have advantages.
+
+  -------------------------------------------------------------------------------------------------------------
+  **Feature /          **\[PLATFORM   **Procore**   **Buildertrend**   **eSUB**     **Fieldwire**   **Jonas**
+  Capability**         NAME\]**                                                                     
+  -------------------- -------------- ------------- ------------------ ------------ --------------- -----------
+  **PRICING &                                                                                       
+  ACCESSIBILITY**                                                                                   
+
+  Entry-level pricing  **\$149/mo**   \$375+/mo     \$99/mo            \~\$150/mo   \$54/user/mo    \$500+/mo
+
+  No annual contract   **✓**          **✗**         **◑**              **◑**        **◑**           **✗**
+  required                                                                                          
+
+  Self-serve signup    **✓**          **✗**         **✓**              **✗**        **✓**           **✗**
+
+  Free trial           **✓**          **✗**         **✓**              **✗**        **✓**           **✗**
+
+  **TRADE WORKFLOWS**                                                                               
+
+  Native               **✓**          **✗**         **✗**              **◑**        **✗**           **✗**
+  trade-specific                                                                                    
+  modules                                                                                           
+
+  Electrical module    **✓**          **✗**         **✗**              **◑**        **✗**           **✗**
+  (panels/circuits)                                                                                 
+
+  Plumbing module      **✓**          **✗**         **✗**              **◑**        **✗**           **✗**
+  (fixtures/pressure                                                                                
+  tests)                                                                                            
+
+  Trade phase tracking **✓**          **✗**         **✗**              **✓**        **✗**           **✗**
+
+  Trade-specific       **✓**          **✗**         **✗**              **✓**        **✗**           **◑**
+  inspection types                                                                                  
+
+  **GC & PROJECT                                                                                    
+  MANAGEMENT**                                                                                      
+
+  GC module (prime     **✓**          **✓**         **✓**              **✗**        **✗**           **✓**
+  contractor)                                                                                       
+
+  Gantt schedule +     **✓**          **✓**         **✗**              **✗**        **✗**           **✓**
+  critical path                                                                                     
+
+  Budget management +  **✓**          **✓**         **✓**              **✗**        **✗**           **✓**
+  job costing                                                                                       
+
+  Change order         **✓**          **✓**         **✓**              **◑**        **✗**           **✓**
+  management                                                                                        
+
+  AIA billing /        v1.1           **✓**         **✗**              **✗**        **✗**           **✓**
+  G702-G703                                                                                         
+
+  Lien waiver          v1.0           **✓**         **✗**              **◑**        **✗**           **✓**
+  management                                                                                        
+
+  Certified payroll    v2.0           **✓**         **✗**              **✗**        **✗**           **✓**
+
+  **FIELD & MOBILE**                                                                                
+
+  GPS clock in/out     **✓**          **✓**         **✓**              **✓**        **✗**           **◑**
+
+  Crew clock-in        **✓**          **◑**         **✗**              **✓**        **✗**           **✗**
+  (batch)                                                                                           
+
+  Daily field reports  **✓**          **✓**         **✓**              **✓**        **✗**           **✓**
+
+  Voice dictation on   **✓**          **✗**         **✗**              **✗**        **✗**           **✗**
+  mobile                                                                                            
+
+  Offline mode (full)  **✓**          **◑**         **✗**              **✓**        **◑**           **✗**
+
+  Mobile punch list    **✓**          **✓**         **✓**              **✓**        **✓**           **✗**
+
+  **COLLABORATION &                                                                                 
+  PORTALS**                                                                                         
+
+  Client portal        **✓**          **✓**         **✓**              **✗**        **✗**           **◑**
+
+  Subcontractor portal **✓**          **◑**         **◑**              **✗**        **✗**           **✗**
+  (free)                                                                                            
+
+  Cross-tenant GC-Sub  v1.1           **✗**         **✗**              **✗**        **✗**           **✗**
+  collaboration                                                                                     
+
+  RFI management       **✓**          **✓**         **◑**              **✓**        **✗**           **✓**
+
+  Submittal management **✓**          **✓**         **◑**              **✓**        **✗**           **✓**
+
+  **INTEGRATIONS**                                                                                  
+
+  QuickBooks Online    **✓**          **✓**         **✓**              **◑**        **✗**           **✓**
+  (bi-directional)                                                                                  
+
+  DocuSign             **✓**          **✓**         **✓**              **✗**        **✗**           **◑**
+  e-signatures                                                                                      
+
+  Stripe payment       **✓**          **◑**         **✓**              **✗**        **✗**           **✗**
+  processing                                                                                        
+
+  Procore import /     v1.1           N/A           **✗**              **✗**        **✗**           **✗**
+  migration                                                                                         
+
+  **ARCHITECTURE**                                                                                  
+
+  True multi-tenant    **✓**          **✓**         **✓**              **✓**        **✓**           **✗**
+  SaaS                                                                                              
+
+  Cross-tenant data    v1.1           **✗**         **✗**              **✗**        **✗**           **✗**
+  bridge                                                                                            
+
+  All trades on one    **✓**          **✗**         **✗**              **✗**        **✗**           **✗**
+  platform                                                                                          
+  -------------------------------------------------------------------------------------------------------------
+
+**4. Competitive Positioning & White Space**
+
+**4.1 The Positioning Map**
+
+The construction software market has a clear two-axis gap that no
+current player occupies:
+
+-   X-axis: Accessibility --- from enterprise-only (Procore, Jonas) to
+    accessible to small companies (Buildertrend, eSUB)
+
+-   Y-axis: Trade depth --- from generic project management (Procore,
+    Buildertrend, Fieldwire) to trade-specific workflows (eSUB, partial)
+
+The top-right quadrant --- accessible pricing AND deep trade-specific
+workflows --- is empty. That is the \[PLATFORM NAME\] position.
+
+  --------------------------------------------------------------------------
+  **Quadrant**           **Competitors**   **Gap**
+  ---------------------- ----------------- ---------------------------------
+  High price + Generic   Procore, Jonas    Enterprise GCs only. Leaves 3M+
+  workflows                                small/mid businesses unserved.
+
+  Low price + Generic    Buildertrend,     Accessible but shallow. Doesn\'t
+  workflows              Fieldwire         understand trades. Works for
+                                           simple residential only.
+
+  High price + Trade     None significant  Procore has some depth but it\'s
+  depth                                    generic, expensive, and
+                                           sub-collaboration is absent.
+
+  **Low price + Trade    **\[PLATFORM      This is the unoccupied market.
+  depth = WHITE SPACE**  NAME\]**          3.7M US construction businesses
+                                           that are underserved by every
+                                           current player.
+  --------------------------------------------------------------------------
+
+**4.2 The Cross-Tenant Moat**
+
+Cross-tenant collaboration is not just a feature --- it is an
+architectural moat. No competitor can replicate it without rebuilding
+their data architecture from scratch. Here is why:
+
+-   Procore is single-tenant architecture at the project level. GCs
+    \'invite\' subs to their Procore project as users --- subs have no
+    independent environment, no independent financials, no data
+    sovereignty. They are guests in the GC\'s account.
+
+-   Buildertrend has no sub collaboration --- subs are vendors in the
+    GC\'s account, period.
+
+-   eSUB serves subs --- but has no GC collaboration capability
+    whatsoever.
+
+-   No platform has a shared project layer where two independent tenants
+    operate their own full environments and selectively share governed
+    data. This requires multi-tenant architecture designed for it from
+    day one.
+
+> **The Moat:**
+>
+> Replicating cross-tenant collaboration for a competitor would require:
+> (1) rebuilding their data model from single-tenant to true
+> multi-tenant, (2) redesigning their authentication and permission
+> model, (3) building the shared event bridge, and (4) rebuilding their
+> product for dual-sided use. This is a 12--18 month engineering effort
+> for an established platform --- not a feature sprint.
+
+**4.3 The Network Effect Flywheel**
+
+Cross-tenant collaboration creates the platform\'s most powerful growth
+mechanic:
+
+-   1 GC tenant signs up → invites 5 subs to portal (free) → 1--2 subs
+    convert to paid tenants
+
+-   Each new sub tenant brings their own sub-tier vendors → another wave
+    of invites
+
+-   GCs prefer the platform because their subs are already on it →
+    creates GC acquisition from the sub side
+
+-   As tenant count grows, the probability that any new company\'s GC or
+    sub is already on platform increases
+
+-   Network effects compound --- each tenant makes the platform more
+    valuable for every other tenant
+
+This flywheel does not exist for any competitor. Procore\'s \'invite
+subs\' model creates dependency, not network --- the sub has no
+independent value from the relationship. Our cross-tenant model creates
+mutual value, which is the foundation of true network effects.
+
+**5. SWOT Analysis**
+
+  ------------------------------------------------------------------------------
+                 **STRENGTHS**                   **WEAKNESSES**
+  -------------- ------------------------------- -------------------------------
+  **INTERNAL**   • Only platform with            • New brand --- zero market
+                 cross-tenant GC-Sub             recognition at launch • No
+                 collaboration architecture •    existing customer base or
+                 Trade-specific modules          reference accounts •
+                 (Electrical, Plumbing, HVAC,    Cross-tenant collaboration (key
+                 etc.) --- no competitor matches differentiator) is v1.1, not
+                 depth • Accessible pricing ---  v1.0 • 3 trade modules at
+                 opens market Procore cannot     launch --- 7 more planned,
+                 serve • Modern tech stack ---   creating feature gap vs
+                 cloud-native, mobile-first,     specialists • Small team ---
+                 offline-capable • Network       limited bandwidth for sales,
+                 effect flywheel built into      marketing, and engineering
+                 product architecture • All      simultaneously • No certified
+                 trades on one platform --- true payroll or AIA billing at
+                 OS for any construction company launch --- gaps for some target
+                                                 buyers
+
+  ------------------------------------------------------------------------------
+
+  ------------------------------------------------------------------------------
+                 **OPPORTUNITIES**               **THREATS**
+  -------------- ------------------------------- -------------------------------
+  **EXTERNAL**   • 3.7M US construction          • Procore launches a lower-tier
+                 businesses --- majority         product targeting the SMB
+                 underserved by current tools •  market • Buildertrend or eSUB
+                 Construction industry           deepens trade module capability
+                 digitization rate still below   • New well-funded entrant with
+                 35% --- massive runway •        similar positioning • Slow SMB
+                 Procore\'s continued price      adoption --- construction
+                 increases are driving SMB       industry is notoriously
+                 customers to seek alternatives  resistant to technology change
+                 • Material cost volatility      • Key engineering talent leaves
+                 increases demand for real-time  before v1.0 launch • Economic
+                 job costing tools • Labor       downturn reduces construction
+                 shortage makes time tracking    starts, contracting the
+                 and crew management more        addressable market • App Store
+                 critical • Insurance and        policy changes affecting mobile
+                 bonding requirements            distribution or in-app payments
+                 increasingly demand digital     
+                 compliance records • Private    
+                 equity consolidation of         
+                 competitors may slow their      
+                 product velocity                
+
+  ------------------------------------------------------------------------------
+
+**6. Competitive Pricing Analysis**
+
+Price is one of the most significant barriers to adoption for small and
+mid-size construction companies. The following table illustrates the
+real-world cost differential for a representative 15-person electrical
+contractor:
+
+  -------------------------------------------------------------------------------------------------------
+  **Platform**     **Monthly Cost (15    **Annual Cost**         **What They Get**        **SMB
+                   users)**                                                               Accessible?**
+  ---------------- --------------------- ----------------------- ------------------------ ---------------
+  **\[PLATFORM     \$349/mo              \$4,188/yr              20 users, unlimited      **YES ✓**
+  NAME\]                                                         projects, 2 trade        
+  Professional**                                                 modules, QBO, full       
+                                                                 feature set              
+
+  Procore          \$600--\$1,200/mo     \$7,200--\$14,400/yr    Full platform --- but    Borderline
+  (estimated)                                                    requires annual contract 
+                                                                 and sales process        
+
+  Buildertrend     \$499/mo              \$5,988/yr              Unlimited users but      Partial
+  Growth                                                         residential-focused ---  
+                                                                 no trade depth           
+
+  eSUB (estimated) \$300--\$600/mo       \$3,600--\$7,200/yr     Trade-focused but no     Partial
+                                                                 GC/prime capability, no  
+                                                                 client portal            
+
+  Fieldwire Pro    \$810/mo (\$54×15)    \$9,720/yr              Field coordination only  Partial
+                                                                 --- no financial         (feature
+                                                                 management               limited)
+
+  Jonas (entry)    \$1,500--\$2,500/mo   \$18,000--\$30,000/yr   Full platform but legacy NO ✗
+                                                                 UX, complex              
+                                                                 implementation           
+  -------------------------------------------------------------------------------------------------------
+
+> **Pricing Insight:**
+>
+> \[PLATFORM NAME\] Professional at \$349/month offers more
+> trade-specific functionality than any competitor at its price point.
+> The next closest trade-aware platform (eSUB) has no GC capability and
+> costs roughly the same. Procore offers more enterprise features but at
+> 2-4× the price, with a multi-month sales process, and without trade
+> depth or cross-tenant architecture.
+
+**7. Sales Battle Cards**
+
+**7.1 When Competing Against Procore**
+
+Prospect profile: Mid-size GC being pushed toward Procore by a large
+client or GC. Sticker shock on pricing. Needs enterprise features but
+can\'t justify enterprise cost.
+
+-   Lead with price --- ask them what Procore quoted. Then show our
+    Professional tier at \$349/month.
+
+-   Ask if their subs use the platform or just get \'invited\' ---
+    reveal that sub collaboration on Procore is one-sided. Subs have no
+    independent environment.
+
+-   Procore requires months of onboarding and professional services. We
+    get them running in a week.
+
+-   Procore doesn\'t understand trade workflows --- electrical circuits,
+    panel schedules, plumbing pressure tests are managed as generic
+    tasks. We built native modules.
+
+-   When asked about features we lack (AIA billing, certified payroll):
+    be honest --- \'That\'s coming in Q3. Here\'s what we have now that
+    Procore doesn\'t: \[cross-tenant, trade modules, pricing\].
+
+**7.2 When Competing Against Buildertrend**
+
+Prospect profile: Residential GC who tried Buildertrend and hit its
+limits --- doing more commercial work, has more complex subs, or needs
+trade depth.
+
+-   Buildertrend was built for residential remodel --- ask if their
+    current projects fit that mold. If they\'re doing commercial TI,
+    mixed-use, or multi-trade residential, Buildertrend is holding them
+    back.
+
+-   Ask about their sub relationships --- Buildertrend gives subs a
+    portal, not a platform. Their subs have no job costing, no
+    independent dashboard, no financial management.
+
+-   Buildertrend has no electrical or plumbing module --- phases are
+    tracked as generic to-do items.
+
+-   Our pricing is comparable to Buildertrend\'s upper tier --- but we
+    deliver significantly more depth.
+
+**7.3 When Competing Against eSUB**
+
+Prospect profile: Trade contractor (electrical, plumbing) currently
+using eSUB who is growing into prime work, or who works with GCs and
+wants both sides of the relationship managed.
+
+-   eSUB is sub-only. If they ever win a prime contract, they need a
+    second system. We replace both.
+
+-   Cross-tenant collaboration: their GC clients can connect with them
+    directly --- shared schedule visibility, shared inspection results,
+    real-time invoice approvals. eSUB has none of this.
+
+-   Our electrical and plumbing modules match eSUB\'s depth in the areas
+    that matter for field work.
+
+-   Acknowledge eSUB\'s T&M billing strength if relevant --- then show
+    our T&M billing flow.
+
+**8. Language Support --- Competitive Gap**
+
+Spanish language support is a significant competitive gap in the
+construction software market. Despite 31% of the US construction
+workforce being Hispanic/Latino, none of the major platforms offer
+native, first-class Spanish support across their full product. This is a
+material competitive advantage at launch.
+
+**8.1 Competitor Spanish Support Analysis**
+
+  ------------------------------------------------------------------------
+  **Platform**   **Spanish Support**          **Assessment**
+  -------------- ---------------------------- ----------------------------
+  **\[PLATFORM   Full ES at v1.0 --- mobile,  **Only platform with
+  NAME\]**       notifications, portal,       first-class bilingual
+                 onboarding, safety. PT/HT in support at launch**
+                 v1.1.                        
+
+  Procore        Limited --- some UI elements Partial and inconsistent ---
+                 translated, help docs in     not designed for field
+                 Spanish, but full platform   worker use in Spanish
+                 not bilingual. Primarily     
+                 English-first enterprise     
+                 tool.                        
+
+  Buildertrend   English only --- no Spanish  Effectively English-only for
+                 UI. Help documentation       field workers
+                 partially in Spanish.        
+
+  eSUB           English only --- despite     Significant product gap for
+                 specifically targeting trade their own target customer
+                 contractors whose workforce  
+                 is 31%+ Hispanic.            
+
+  Fieldwire      English only --- some        English-only field app
+                 multilingual help content    
+                 but app UI is English.       
+
+  Jonas          English only --- legacy      No Spanish support
+                 platform, no significant     
+                 i18n investment.             
+  ------------------------------------------------------------------------
+
+> **Market Insight:**
+>
+> eSUB\'s own CEO published an article in Contractor Magazine titled
+> \'Does Your Tech Habla Español?\' arguing that the construction
+> industry must meet its Spanish-speaking workforce where they are. eSUB
+> then did not build it. We build it. This is one of the most glaring
+> product gaps in the category --- and it affects the workers who most
+> need the platform to work.
+
+**8.2 Language Support as a Sales Differentiator**
+
+In the target geographies --- Texas, California, Florida, Northeast ---
+Spanish language support is not a niche feature. It is a requirements
+checkbox for any contractor with field crews. Sales points by region:
+
+-   Texas (834K Hispanic construction workers): \'Your crews can use the
+    app in Spanish on day one --- no training required in their second
+    language\'
+
+-   California (808K Hispanic workers): \'Clock-in, daily reports, and
+    inspection results all in Spanish --- your foremen don\'t need an
+    English middleman\'
+
+-   Florida (317K + large Haitian Creole population): \'Spanish and
+    Haitian Creole (v1.1) --- covering your full workforce\'
+
+-   Northeast (Brazilian Portuguese heavy): \'Portuguese support in v1.1
+    --- tell your Brazilian crews it\'s coming\'
+
+-   Any market: \'OSHA multilingual safety requirement --- our safety
+    notifications go out in your workers\' language. That\'s your
+    liability protection.\'

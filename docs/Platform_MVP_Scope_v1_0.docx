@@ -1,0 +1,1010 @@
+**\[PLATFORM NAME\]**
+
+Construction Management Platform
+
+**MVP SCOPE DEFINITION**
+
+*Document 2 of 9 \| Version 1.0 \| Confidential*
+
+March 2026
+
+PREPARED FOR INTERNAL USE ONLY
+
+**Table of Contents**
+
+**1. Purpose & MVP Philosophy**
+
+This document defines the precise scope of \[PLATFORM NAME\] Version 1.0
+--- the Minimum Viable Product. It exists to answer one question
+clearly: what must ship on day one for the platform to deliver real
+value to paying customers, and what can wait?
+
+The PRD (Document 1) defines the full vision of the platform. This
+document draws the line between that vision and the launch build. Every
+feature in the PRD has been evaluated against three criteria:
+
+-   Is it required for the platform to function as a viable product for
+    paying customers?
+
+-   Does it block another critical feature if absent?
+
+-   Does the revenue or adoption risk of excluding it outweigh the cost
+    of building it now?
+
+Features that don\'t meet these criteria are explicitly deferred --- not
+abandoned. This document gives every stakeholder and developer a single
+source of truth on what is in scope for v1.0, what is coming in v1.1,
+and what is planned for v2.0 or beyond.
+
+**MVP Target Summary**
+
+  -----------------------------------------------------------------------
+  **Dimension**              **v1.0 Target**
+  -------------------------- --------------------------------------------
+  Launch Timeline            6--9 months from development kickoff
+
+  Target Customer            Small to mid-size GCs and trade contractors
+                             --- Starter and Professional tier
+
+  Active Subscription Tiers  Starter (\$149/mo) and Professional
+                             (\$349/mo)
+
+  Trade Modules at Launch    3 modules: General Contracting, Electrical,
+                             Plumbing/Mechanical
+
+  Platform Type              Web application + iOS and Android mobile app
+
+  Tenant Model               Full multi-tenant SaaS --- self-serve signup
+
+  Key Integration            QuickBooks Online (bi-directional)
+
+  Cross-Tenant Collaboration NOT in v1.0 --- deferred to v1.1
+
+  Revenue Goal at Launch     \$70,000 MRR within 6 months of launch
+  -----------------------------------------------------------------------
+
+**2. v1.0 --- Full Feature Scope**
+
+The following sections define every feature shipping in v1.0, organized
+by platform tier. Features are broken into granular items so development
+estimation and sprint planning can be done directly from this document.
+
+**2.1 Platform Foundation**
+
+  ------------------------------------------------------------------------
+  **Feature**           **Detail**                           **Release**
+  --------------------- ------------------------------------ -------------
+  Multi-tenant          Full tenant isolation --- shared     v1.0 --- SHIP
+  architecture          schema, tenant_id scoping, row-level 
+                        security                             
+
+  Self-serve tenant     Email signup, company profile        v1.0 --- SHIP
+  signup                creation, trade type selection,      
+                        onboarding wizard                    
+
+  Onboarding wizard     Step-by-step setup: company info,    v1.0 --- SHIP
+                        first project, invite users,         
+                        activate trade module, connect       
+                        QuickBooks                           
+
+  Subscription billing  Stripe-powered billing --- Starter   v1.0 --- SHIP
+                        and Professional tiers, monthly and  
+                        annual billing, upgrade/downgrade    
+
+  User invitation &     Email invitations, 7 role types,     v1.0 --- SHIP
+  roles                 permission enforcement at API layer  
+
+  Multi-factor          Optional MFA via authenticator app   v1.0 --- SHIP
+  authentication        --- tenant admin can enforce for all 
+                        users                                
+
+  Super admin console   Platform operator dashboard ---      v1.0 --- SHIP
+                        tenant management, billing, feature  
+                        flags, usage metrics                 
+
+  Tenant branding       Logo upload and primary color for    v1.0 --- SHIP
+                        client portal --- basic branding     
+                        only                                 
+
+  Audit log             User action log per tenant --- who   v1.0 --- SHIP
+                        changed what and when                
+
+  Data export           Full tenant data export on request   v1.0 --- SHIP
+                        (JSON/CSV)                           
+  ------------------------------------------------------------------------
+
+**2.2 Tier 1 --- Enterprise Features (Company Level)**
+
+  -------------------------------------------------------------------------
+  **Feature**             **Detail**                          **Release**
+  ----------------------- ----------------------------------- -------------
+  Company profile         Name, logo, address, license        v1.0 --- SHIP
+                          numbers, trade type, bonding info,  
+                          default payment terms               
+
+  User management         Invite, edit roles, deactivate      v1.0 --- SHIP
+                          users; crew grouping; MFA           
+                          enforcement option                  
+
+  Cross-project dashboard Active project count, status        v1.0 --- SHIP
+                          indicators, revenue pipeline,       
+                          upcoming deadlines, outstanding     
+                          approvals                           
+
+  Employee roster         Basic employee profiles --- name,   v1.0 --- SHIP
+                          role, trade, certifications,        
+                          contact info                        
+
+  Certification tracking  License and cert expiration alerts  v1.0 --- SHIP
+                          per employee --- OSHA, trade        
+                          licenses                            
+
+  Vendor database         Vendor/sub profiles, contact info,  v1.0 --- SHIP
+                          trade type, COI storage with        
+                          expiration alerts                   
+
+  Company document        Folder-based document storage,      v1.0 --- SHIP
+  library                 template library, version control   
+
+  Basic reporting         Job profitability, labor hours by   v1.0 --- SHIP
+                          project, revenue summary, open      
+                          items --- pre-built reports only    
+
+  Equipment inventory     Basic equipment list with project   v1.0 --- SHIP
+                          assignment                          
+
+  Advanced resource       Crew scheduling across jobs,        v1.1
+  management              equipment utilization tracking      
+
+  Custom report builder   User-defined report builder with    v1.1
+                          filters and field selection         
+
+  Scheduled report        Email delivery of reports on        v1.1
+  delivery                recurring schedule                  
+
+  OSHA 300 log            Formal OSHA 300/300A log            v2.0+
+  integration             maintenance and reporting           
+  -------------------------------------------------------------------------
+
+**2.3 Tier 2 --- Project Features**
+
+**Project Setup & Configuration**
+
+  -------------------------------------------------------------------------
+  **Feature**             **Detail**                          **Release**
+  ----------------------- ----------------------------------- -------------
+  Project creation        Job type selection (5 types),       v1.0 --- SHIP
+                          client info, site address, contract 
+                          type, contract value, retainage %   
+
+  Project team assignment PM, Foreman, Estimator, Sub         v1.0 --- SHIP
+                          assignment to project               
+
+  Permit tracking         Permit type, jurisdiction, number,  v1.0 --- SHIP
+                          submission date, approval date,     
+                          expiration, inspector contact       
+
+  Budget entry            Line-item budget by CSI division or v1.0 --- SHIP
+                          custom category at project creation 
+
+  Project dashboard       Per-project summary: schedule       v1.0 --- SHIP
+                          status, budget variance, open       
+                          items, recent activity              
+
+  APN / parcel data       Parcel number entry and reference   v1.0 --- SHIP
+                          --- no GIS integration in v1.0      
+  -------------------------------------------------------------------------
+
+**Scheduling**
+
+  -------------------------------------------------------------------------
+  **Feature**             **Detail**                          **Release**
+  ----------------------- ----------------------------------- -------------
+  Gantt chart             Drag-and-drop task scheduling, task v1.0 --- SHIP
+                          dependencies, date ranges,          
+                          assignees                           
+
+  Critical path           Automatic critical path calculation v1.0 --- SHIP
+                          and visual highlighting             
+
+  Milestone tracking      Named milestones with client portal v1.0 --- SHIP
+                          visibility toggle                   
+
+  Weather delay logging   Manual weather delay entry with     v1.0 --- SHIP
+                          schedule impact notation            
+
+  Push notifications      Schedule change notifications to    v1.0 --- SHIP
+                          assigned crew via mobile app        
+
+  Two-week lookahead view Condensed near-term schedule view   v1.0 --- SHIP
+                          for foremen                         
+
+  Baseline schedule       Baseline vs. actual schedule        v1.1
+  tracking                deviation reporting                 
+
+  iCal export             Personal calendar integration for   v1.1
+                          schedule items                      
+
+  AI-assisted scheduling  Predictive schedule risk and        v2.0+
+                          resource leveling suggestions       
+  -------------------------------------------------------------------------
+
+**Budget & Financial Tracking**
+
+  -------------------------------------------------------------------------
+  **Feature**             **Detail**                          **Release**
+  ----------------------- ----------------------------------- -------------
+  Estimate vs. actual     Real-time line-item budget variance v1.0 --- SHIP
+  tracking                --- committed, actual, projected    
+
+  Change order management Creation, multi-step approval       v1.0 --- SHIP
+                          workflow, e-signature (DocuSign),   
+                          budget auto-update on approval      
+
+  Subcontractor invoice   Sub submits invoice, PM reviews,    v1.0 --- SHIP
+  approval                Owner approves, payment released    
+
+  Job costing             Cost tracking by category ---       v1.0 --- SHIP
+                          labor, material, equipment, sub,    
+                          overhead                            
+
+  QuickBooks Online sync  Bi-directional: customers, vendors, v1.0 --- SHIP
+                          invoices, bills, chart of accounts, 
+                          class tracking                      
+
+  Stripe payment          Client invoice payment via credit   v1.0 --- SHIP
+  processing              card and ACH                        
+
+  AIA billing (G702/G703) Application for Payment and         v1.1
+                          Schedule of Values generation       
+
+  Lien management         Preliminary notices, lien waiver    v1.1
+                          generation and collection, deadline 
+                          tracking                            
+
+  Retainage tracking      Retainage calculation, tracking,    v1.1
+                          and release management              
+
+  Draw schedule           Milestone-based billing triggers    v1.1
+  management              and draw schedule setup             
+
+  QuickBooks Desktop sync Legacy QB Desktop support via IIF   v1.1
+                          bridge                              
+
+  Certified payroll       Davis-Bacon prevailing wage payroll v2.0+
+                          reports                             
+
+  Sage Intacct            Enterprise accounting sync for      v2.0+
+  integration             larger tenants                      
+  -------------------------------------------------------------------------
+
+**Document Management**
+
+  -------------------------------------------------------------------------
+  **Feature**             **Detail**                          **Release**
+  ----------------------- ----------------------------------- -------------
+  Plan set uploads        PDF plan upload with revision       v1.0 --- SHIP
+                          control --- Rev A, B, C tracking    
+                          and issue dates                     
+
+  Document storage        General file storage with folder    v1.0 --- SHIP
+                          organization, version history,      
+                          access controls                     
+
+  RFI log                 RFI creation, distribution,         v1.0 --- SHIP
+                          response tracking, status           
+                          management, export                  
+
+  Submittal log           Submittal creation, review,         v1.0 --- SHIP
+                          approval, resubmittal tracking by   
+                          spec section                        
+
+  Daily field reports     Crew count, work performed,         v1.0 --- SHIP
+                          materials received, visitors,       
+                          issues --- with photo attachment    
+
+  Photo management        Field photo upload, GPS tag, date   v1.0 --- SHIP
+                          stamp, album organization per       
+                          project                             
+
+  Meeting minutes         Meeting notes creation with action  v1.0 --- SHIP
+                          item tracking and distribution      
+
+  Drawing markup (web)    Basic markup and annotation on plan v1.0 --- SHIP
+                          PDFs in browser                     
+
+  Drawing markup (mobile) Full markup tools in mobile plan    v1.0 --- SHIP
+                          viewer                              
+
+  Punch list              Punch list creation, item           v1.0 --- SHIP
+                          assignment, photo attachment,       
+                          completion tracking                 
+
+  Closeout package        Automated project closeout package  v1.1
+                          assembly --- O&M manuals,           
+                          as-builts, warranties, permits      
+
+  BIM/Autodesk import     Import from Autodesk Construction   v2.0+
+                          Cloud / BIM 360                     
+  -------------------------------------------------------------------------
+
+**Inspections & Quality Control**
+
+  -------------------------------------------------------------------------
+  **Feature**             **Detail**                          **Release**
+  ----------------------- ----------------------------------- -------------
+  Inspection scheduling   Schedule inspections by trade and   v1.0 --- SHIP
+                          phase with inspector contact        
+
+  Inspection results      Pass/Fail/Correction Required       v1.0 --- SHIP
+                          logging with notes and photos       
+
+  Re-inspection           Automatic re-inspection creation on v1.0 --- SHIP
+  scheduling              failed inspection                   
+
+  Quality checklist       Pre-built checklists for each trade v1.0 --- SHIP
+  library                 module --- editable by tenant       
+
+  Inspection notification Auto-notify PM and relevant parties v1.0 --- SHIP
+                          on inspection result entry          
+  -------------------------------------------------------------------------
+
+**Client Portal**
+
+  -------------------------------------------------------------------------
+  **Feature**             **Detail**                          **Release**
+  ----------------------- ----------------------------------- -------------
+  Project progress view   Milestone status, percent complete  v1.0 --- SHIP
+                          summary, next scheduled activity    
+
+  Photo feed              Curated job site photo updates      v1.0 --- SHIP
+                          visible to client                   
+
+  Change order approval   Client reviews scope/cost and signs v1.0 --- SHIP
+                          via e-signature                     
+
+  Invoice approval        Client approves draw/invoice with   v1.0 --- SHIP
+                          e-signature                         
+
+  Messaging thread        Direct client-to-PM communication   v1.0 --- SHIP
+                          within portal                       
+
+  Document access         Permits, approved submittals,       v1.0 --- SHIP
+                          warranty docs accessible to client  
+
+  Basic branding          Contractor logo and color on client v1.0 --- SHIP
+                          portal                              
+
+  Full white-label portal Custom domain, full brand           v2.0+
+                          replacement, email whitelabeling    
+  -------------------------------------------------------------------------
+
+**Subcontractor Management**
+
+  -------------------------------------------------------------------------
+  **Feature**             **Detail**                          **Release**
+  ----------------------- ----------------------------------- -------------
+  Sub database            Sub profiles, contact info, trade,  v1.0 --- SHIP
+                          COI storage with expiration alerts, 
+                          performance notes                   
+
+  Sub assignment to       Assign subs from database to        v1.0 --- SHIP
+  project                 project scopes                      
+
+  Sub invoice pipeline    Invoice submission, PM review,      v1.0 --- SHIP
+                          approval, payment release tracking  
+
+  Free sub portal         Non-tenant subs get limited portal  v1.0 --- SHIP
+                          --- scope view, invoice submit,     
+                          daily reports, RFI response         
+
+  Sub bid invitations     Send bid packages to selected subs  v1.0 --- SHIP
+                          from database                       
+
+  Bid leveling tool       Side-by-side bid comparison across  v1.1
+                          line items                          
+
+  Subcontract generation  Auto-generate subcontracts from     v1.1
+                          templates on award                  
+
+  Cross-tenant            Live GC-to-Sub tenant data bridge   v1.1
+  collaboration           for platform tenants                
+  -------------------------------------------------------------------------
+
+**2.4 Tier 3 --- Trade Modules**
+
+  ------------------------------------------------------------------------
+  **Trade Module**   **v1.0       **Phases Included in     **Deferred to**
+                     Status**     v1.0**                   
+  ------------------ ------------ ------------------------ ---------------
+  General            v1.0 ---     Sub management, project  Bid leveling,
+  Contracting        SHIP         financials, closeout     certified
+                                  checklist (basic)        payroll →
+                                                           v1.1/v2.0
+
+  Electrical         v1.0 ---     Rough-In, Trim/Device,   Full at launch
+                     SHIP         Final --- full phase set 
+
+  Plumbing /         v1.0 ---     Underground, Rough-In,   Full at launch
+  Mechanical         SHIP         Trim, Final --- full     
+                                  phase set                
+
+  HVAC               v1.1         All phases planned for   v1.1
+                                  v1.1                     
+
+  Concrete / Masonry v1.1         All phases planned for   v1.1
+                                  v1.1                     
+
+  Framing /          v1.1         All phases planned for   v1.1
+  Carpentry                       v1.1                     
+
+  Roofing            v2.0+        Full module planned for  v2.0+
+                                  v2.0                     
+
+  Painting /         v2.0+        Full module planned for  v2.0+
+  Finishing                       v2.0                     
+
+  Landscaping /      v2.0+        Full module planned for  v2.0+
+  Sitework                        v2.0                     
+
+  Specialty Trades   v2.0+        Configurable template    v2.0+
+                                  builder planned for v2.0 
+  ------------------------------------------------------------------------
+
+Rationale for trade module phasing: Electrical and Plumbing are the most
+universally required trade modules across both residential and
+commercial work. They serve GC tenants as the most commonly
+subcontracted scopes, and serve trade-only tenants as standalone
+business tools. HVAC, Concrete, and Framing follow in v1.1 as they
+represent the next highest demand segment. Roofing, Painting,
+Landscaping, and Specialty Trades are deferred to v2.0 as standalone or
+add-on modules.
+
+**2.5 Mobile Application**
+
+  -------------------------------------------------------------------------
+  **Feature**             **Detail**                          **Release**
+  ----------------------- ----------------------------------- -------------
+  iOS app (iPhone & iPad) Native iOS app --- iOS 16+          v1.0 --- SHIP
+
+  Android app             Native Android app --- Android 11+  v1.0 --- SHIP
+
+  Offline mode            Core field functions available      v1.0 --- SHIP
+                          without connectivity; auto-sync on  
+                          reconnect                           
+
+  GPS clock in/out        GPS-verified time tracking per job  v1.0 --- SHIP
+                          site                                
+
+  Crew clock-in           Foreman clocks in multiple crew     v1.0 --- SHIP
+                          members at once                     
+
+  Daily field reports     Voice-to-text notes, crew count,    v1.0 --- SHIP
+                          work performed, materials received, 
+                          photos                              
+
+  Photo capture & upload  GPS-tagged, timestamped photos      v1.0 --- SHIP
+                          attached to reports or tasks        
+
+  Task management         View, complete, and create tasks    v1.0 --- SHIP
+                          --- photo proof on completion       
+
+  Plan viewer             Full plan set viewer with           v1.0 --- SHIP
+                          pinch-to-zoom, offline caching of   
+                          latest approved revision            
+
+  Drawing markup (mobile) Annotation tools on plans ---       v1.0 --- SHIP
+                          create RFI from markup              
+
+  Inspection checklists   Field completion of inspection      v1.0 --- SHIP
+                          checklists with photos per item     
+
+  Push notifications      Schedule changes, approvals needed, v1.0 --- SHIP
+                          inspection results, messages        
+
+  Safety incident         Incident and near-miss reports with v1.0 --- SHIP
+  reporting               photos                              
+
+  Delivery / material     Confirm deliveries against POs,     v1.0 --- SHIP
+  receipt                 photo delivery tickets              
+
+  Geofence alerts         Alert when clock-in GPS location    v1.1
+                          does not match job site             
+
+  Toolbox talk sign-off   Digital crew signatures for safety  v1.1
+                          meeting records                     
+  -------------------------------------------------------------------------
+
+**2.6 Integrations**
+
+  ------------------------------------------------------------------------
+  **Integration**       **v1.0       **Notes**
+                        Status**     
+  --------------------- ------------ -------------------------------------
+  QuickBooks Online     v1.0 ---     Bi-directional --- primary
+                        SHIP         integration, key purchase driver
+
+  Stripe                v1.0 ---     Client invoice payment --- credit
+                        SHIP         card and ACH
+
+  DocuSign              v1.0 ---     Change order and contract
+                        SHIP         e-signatures
+
+  Google Maps / Apple   v1.0 ---     Job site navigation, address
+  Maps                  SHIP         validation, geofencing
+
+  OpenWeather API       v1.0 ---     Auto weather log on daily reports,
+                        SHIP         forecast alerts
+
+  Twilio (SMS)          v1.0 ---     Crew and client SMS notifications
+                        SHIP         
+
+  SendGrid (Email)      v1.0 ---     All transactional emails ---
+                        SHIP         notifications, invites, reports
+
+  QuickBooks Desktop    v1.1         IIF bridge for legacy QB Desktop
+                                     users
+
+  Adobe Acrobat Sign    v1.1         Alternative to DocuSign for tenants
+                                     with Adobe licensing
+
+  Plaid / ACH (Sub      v1.1         Direct sub and vendor payment
+  payments)                          processing
+
+  Levelset (Lien        v1.1         Automated preliminary notice and lien
+  services)                          waiver services
+
+  Procore import tool   v1.1         One-way project and document
+                                     migration from Procore
+
+  Autodesk / BIM 360    v2.0+        Plan and document import from
+  import                             Autodesk ecosystem
+
+  Sage Intacct          v2.0+        Enterprise accounting sync
+  Construction                       
+  ------------------------------------------------------------------------
+
+**3. Explicitly Deferred Features**
+
+The following features are explicitly out of scope for v1.0. They are
+documented here to prevent scope creep and to ensure every stakeholder
+understands why these items were deferred --- not abandoned.
+
+  -------------------------------------------------------------------------
+  **Feature**            **Reason for Deferral**              **Target**
+  ---------------------- ------------------------------------ -------------
+  Cross-tenant           Significant architectural complexity v1.1
+  collaboration          --- requires tenant connection       
+                         model, permission tables, shared     
+                         data layer, and dispute resolution.  
+                         v1.0 builds the foundation; v1.1     
+                         activates it.                        
+
+  AIA billing            Important but not day-one critical.  v1.1
+  (G702/G703)            Starter/Professional customers often 
+                         use simpler invoice formats. Defer   
+                         to v1.1 when Business tier launches. 
+
+  Lien management        Critical for GCs but requires        v1.1
+                         jurisdiction-by-state logic. Build   
+                         after core billing is stable.        
+
+  Bid leveling tool      Valuable for GCs but not required    v1.1
+                         for core project management. Defer   
+                         with Business tier launch.           
+
+  Subcontract            Template-based contract generation   v1.1
+  auto-generation        adds legal complexity --- requires   
+                         review. Defer to v1.1.               
+
+  Baseline schedule      Gantt ships in v1.0. Baseline        v1.1
+  tracking               deviation reporting is a             
+                         reporting-layer feature added in     
+                         v1.1.                                
+
+  Business tier          Business tier features are tied to   v1.1
+  (\$749/mo)             cross-tenant collaboration. Launch   
+                         Starter and Professional first, add  
+                         Business with v1.1.                  
+
+  HVAC trade module      Third most-needed module --- defer   v1.1
+                         to v1.1 to keep launch scope         
+                         focused.                             
+
+  Concrete/Masonry       High demand but defer to v1.1        v1.1
+  module                 alongside HVAC.                      
+
+  Framing/Carpentry      Defer to v1.1.                       v1.1
+  module                                                      
+
+  Roofing module         Defer to v2.0.                       v2.0+
+
+  Painting/Finishing     Defer to v2.0.                       v2.0+
+  module                                                      
+
+  Landscaping/Sitework   Defer to v2.0.                       v2.0+
+  module                                                      
+
+  Specialty Trades       Configurable template builder ---    v2.0+
+  module                 higher complexity, defer to v2.0.    
+
+  Enterprise tier        Requires white-label, API access,    v2.0+
+  (\$1,499+/mo)          SLA infrastructure. Defer to v2.0.   
+
+  White-label portal     Full domain and brand replacement    v2.0+
+                         --- significant infrastructure work. 
+                         Defer to v2.0.                       
+
+  Certified payroll      Jurisdiction-specific legal          v2.0+
+  (Davis-Bacon)          requirements --- defer to v2.0 with  
+                         dedicated compliance review.         
+
+  Custom report builder  Pre-built reports ship in v1.0.      v1.1
+                         Custom builder is a v1.1 addition.   
+
+  API access (external)  Third-party API access requires      v2.0+
+                         documentation, versioning, and       
+                         rate-limit infrastructure. v2.0.     
+
+  BIM / Autodesk         Complex technical integration ---    v2.0+
+  integration            defer to v2.0.                       
+
+  AI-assisted scheduling Predictive features require data     v2.0+
+                         volume to train --- not viable at    
+                         launch.                              
+
+  International /        US and Canada focus at launch.       DEFERRED
+  multi-currency         International expansion planned post 
+                         v2.0.                                
+
+  Equipment telematics / Hardware integration --- out of      DEFERRED
+  IoT                    scope for initial platform.          
+  -------------------------------------------------------------------------
+
+**4. v1.0 Scope Summary**
+
+  -----------------------------------------------------------------------
+  **Category**               **v1.0 Count / Status**
+  -------------------------- --------------------------------------------
+  Subscription tiers live    2 --- Starter (\$149/mo) and Professional
+                             (\$349/mo)
+
+  Trade modules              3 --- General Contracting, Electrical,
+                             Plumbing/Mechanical
+
+  Platform tiers fully built All 3 --- Enterprise (company), Project,
+                             Trade
+
+  Mobile platforms           2 --- iOS and Android with full offline mode
+
+  Integrations               7 live at launch --- QuickBooks Online,
+                             Stripe, DocuSign, Maps, Weather, Twilio,
+                             SendGrid
+
+  User roles                 7 --- Owner/Admin, PM, Estimator, Foreman,
+                             Field Tech, Sub (External), Client,
+                             Accountant
+
+  Client portal              Full --- progress, photos, change orders,
+                             invoices, messaging, documents
+
+  Cross-tenant collaboration NOT in v1.0 --- deferred to v1.1
+
+  AIA billing                NOT in v1.0 --- deferred to v1.1
+
+  Lien management            NOT in v1.0 --- deferred to v1.1
+  -----------------------------------------------------------------------
+
+**5. Release Timeline**
+
+  ------------------------------------------------------------------------------------
+  **Phase**         **Timeline**   **Milestone**   **Key Deliverables**
+  ----------------- -------------- --------------- -----------------------------------
+  Pre-Development   Month 0--1     Planning        Tech stack selected, data model
+                                   complete        finalized, UI/UX wireframes
+                                                   approved, dev team assembled
+
+  Sprint 1--2       Month 1--2     Foundation      Multi-tenant architecture, auth
+                                   built           system, user roles, onboarding
+                                                   wizard, Stripe billing
+
+  Sprint 3--5       Month 2--4     Core project    Project management, Gantt
+                                   features        scheduling, budget tracking,
+                                                   document management, photo
+                                                   management
+
+  Sprint 6--7       Month 4--5     Trade modules + GC, Electrical, Plumbing modules;
+                                   field           inspection tracking; daily reports;
+                                                   change order workflow
+
+  Sprint 8--9       Month 5--6     Mobile app +    iOS and Android apps, offline mode,
+                                   integrations    QuickBooks Online, DocuSign,
+                                                   Stripe, Maps, Weather
+
+  Sprint 10         Month 6--7     Client portal + Client portal, sub portal,
+                                   polish          notifications, performance
+                                                   optimization, bug fixing
+
+  Beta              Month 7--8     Closed beta     10--20 beta tenants onboarded,
+                                                   feedback collected, critical fixes
+                                                   applied
+
+  v1.0 Launch       Month 8--9     Public launch   Self-serve signup live, Starter and
+                                                   Professional tiers available,
+                                                   support system active
+
+  Post-Launch       Month 9--12    Stabilize +     Bug fixes, performance tuning,
+                                   grow            customer feedback loop, v1.1
+                                                   planning begins
+
+  v1.1 Release      Month 12--13   Feature         Cross-tenant collaboration,
+                                   expansion       Business tier, AIA billing, lien
+                                                   management, 3 new trade modules
+  ------------------------------------------------------------------------------------
+
+**6. MVP Risk Register**
+
+The following risks are identified as having the highest potential to
+affect the v1.0 launch timeline, quality, or adoption. Each risk
+includes a mitigation strategy.
+
+  ------------------------------------------------------------------------------------------
+  **Risk**              **Likelihood**   **Impact**   **Mitigation**
+  --------------------- ---------------- ------------ --------------------------------------
+  QuickBooks            Medium           High         Begin QBO integration in Sprint 3 ---
+  integration                                         parallel track with project features.
+  complexity delays                                   Allocate dedicated engineer.
+  launch                                              
+
+  Mobile offline sync   Medium           High         Design conflict resolution rules in
+  introduces data                                     data model before development begins.
+  conflicts                                           Test extensively with simulated
+                                                      connectivity loss.
+
+  Multi-tenant          Low              Critical     Security audit at Sprint 2 completion.
+  row-level security                                  Penetration test before beta.
+  has edge case leaks                                 Automated tenant isolation tests in CI
+                                                      pipeline.
+
+  Trade module scope    Medium           Medium       Detailed spec for both modules
+  underestimated for                                  complete before Sprint 3. Buffer 20%
+  Electrical/Plumbing                                 in estimates for trade module work.
+
+  Beta customers find   Medium           High         Field usability testing at Sprint 7
+  core UX confusing for                               with actual contractors. Mobile-first
+  field use                                           design review at each sprint.
+
+  Onboarding drop-off   Medium           Medium       In-app onboarding wizard, email drip
+  --- tenants sign up                                 campaign, optional concierge
+  but don\'t activate                                 onboarding call for early customers.
+
+  DocuSign e-signature  Low              Medium       Test full change order workflow
+  adds friction to                                    end-to-end in beta. Offer native
+  change order flow                                   signature fallback if needed.
+
+  Launch timeline slips Medium           Medium       Define hard scope freeze at Month 4.
+  beyond 9 months                                     Any new requests after scope freeze go
+                                                      to v1.1 backlog --- no exceptions.
+  ------------------------------------------------------------------------------------------
+
+**7. Definition of Done --- v1.0**
+
+v1.0 is complete and ready for public launch when ALL of the following
+conditions are met:
+
+**Product Completeness**
+
+-   All features marked v1.0 --- SHIP in this document are implemented
+    and passing QA
+
+-   All 3 trade modules (GC, Electrical, Plumbing) fully functional with
+    phase gates and checklists
+
+-   iOS and Android apps submitted and approved in App Store and Google
+    Play
+
+-   Offline mode tested and verified across iOS and Android on simulated
+    poor connectivity
+
+-   Client portal functional and tested with real client user accounts
+
+-   Free subcontractor portal functional and tested
+
+**Integrations**
+
+-   QuickBooks Online bi-directional sync verified with live QBO
+    accounts in beta
+
+-   Stripe billing --- subscription creation, upgrade, downgrade,
+    cancellation, and failed payment handling all verified
+
+-   DocuSign e-signature flow tested end-to-end for change orders and
+    contracts
+
+-   All notification pathways (email via SendGrid, SMS via Twilio, push
+    via mobile) verified
+
+**Security & Infrastructure**
+
+-   Tenant isolation penetration test passed --- no cross-tenant data
+    access possible
+
+-   All data in transit encrypted via TLS 1.3
+
+-   All data at rest encrypted via AES-256
+
+-   MFA implementation tested
+
+-   99.9% uptime infrastructure configured with monitoring and alerting
+    live
+
+-   Automated daily backups verified with successful restore test
+
+**Performance**
+
+-   Page load time under 2 seconds on standard broadband for all primary
+    screens
+
+-   Mobile app launches under 3 seconds cold start on mid-range devices
+
+-   Plan viewer loads a 50MB plan set in under 5 seconds
+
+-   Load tested to 200 concurrent users without degradation
+
+**Business Readiness**
+
+-   Self-serve signup flow tested end-to-end --- new tenant to first
+    project in under 10 minutes
+
+-   Subscription billing tested --- all tiers, monthly and annual,
+    upgrade and downgrade
+
+-   Support system live --- ticketing, knowledge base, onboarding
+    documentation
+
+-   Super admin console operational --- tenant management, billing
+    visibility, feature flags
+
+-   Beta feedback addressed --- all P1 and P2 bugs resolved, P3 bugs
+    documented in backlog
+
+-   Privacy policy, terms of service, and data processing agreement
+    published
+
+**8. Next Steps**
+
+With the PRD (Document 1) and MVP Scope Definition (Document 2)
+complete, the following planning documents are next in the series:
+
+  --------------------------------------------------------------------------------
+  **Document**   **Title**              **Purpose**
+  -------------- ---------------------- ------------------------------------------
+  Doc 3          Multi-Tenant           Detailed technical spec for tenant
+                 Architecture Document  isolation, data model, security, and
+                                        cross-tenant collaboration design
+
+  Doc 4          Data Model & Schema    Database schema design --- all entities,
+                 Overview               relationships, and tenant_id scoping
+                                        strategy
+
+  Doc 5          API & Integration Spec Endpoint design, QuickBooks integration
+                 Sheet                  detail, DocuSign, Stripe, and all v1.0
+                                        integrations
+
+  Doc 6          User Roles &           Granular permission table --- every role,
+                 Permissions Matrix     every action, every module
+
+  Doc 7          Cross-Tenant           Full technical and UX spec for the
+                 Collaboration Spec     GC-to-Sub connection model (v1.1 design)
+
+  Doc 8          UI/UX Wireframe Brief  Screen-by-screen wireframe requirements
+                                        for web and mobile --- design team handoff
+                                        document
+
+  Doc 9          Mobile App             Detailed mobile app requirements ---
+                 Specification          offline architecture, sync strategy,
+                                        platform-specific behavior
+  --------------------------------------------------------------------------------
+
+Immediate actions required before Document 3 can begin:
+
+-   Technology stack decision --- frontend framework, backend language,
+    database, cloud provider
+
+-   Engineering lead engagement --- architecture document requires a
+    technical author or reviewer
+
+-   Product name decision --- placeholder \[PLATFORM NAME\] should be
+    resolved before UI/UX work begins
+
+-   Legal review --- data ownership, tenant cancellation policy, sub
+    portal terms of service
+
+**9. Language Support Scope**
+
+Language support is a first-class v1.0 requirement. Spanish is built in
+from day one --- not added later. The architecture uses react-i18next
+across web and mobile with JSON translation namespaces, enabling
+additional languages to be added without code changes.
+
+**9.1 v1.0 Language Scope --- English + Spanish**
+
+  -----------------------------------------------------------------------
+  **Feature**         **Spanish in  **Notes**
+                      v1.0**        
+  ------------------- ------------- -------------------------------------
+  Mobile app --- all  **✓ Full**    Clock-in, daily reports, tasks,
+  screens                           inspections, plans --- 100% bilingual
+                                    on mobile
+
+  Push notifications  **✓ Full**    Inspection results, schedule changes,
+  (APNs + FCM)                      CO approvals --- sent in user\'s
+                                    preferred_language
+
+  SMS (Twilio)        **✓ Full**    All SMS templates translated ---
+                                    inspection failures, clock-out
+                                    reminders, CO approvals
+
+  Email notifications **✓ Full**    All transactional emails in user\'s
+  (SendGrid)                        preferred language
+
+  Onboarding wizard   **✓ Full**    Company setup, first project
+                                    creation, team invite --- fully
+                                    bilingual
+
+  Subcontractor free  **✓ Full**    Portal is primary acquisition funnel
+  portal                            --- Spanish is required for sub-side
+                                    users
+
+  Safety document     **✓ Full**    All built-in safety templates
+  templates                         provided in EN + ES at launch
+
+  Error messages +    **✓ Full**    No English-only error messages ---
+  validation                        all validation feedback in user\'s
+                                    language
+
+  Web platform        **◑ Partial** Core navigation and dashboards in
+  (office/PM views)                 v1.0; full web i18n completed in v1.1
+
+  Client portal       **◑ Partial** Spanish client portal in v1.1 ---
+                                    residential GC clients frequently
+                                    Spanish-speaking
+
+  Legal document      **✗ v2.0**    Lien waivers and contracts require
+  templates                         attorney review per state ---
+                                    translated versions v2.0
+  -----------------------------------------------------------------------
+
+**9.2 v1.1 Language Additions --- Portuguese (Brazilian) + Haitian
+Creole**
+
+Portuguese (Brazilian) and Haitian Creole are added in v1.1 --- both are
+high-frequency construction workforce languages in Florida, New York,
+and Massachusetts. The i18n architecture makes this a translation
+effort, not an engineering effort.
+
+**9.3 v2.0+ Language Additions**
+
+Polish, Ukrainian, Vietnamese in v2.0. Tagalog, Arabic (with RTL
+layout), and Mandarin Simplified in v2.0+. RTL layout support is
+architected in v1.0 (CSS logical properties) to prevent a rebuild for
+Arabic.
+
+**9.4 i18n Definition of Done**
+
+-   All user-facing strings in translation files --- zero hardcoded
+    strings in component/screen code
+
+-   Spanish translation 100% complete and QA-approved by native Spanish
+    speaker with construction industry background
+
+-   Date, time, and number formatting locale-aware on all screens
+
+-   String overflow testing complete --- all ES strings fit their UI
+    containers without truncation
+
+-   Voice dictation confirmed working in Spanish on both iOS
+    (SFSpeechRecognizer) and Android (SpeechRecognizer API)
+
+-   All push notification and SMS templates translated and tested
+    end-to-end in Spanish

@@ -1,0 +1,45 @@
+# Record an AHJ inspection result with NO network.
+#
+# This is the moment the whole permit-offline change exists for: a foreman standing at
+# the work with the inspector, in a building with no bars, writing down what the
+# inspector just said. Run via run-permit-result-offline.sh (it owns the radio).
+#
+# Both halves have to be alive offline for this to get anywhere: the permit itself comes
+# from the pull-only cache, and the milestone list is the writable `inspections` table.
+appId: com.thejobsite.app
+---
+- launchApp
+- tapOn: 'E2E Test Project'
+- scrollUntilVisible:
+    element: 'Permits'
+    direction: DOWN
+- tapOn: 'Permits'
+
+# Rendered from the local cache — with no signal this list used to be empty.
+- assertVisible: 'E2E-PERMIT-1'
+- tapOn: 'E2E-PERMIT-1'
+
+- assertVisible: 'Rough-In Inspection'
+# Anchor to the row: there is a "Record result" button on EVERY milestone, and a bare
+# tapOn takes the first one — which quietly recorded the result against Temporary Power.
+- tapOn:
+    text: 'Record result'
+    below:
+      text: 'Rough-In Inspection'
+
+# The form PRE-FILLS from the existing record (correct product behaviour), and
+# `inputText` APPENDS — so a second run against the same milestone produced
+# "Inspector 11126Inspector 17134...". Clear before typing.
+- tapOn: 'Inspector name'
+- eraseText: 200   # default is 50 chars — a long pre-filled value survives partially
+- inputText: ${INSPECTOR}
+- hideKeyboard
+- tapOn: 'Pass'
+- tapOn: 'Save'
+
+# The row reflects the result immediately (local write) and carries the `•` pending
+# marker until the sweep lands it — proof this went to the local DB, not the network.
+# ⚠️ Maestro matches a text selector against the WHOLE node, not as a substring — the
+# inspector name lives inside "• No Date Set · Inspector 42 · Pass", so it needs `.*`.
+- assertVisible: '.*${INSPECTOR}.*'
+- assertVisible: '•.*'

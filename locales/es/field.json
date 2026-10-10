@@ -1,0 +1,53 @@
+{
+  "daily_reports": {
+    "title": "Informes Diarios",
+    "create": "Nuevo Informe Diario",
+    "date": "Fecha del Informe",
+    "weather": "Condiciones Climáticas",
+    "notes": "Notas de Campo",
+    "empty": "No hay informes diarios para este proyecto."
+  },
+  "time_tracking": {
+    "title": "Control de Tiempo",
+    "log_time": "Registrar Tiempo",
+    "hours": "Horas",
+    "date": "Fecha",
+    "worker": "Trabajador",
+    "cost_code": "Código de Costo",
+    "total_hours": "Total de Horas: {{hours}}"
+  },
+  "punch_list": {
+    "title": "Lista de Pendientes",
+    "add_item": "Agregar Elemento",
+    "assigned_to": "Asignado A",
+    "due_date": "Fecha Límite",
+    "status": {
+      "open": "Abierto",
+      "in_progress": "En Progreso",
+      "complete": "Completado"
+    },
+    "empty": "La lista de pendientes está vacía."
+  },
+  "inspections": {
+    "title": "Inspecciones",
+    "schedule": "Programar Inspección",
+    "date": "Fecha de Inspección",
+    "status": {
+      "scheduled": "Programada",
+      "passed": "Aprobada",
+      "failed": "Fallida",
+      "requires_action": "Requiere Acción"
+    }
+  },
+  "photos": {
+    "title": "Fotos",
+    "add": "Agregar Foto",
+    "caption": "Descripción",
+    "taken_at": "Tomada {{date}}"
+  },
+  "offline": {
+    "banner": "Está sin conexión. Los cambios se sincronizarán cuando se restaure la conexión.",
+    "syncing": "Sincronizando...",
+    "synced": "Todos los cambios sincronizados."
+  }
+}

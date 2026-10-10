@@ -1,0 +1,999 @@
+**\[PLATFORM NAME\]**
+
+Construction Management Platform
+
+**UI/UX WIREFRAME BRIEF**
+
+*Document 8 of 9 \| Version 1.0 \| Confidential*
+
+March 2026
+
+FOR DESIGN & ENGINEERING --- CONFIDENTIAL
+
+**Table of Contents**
+
+**1. Purpose & Design Philosophy**
+
+This document is the brief for the UI/UX design phase. It specifies
+every screen that must be designed, the content and functionality each
+screen must contain, the navigation architecture, and the design system
+foundations. It is the handoff document from Product to Design and from
+Design to Engineering.
+
+**1.1 Design Principles**
+
+  -----------------------------------------------------------------------
+  **Principle**    **What It Means in Practice**
+  ---------------- ------------------------------------------------------
+  Field-first      The most important users are foremen and field techs
+                   using the app in direct sunlight, with gloves on, on a
+                   6-inch phone. Every UI decision must pass the field
+                   test: can it be used one-handed, in bright sun, by
+                   someone wearing gloves?
+
+  Density for      Desktop web views can be information-dense --- PMs
+  office, space    want to see a lot at once. Mobile views must be large
+  for field        touch targets, high contrast, and minimal cognitive
+                   load.
+
+  Progressive      Show the most critical information first. Users should
+  disclosure       never be overwhelmed on first view. Drill down for
+                   detail, not the reverse.
+
+  Zero training    A foreman who has never used the platform should be
+  required         able to clock in, complete a task, and submit a daily
+                   report without any training. Core field flows must be
+                   self-evident.
+
+  Construction     Use the words construction professionals use. Not
+  vocabulary       \'tasks\' --- \'work items\'. Not \'vendors\' ---
+                   \'subcontractors\' or \'subs\'. Not \'events\' ---
+                   \'inspections\', \'daily reports\'. Language matters.
+
+  Earn trust with  Financial data, inspection records, and signed
+  data accuracy    documents must feel rock solid. Dense, tight, precise
+                   --- not casual or playful. This is someone\'s business
+                   and livelihood.
+
+  Speed over       Fast load times and responsive interactions beat
+  beauty           pixel-perfect aesthetics. A slow beautiful app will be
+                   abandoned. A fast useful one will be forgiven
+                   aesthetic imperfections.
+  -----------------------------------------------------------------------
+
+**1.2 Design System Foundations**
+
+  -----------------------------------------------------------------------
+  **Element**     **Specification**
+  --------------- -------------------------------------------------------
+  Primary color   #1F4E79 --- deep navy blue. Used for primary actions,
+                  headers, navigation.
+
+  Accent color    #2E75B6 --- medium blue. Used for links, secondary
+                  actions, section headers.
+
+  Success         #375623 / #E2EFDA --- dark green / light green bg.
+                  Passed inspections, completed tasks, active status.
+
+  Warning         #7F6000 / #FFF2CC --- amber / light yellow bg. Pending
+                  approvals, expiring items, in-progress status.
+
+  Danger          #843C0C / #FCE4D6 --- dark orange / light orange bg.
+                  Failed inspections, overdue items, rejected status.
+
+  Neutral         #333333 body text, #666666 secondary text, #F2F2F2
+                  background, #CCCCCC borders.
+
+  Typography      Primary: Inter or system-ui. Monospace: JetBrains Mono
+                  or Courier New for codes/IDs. No more than 3 font
+                  weights.
+
+  Border radius   4px --- functional, not playful. Avoid pill-shaped
+                  buttons except for status badges.
+
+  Spacing system  8px base unit. 8, 16, 24, 32, 48, 64px increments only.
+
+  Icon library    Lucide Icons --- construction-appropriate subset.
+                  Supplement with custom trade icons where needed.
+
+  Touch targets   Minimum 44×44px for all interactive elements on mobile.
+
+  Shadow          Single shadow level for cards: 0 1px 3px
+                  rgba(0,0,0,0.12). No complex layered shadows.
+  -----------------------------------------------------------------------
+
+**2. Navigation Architecture**
+
+**2.1 Web App Navigation (Desktop & Tablet)**
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ \[LOGO\] \[PLATFORM NAME\] \[Search\] \[🔔 3\] \[JD ▾\] │ ← Top bar
+>
+> ├────────────┬─────────────────────────────────────────────────────────┤
+>
+> │ │ │
+>
+> │ Dashboard │ MAIN CONTENT AREA │
+>
+> │ Projects │ │
+>
+> │ Schedule │ │
+>
+> │ Financials│ │
+>
+> │ Documents │ │
+>
+> │ Field Ops │ │
+>
+> │ Crew │ │
+>
+> │ Vendors │ │
+>
+> │ Reports │ │
+>
+> │ │ │
+>
+> │ ───── │ │
+>
+> │ Settings │ │
+>
+> │ │ │
+>
+> └────────────┴─────────────────────────────────────────────────────────┘
+>
+> ↑ Left sidebar --- 220px fixed width, collapsible to 48px icon rail
+
+**2.2 Left Sidebar Navigation Items**
+
+  ---------------------------------------------------------------------------
+  **Nav Item** **Icon**    **Sub-Items / Flyout**   **Roles That See It**
+  ------------ ----------- ------------------------ -------------------------
+  Dashboard    Home icon   None --- company home    All
+
+  Projects     Folder icon Active Projects,         All
+                           Completed, Archived      
+
+  Schedule     Calendar    None --- project-scoped  PM, Owner, Foreman
+               icon        inside project           
+
+  Financials   Dollar icon Invoices, Change Orders, Owner, PM, Accountant
+                           Lien Waivers, Budget     
+
+  Documents    File icon   Plans, Documents, Photos All except Client/Sub
+                                                    Portal
+
+  Field Ops    Clipboard   Daily Reports, Time,     Owner, PM, Foreman, Field
+               icon        Inspections, Punch List  Tech, Safety
+
+  Crew         People icon Employees,               Owner, PM
+                           Certifications           
+
+  Vendors      Handshake   Vendor Database, Bid     Owner, PM, Estimator
+               icon        Management               
+
+  Reports      Chart icon  Financial, Schedule,     Owner, PM, Accountant
+                           Field, Custom            
+
+  Settings     Gear icon   Company, Users,          Owner, Accountant
+                           Integrations, Billing    (billing only)
+  ---------------------------------------------------------------------------
+
+**2.3 Project-Level Navigation (inside a project)**
+
+When inside a project, a secondary horizontal tab bar appears beneath
+the top bar. The sidebar highlights \'Projects\' and the tab bar handles
+in-project navigation:
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ \[LOGO\] ← Projects / Main St Office Build \[🔔\] \[JD ▾\] │
+>
+> ├──────────────────────────────────────────────────────────────────────┤
+>
+> │ Overview │ Schedule │ Budget │ Financials │ Field │ Docs │ Team │ ←
+> Project tabs
+>
+> ├──────────────────────────────────────────────────────────────────────┤
+>
+> │ │
+>
+> │ PROJECT CONTENT AREA │
+>
+> │ │
+>
+> └──────────────────────────────────────────────────────────────────────┘
+
+**3. Company Dashboard**
+
+The company dashboard is the first screen after login. It gives the
+Owner and PM a bird\'s-eye view of the entire company portfolio.
+
+> ┌───────────────────────────────────────────────────────────────────┐
+>
+> │ COMPANY DASHBOARD 📅 March 13, 2026 │
+>
+> ├──────────────┬──────────────┬──────────────┬─────────────────────┤
+>
+> │ ACTIVE │ OPEN │ INVOICES │ CREW ON SITE │
+>
+> │ PROJECTS │ CHANGE ORD. │ PENDING │ TODAY │
+>
+> │ ── 12 ── │ ── 4 ── │ ── \$84K ── │ ── 23 ── │
+>
+> │ ↑2 vs last │ ↑1 this wk │ 3 overdue │ across 5 sites │
+>
+> ├──────────────┴──────────────┴──────────────┴─────────────────────┤
+>
+> │ PROJECTS AT RISK UPCOMING INSPECTIONS │
+>
+> │ ● Main St Office ← 8 days behind Today: │
+>
+> │ ● Riverside Apts ← Budget +12% • Oak St --- Elec Rough│
+>
+> │ ● Oak St Reno ← 2 failed inspections • Main St --- Framing │
+>
+> │ Tomorrow: │
+>
+> │ • Riverside --- Plumbing│
+>
+> ├─────────────────────────────────────────────────────────────────-─┤
+>
+> │ ACTIVE PROJECTS \[+ New Project\]│
+>
+> │ ┌───────────────────────────────────────────────────────────────┐│
+>
+> │ │ Project Name Status Budget% Schedule Open Items ││
+>
+> │ │ ─────────────────────────────────────────────────────────── ││
+>
+> │ │ Main St Office Active 68% ⚠ -8d 12 ││
+>
+> │ │ Riverside Apts Active ⚠ 112% On track 5 ││
+>
+> │ │ Oak St Reno Active 44% On track 8 ││
+>
+> │ └───────────────────────────────────────────────────────────────┘│
+>
+> ├───────────────────────────────────────────────────────────────────┤
+>
+> │ EXPIRING ITEMS RECENT ACTIVITY FEED │
+>
+> │ ⚠ Smith Electric COI --- 12 days • J.Rivera clocked in │
+>
+> │ ⚠ Martinez Plumbing license --- 28 days • Rough elec PASSED │
+>
+> │ ⚠ NE Framing bond --- 45 days • CO-004 approved │
+>
+> └───────────────────────────────────────────────────────────────────┘
+
+**3.1 Dashboard Widget Specs**
+
+  -------------------------------------------------------------------------
+  **Widget**       **Data Source**     **Click         **Roles**
+                                       Action**        
+  ---------------- ------------------- --------------- --------------------
+  KPI cards (top   Real-time counts    Click opens     Owner, PM
+  row)             from API            filtered list   
+
+  Projects at risk Projects where      Click opens     Owner, PM
+                   schedule_variance   project         
+                   \> 5 days OR                        
+                   budget_variance \>                  
+                   10%                                 
+
+  Upcoming         Inspections         Click opens     Owner, PM, Safety
+  inspections      scheduled next 7    inspection      
+                   days                detail          
+
+  Active projects  All projects with   Row click opens All except
+  table            status=\'active\'   project         Client/Sub
+
+  Expiring items   Vendor              Click opens     Owner, PM
+                   COIs/licenses       vendor detail   
+                   within 60 days                      
+
+  Activity feed    Last 20 platform    Click           Owner, PM
+                   events across all   deep-links to   
+                   projects            related record  
+  -------------------------------------------------------------------------
+
+**4. Project Dashboard**
+
+The project dashboard is the command center for a single job. PMs spend
+more time here than any other screen.
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ Main Street Office Build \[Active ▾\] \[⚙ Settings\] \[Share\]│
+>
+> │ 123 Main St, Springfield, IL • GC with Subs • PM: J. Davis │
+>
+> ├─────────────────────────────────────────────────────────────────────-┤
+>
+> │ CONTRACT: \$1.24M │ BILLED: \$387K (31%) │ ENDS: Jun 15, 2026 │
+>
+> ├──────────┬──────────┬────────────┬──────────┬────────────────────────┤
+>
+> │ SCHEDULE │ BUDGET │ FIELD OPS │ OPEN │ WEATHER │
+>
+> │ 68% │ \$840K / │ 23 on │ RFIs: 3 │ ☁ 48°F │
+>
+> │ complete │ \$1.24M │ site today│ COs: 4 │ Wind: 12mph │
+>
+> │ ⚠ -8 days│ ✓ 68% │ │ Punch: 6 │ No precip │
+>
+> ├──────────┴──────────┴────────────┴──────────┴────────────────────────┤
+>
+> │ SCHEDULE SNAPSHOT (last 14d / next 14d) │
+>
+> │
+> \[━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\|━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\]
+> │
+>
+> │ Framing ████████████████████████ ✓ Complete │
+>
+> │ Electrical ██████████████░░░░░░░░░░ In progress --- rough 60% │
+>
+> │ Plumbing ████████░░░░░░░░░░░░░░░░ In progress --- underground done │
+>
+> │ HVAC ░░░░░░░░░░░░░░░░░░░░░░░░ Not started --- starts Apr 1 │
+>
+> ├──────────────────────────────────────────────────────────────────────┤
+>
+> │ SUBCONTRACTORS │ RECENT INSPECTIONS │
+>
+> │ Smith Electric 🟡 60% │ ✓ Framing rough --- PASSED 3/10 │
+>
+> │ Martinez Plumb 🟢 75% │ ✗ Elec rough --- FAILED 3/8 (correction) │
+>
+> │ NE Framing ✅ Done │ ✓ Underground plumbing --- PASSED 3/5 │
+>
+> └──────────────────────────────────────────────────────────────────────┘
+
+**4.1 Project Tab Content Specs**
+
+  -------------------------------------------------------------------------
+  **Tab**      **Primary Content**                **Key Actions**
+  ------------ ---------------------------------- -------------------------
+  Overview     Dashboard widgets (above)          Quick links to open
+                                                  items, navigate to
+                                                  sub-sections
+
+  Schedule     Full Gantt chart --- all tasks,    Add task, set baseline,
+               dependencies, critical path        export PDF, filter by
+               highlighted                        trade
+
+  Budget       Budget line items table ---        Add line item, view
+               budgeted vs committed vs actual vs variance report, export
+               projected                          
+
+  Financials   Invoices, change orders, lien      Create invoice, create
+               waiver status tabs                 CO, send lien waiver
+                                                  request
+
+  Field        Daily reports list, inspection     Create report, schedule
+               log, punch list, time entries tabs inspection, add punch
+                                                  item
+
+  Docs         Plan sets, document library, photo Upload plans, upload doc,
+               feed tabs                          view plan viewer
+
+  Team         Project team members +             Add team member, assign
+               subcontractors on project          sub, manage sub portal
+                                                  access
+  -------------------------------------------------------------------------
+
+**5. Schedule / Gantt Screen**
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ Schedule --- Main St Office \[Baseline ▾\] \[Filter ▾\] \[Export
+> PDF\] │
+>
+> │ \[+ Add Task\] \[Group by: Trade ▾\] \[View: Gantt ▾\] \[⚠ 3
+> delayed\] │
+>
+> ├────────────────────────────────┬────────────────────────────────────-┤
+>
+> │ TASK LIST │ TIMELINE (Mar --- Jun 2026) │
+>
+> │ │ Mar│Apr│May│Jun │
+>
+> │ ▼ General │ │ │ │ │
+>
+> │ ○ Site prep 100% ✓ │ ██ │ │ │ │
+>
+> │ ○ Foundation 100% ✓ │ ███│ │ │ │
+>
+> │ ▼ Framing 100% ✓ │ │ │ │ │
+>
+> │ ○ Wall framing 100% ✓ │ ██│██ │ │ │
+>
+> │ ○ Roof framing 100% ✓ │ │███│ │ │
+>
+> │ ▼ Electrical ⚠ 60% │ │ │ │ │
+>
+> │ ● Rough-in 60% → │ │░░░│███│ │
+>
+> │ ○ Trim 0% │ │ │ │███ │
+>
+> │ ○ Final 0% │ │ │ │ █ │
+>
+> │ ▼ Plumbing 75% │ │ │ │ │
+>
+> │ ● Underground 100% ✓ │ ██│ │ │ │
+>
+> │ ● Rough-in 50% → │ │░██│███│ │
+>
+> │ ──────────────────────────── │ │ │ │ │
+>
+> │ ◆ Substantial Completion │ │ │ ◆│ │
+>
+> └────────────────────────────────┴─────────────────────────────────────┘
+>
+> ██ = actual ░░ = baseline (overrun) ◆ = milestone ● = in progress
+
+**5.1 Gantt Interaction Specs**
+
+-   Drag task bar to reschedule --- triggers dependency recalculation
+    cascade
+
+-   Click task row to open task detail side panel (not a new page ---
+    panel slides in from right)
+
+-   Task detail panel: name, dates, assignee, trade, % complete slider,
+    status, notes, linked inspection
+
+-   Critical path tasks highlighted in amber --- hover tooltip explains
+    why it\'s critical
+
+-   Baseline overlay: faint bar behind current bar shows original
+    planned dates when baseline exists
+
+-   Zoom controls: Day / Week / Month / Quarter --- default to Month
+    view
+
+-   Print to PDF: generates a clean A3/tabloid-format Gantt for site
+    posting
+
+-   Two-week lookahead button: filters to tasks active in next 14 days
+    --- quick foreman view
+
+**6. Budget & Financial Screens**
+
+**6.1 Budget Screen**
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ Budget --- Main St Office \[+ Add Line\] \[Export\] │
+>
+> ├──────────────────────────────────────────────────────────────────────┤
+>
+> │ Contract Value: \$1,240,000 ║ Projected Final: \$1,288,400 │
+>
+> │ Total Budget: \$1,240,000 ║ Projected Margin: ⚠ 3.8% (↓ 6.2%) │
+>
+> ├──────────────┬───────────┬────────────┬───────────┬──────────────────┤
+>
+> │ Category │ Budgeted │ Committed │ Actual │ Variance │
+>
+> ├──────────────┼───────────┼────────────┼───────────┼──────────────────┤
+>
+> │ ▼ Labor │ \$320,000 │ \$298,000 │ \$187,400 │ ✓ +\$22,000 │
+>
+> │ Framing │ \$80,000 │ \$80,000 │ \$80,000 │ ✓ \$0 │
+>
+> │ Electrical │ \$90,000 │ \$82,000 │ \$48,000 │ ✓ +\$8,000 │
+>
+> │ Plumbing │ \$75,000 │ \$71,000 │ \$39,400 │ ✓ +\$4,000 │
+>
+> │ ▼ Materials │ \$480,000 │ \$511,000 │ \$298,000 │ ⚠ -\$31,000 │
+>
+> │ Lumber │ \$120,000 │ \$138,000 │ \$138,000 │ ⚠ -\$18,000 │
+>
+> │ Electrical │ \$95,000 │ \$97,000 │ \$52,000 │ ✓ -\$2,000 │
+>
+> │ ▼ Subs │ \$380,000 │ \$380,000 │ \$181,000 │ ✓ \$0 │
+>
+> │ ▼ Overhead │ \$60,000 │ \$62,800 │ \$35,200 │ ⚠ -\$2,800 │
+>
+> └──────────────┴───────────┴────────────┴───────────┴──────────────────┘
+
+**6.2 Change Orders Screen**
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ Change Orders --- Main St Office \[+ New CO\] \[Filter ▾\] │
+>
+> │ Original Contract: \$1,240,000 │ Approved COs: +\$48,400 │
+>
+> │ Revised Contract: \$1,288,400 │ Pending COs: +\$12,000 │
+>
+> ├──────┬──────────────────────┬────────┬──────────┬────────────────────┤
+>
+> │ CO \# │ Title │ Amount │ Status │ Actions │
+>
+> ├──────┼──────────────────────┼────────┼──────────┼────────────────────┤
+>
+> │ 001 │ Foundation depth +2ft│+\$18,400│ ✓ Exec\'d │ View │
+>
+> │ 002 │ Elec panel upgrade │ +\$6,200│ ✓ Exec\'d │ View │
+>
+> │ 003 │ HVAC unit substitut. │+\$11,800│ ✓ Exec\'d │ View │
+>
+> │ 004 │ Additional windows │+\$12,000│ ⏳ Pending│ View Remind │
+>
+> │ 005 │ Concrete overpour │ +\$9,200│ 📝 Draft │ Edit Submit │
+>
+> └──────┴──────────────────────┴────────┴──────────┴────────────────────┘
+
+**6.3 Invoice Screen**
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ Invoices --- Main St Office \[+ New Invoice\] \[Filter ▾\] │
+>
+> │ Tabs: \[Owner Invoices ●\] \[Sub Invoices\] \[Lien Waivers\] │
+>
+> ├────────┬───────────────────┬──────────┬───────────┬──────────────────┤
+>
+> │ Inv \# │ Period │ Amount │ Status │ Actions │
+>
+> ├────────┼───────────────────┼──────────┼───────────┼──────────────────┤
+>
+> │ INV-01 │ Jan 1--31, 2026 │ \$124,000 │ ✓ Paid │ View PDF │
+>
+> │ INV-02 │ Feb 1--28, 2026 │ \$148,800 │ ✓ Paid │ View PDF │
+>
+> │ INV-03 │ Mar 1--13, 2026 │ \$114,200 │ ⏳ Approved│ View Payment │
+>
+> │ INV-04 │ Mar 14-- (current) │ --- │ 📝 Draft │ Edit Submit │
+>
+> └────────┴───────────────────┴──────────┴───────────┴──────────────────┘
+>
+> Retainage held: \$19,750 │ Retainage released: \$0 │ Total paid:
+> \$272,800
+
+**7. Field Operations Screens**
+
+**7.1 Daily Report --- Web View**
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ Daily Report --- Mar 13, 2026 Main St Office \[Submit\] \[Save\] │
+>
+> │ Submitted by: J. Rivera (Foreman) │
+>
+> ├──────────────────┬───────────────────────────────────────────────────┤
+>
+> │ WEATHER │ ☁ 48°F Wind 12mph Overcast No precipitation │
+>
+> │ (auto-populated) │ Weather delay: \[0 \] hrs │
+>
+> ├──────────────────┴───────────────────────────────────────────────────┤
+>
+> │ MANPOWER │
+>
+> │ Trade │ Workers │ Hours │ Notes │
+>
+> │ Electrical │ 6 │ 48 │ Rough-in floors 2-3 │
+>
+> │ Plumbing │ 4 │ 32 │ Rough-in bath cluster B │
+>
+> │ General Labor │ 3 │ 24 │ Cleanup, material handling │
+>
+> │ \[+ Add Trade Row\] │
+>
+> ├──────────────────────────────────────────────────────────────────────┤
+>
+> │ WORK PERFORMED │
+>
+> │ \[Completed electrical rough-in on floors 2 and 3, west wing. \]│
+>
+> │ \[Plumbing rough-in for bathroom cluster B --- underground inspected
+> \]│
+>
+> │ \[and passed this morning. Awaiting trim-out approval. \]│
+>
+> ├──────────────────────────────────────────────────────────────────────┤
+>
+> │ ISSUES & DELAYS │ MATERIALS RECEIVED │
+>
+> │ \[None today \]│ \[2 pallets EMT conduit delivered 9am \]│
+>
+> ├────────────────────────┴───────────────────────────────────────────-─┤
+>
+> │ PHOTOS \[📷 Add Photos\] VISITORS │
+>
+> │ \[thumb\]\[thumb\]\[thumb\]\[+4\] \[Building inspector --- Tom Moore
+> \]│
+>
+> └──────────────────────────────────────────────────────────────────────┘
+
+**7.2 Inspection Log Screen**
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ Inspections --- Main St Office \[+ Schedule Inspection\] \[Filter
+> ▾\] │
+>
+> ├──────┬──────────────────┬────────┬───────────┬──────────────────────
+> ┤
+>
+> │ Date │ Type │ Trade │ Result │ Actions │
+>
+> ├──────┼──────────────────┼────────┼───────────┼───────────────────────┤
+>
+> │ 3/13 │ Rough Electrical │ Elec │ ⏳ Sched. │ Record Result │
+>
+> │ 3/10 │ Rough Framing │ GC │ ✓ PASSED │ View Photos (3) │
+>
+> │ 3/8 │ Rough Electrical │ Elec │ ✗ FAILED │ View Corrections (2) │
+>
+> │ 3/5 │ Underground Plmb │ Plumb │ ✓ PASSED │ View Photos (6) │
+>
+> │ 2/28 │ Footing │ GC │ ✓ PASSED │ View │
+>
+> └──────┴──────────────────┴────────┴───────────┴───────────────────────┘
+>
+> Upcoming: Elec Rough re-inspection scheduled for 3/15
+
+**7.3 Punch List Screen**
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ Punch List --- Main St Office \[+ Add Item\] \[Export PDF\]
+> \[Filter\]│
+>
+> │ Open: 6 │ In Progress: 2 │ Complete: 14 │ Verified: 31 │
+>
+> ├──────┬────────────────────────────┬──────────┬───────┬──────────────-┤
+>
+> │ \# │ Description │ Location │ Trade │ Status │
+>
+> ├──────┼────────────────────────────┼──────────┼───────┼──────────────-┤
+>
+> │ PL-1│ Touch up paint --- SW corner │ Rm 204 │ Paint │ 🔴 Open │
+>
+> │ PL-2│ GFCI outlet not working │ Bath 2B │ Elec │ 🟡 In Prog │
+>
+> │ PL-3│ Cabinet door hinge misalig │ Kitchen │ GC │ 🔴 Open │
+>
+> │ PL-4│ Caulk gap at tub surround │ Bath 1A │ Plumb │ 🟢 Complete │
+>
+> └──────┴────────────────────────────┴──────────┴───────┴──────────────-┘
+
+**8. Document & Plan Screens**
+
+**8.1 Plan Viewer**
+
+The plan viewer is a critical differentiator --- field teams need to
+view large plan PDFs quickly on any device. The viewer must support:
+
+-   PDF rendering in-browser --- no download required
+
+-   Pan and zoom --- pinch-to-zoom on mobile, scroll wheel on desktop
+
+-   Revision selector --- dropdown to switch between plan revisions
+
+-   Page thumbnail strip --- navigate between sheets
+
+-   Offline caching --- downloaded plans available without connectivity
+    (mobile)
+
+-   RFI pin overlay --- optional: show RFI markers on the plan at their
+    referenced location
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ Electrical Plans --- Rev C (For Construction) \[Rev C ▾\] \[⬇ PDF\]
+> │
+>
+> │ \[🔍+\] \[🔍-\] \[⬛ Fit\] │ Sheet: E-101 Electrical Site Plan
+> \[E-101▾\] │
+>
+> ├──────┬───────────────────────────────────────────────────────────────┤
+>
+> │ E-100│ │
+>
+> │ E-101│ │
+>
+> │ E-102│ \[ PLAN PDF RENDERED HERE --- FULL WIDTH \] │
+>
+> │ E-103│ │
+>
+> │ E-104│ Pan/zoom enabled --- touch or mouse │
+>
+> │ E-105│ │
+>
+> │ │ │
+>
+> │ │ 📌 RFI-003 │
+>
+> │ │ (tap to view) │
+>
+> └──────┴───────────────────────────────────────────────────────────────┘
+
+**8.2 Document Center**
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ Documents --- Main St Office \[⬆ Upload\] \[🔍 Search\] \[Filter ▾\]
+> │
+>
+> │ Tabs: \[All ●\] \[Contracts\] \[Submittals\] \[Permits\]
+> \[Warranties\] │
+>
+> ├─────────────────────────────────────────────────────────────────────
+> ┤
+>
+> │ 📁 Contracts (3) ▸ │
+>
+> │ 📁 Submittals (12) ▸ │
+>
+> │ ├ SUB-001 Structural Steel shop drawings ✓ Approved View │
+>
+> │ ├ SUB-002 Electrical panels spec sheet ✓ Approved View │
+>
+> │ ├ SUB-003 Plumbing fixture schedule ⏳ Under Review View │
+>
+> │ 📁 Permits (4) ▸ │
+>
+> │ 📁 Safety (8) ▸ │
+>
+> │ 📁 General (14) ▸ │
+>
+> └──────────────────────────────────────────────────────────────────────┘
+
+**9. Client Portal Screens**
+
+The client portal is a curated, read-mostly view of the project. It
+should feel polished and professional --- this is what the client sees,
+and it reflects on the contractor\'s brand. Separate branding from the
+main platform (contractor\'s logo, optional custom color).
+
+> ┌──────────────────────────────────────────────────────────────────────┐
+>
+> │ 🏗 ABC General Contractors \[Main St Office ▾\] \[J.Chen ▾\] │
+>
+> ├──────────────────────────────────────────────────────────────────────┤
+>
+> │ MAIN STREET OFFICE BUILD │
+>
+> │ 123 Main St, Springfield, IL │
+>
+> │ │
+>
+> │ ████████████████████░░░░░ 68% Complete │
+>
+> │ │
+>
+> │ Est. Completion: June 15, 2026 On schedule ✓ │
+>
+> ├──────────────────────────────────────────────────────────────────────┤
+>
+> │ MILESTONES │ RECENT UPDATES │
+>
+> │ ✓ Foundation complete │ Mar 13 --- Framing complete │
+>
+> │ ✓ Framing complete │ Mar 10 --- Framing inspection PASSED │
+>
+> │ ⬜ MEP rough-in │ Mar 8 --- New photos added (12) │
+>
+> │ ⬜ Drywall │ Mar 5 --- Underground plumbing PASSED │
+>
+> │ ⬜ Finishes │ │
+>
+> │ ⬜ Certificate of Occ. │ │
+>
+> ├──────────────────────────────────────────────────────────────────────┤
+>
+> │ OPEN ITEMS REQUIRING YOUR ATTENTION │
+>
+> │ 📋 Change Order #004 --- Additional windows \[\$12,000\] \[Review
+> →\] │
+>
+> │ 💰 Invoice #003 --- March draw \[\$114,200\] \[Review →\] │
+>
+> └──────────────────────────────────────────────────────────────────────┘
+
+**9.1 Client Portal Navigation**
+
+  ------------------------------------------------------------------------
+  **Section**   **Content**                 **Key Interaction**
+  ------------- --------------------------- ------------------------------
+  Overview      Progress bar, milestone     Primary landing --- updated
+                timeline, weather, schedule daily
+                status, open items          
+                requiring attention         
+
+  Photos        Contractor-curated photo    Scroll, tap to enlarge,
+                feed with dates and         download individual photo
+                captions                    
+
+  Schedule      Milestone-only view --- no  Read-only. Updates when PM
+                task-level detail           marks milestones complete.
+
+  Change Orders Pending and approved COs    Approve or decline with a
+                --- description, amount,    tap/click
+                reason                      
+
+  Invoices      Current and historical      Stripe payment integration for
+                invoices --- download PDF,  online payment
+                approve and pay             
+
+  Documents     Permits, approved           Download, view in browser
+                submittals, warranties ---  
+                contractor-shared only      
+
+  Messages      Direct message thread with  Type and send --- PM notified
+                PM                          
+  ------------------------------------------------------------------------
+
+**10. Onboarding & Settings Screens**
+
+**10.1 New Tenant Onboarding Wizard**
+
+After signup, a step-by-step onboarding wizard guides the new tenant
+through setup. Each step is completable in under 2 minutes. The wizard
+is skippable at any point.
+
+  -----------------------------------------------------------------------------
+  **Step**   **Screen        **Content**                **Completion Criteria**
+             Title**                                    
+  ---------- --------------- -------------------------- -----------------------
+  1 of 5     Set up your     Company name (pre-filled), Name confirmed
+             company         trade type, logo upload,   
+                             state/country              
+
+  2 of 5     Create your     Project name, address, job Project created
+             first project   type, start date, contract 
+                             value (optional)           
+
+  3 of 5     Invite your     Email input with role      At least 1 invite sent
+             team            selector --- invite up to  OR skip
+                             5 people                   
+
+  4 of 5     Connect         \'Connect QuickBooks       Connected OR skipped
+             QuickBooks      Online\' button --- OAuth  
+                             flow --- or skip           
+
+  5 of 5     You\'re ready   Summary of what was set    Click \'Go to
+                             up, link to key features,  Dashboard\'
+                             help resources             
+  -----------------------------------------------------------------------------
+
+**10.2 Settings Screens**
+
+  -----------------------------------------------------------------------
+  **Settings         **Content**
+  Section**          
+  ------------------ ----------------------------------------------------
+  Company Profile    Name, logo, branding colors, address, license
+                     number, default contract terms
+
+  Users & Roles      User list, invite management, role assignment,
+                     deactivate users
+
+  Subscription &     Current plan, usage (users, projects, storage),
+  Billing            upgrade options, invoice history
+
+  Integrations       QuickBooks connection status + sync log, DocuSign
+                     connection, Stripe setup
+
+  Notifications      Global notification preferences --- which events
+                     trigger email/SMS/push
+
+  Trade Modules      Active trade modules for this tenant, enable/disable
+                     per subscription tier
+
+  Custom Fields      Add custom fields to projects, daily reports, or
+                     vendors --- name, type, required flag
+
+  Document Templates Upload company-wide contract templates, safety
+                     forms, and report templates
+
+  Client Portal      Portal logo, tagline, primary color, welcome message
+  Branding           
+  -----------------------------------------------------------------------
+
+**11. Language Selection & i18n UI**
+
+Language support is a visible product feature --- not just a technical
+implementation detail. The language selection experience must be obvious
+for Spanish-speaking users, discoverable for all users, and designed
+with the reality that many field workers will use their device in
+Spanish even if the app defaults to English.
+
+**11.1 Language Detection --- First-Run Behavior**
+
+  -----------------------------------------------------------------------
+  **Scenario**       **App Behavior**
+  ------------------ ----------------------------------------------------
+  Device locale =    App launches in Spanish automatically --- no prompt.
+  Spanish (es or     User sees onboarding wizard in Spanish.
+  es-\*)             
+
+  Device locale =    App launches in English (PT not yet supported in
+  Portuguese (pt or  v1.0) with a banner: \'Portuguese coming soon. Your
+  pt-BR)             app is in English for now.\'
+
+  Device locale =    App launches in English. Language selector visible
+  any other          in Profile settings.
+  unsupported        
+  language           
+
+  User was invited   Invitation email is in Spanish. App onboarding
+  by a               respects Accept-Language header from device.
+  Spanish-speaking   
+  tenant             
+
+  User changes       Immediate effect --- all screens re-render in new
+  language in        language. No restart required.
+  Profile            
+  -----------------------------------------------------------------------
+
+**11.2 Language Selector Component**
+
+The language selector appears in three locations: (1) the
+signup/onboarding wizard, (2) Profile Settings, and (3) the mobile
+app\'s first-run setup. It is a simple dropdown --- not buried in
+settings.
+
+> ┌─────────────────────────────────────────┐
+>
+> │ Language / Idioma │
+>
+> │ ● English │
+>
+> │ ○ Español │
+>
+> │ ○ Português (Brazilian) --- coming soon │
+>
+> │ ○ Kreyòl ayisyen --- coming soon │
+>
+> └─────────────────────────────────────────┘
+
+Language options labeled in both English AND the native language
+(\'Español\' not \'Spanish\', \'Português\' not \'Portuguese\') --- a
+Spanish speaker who doesn\'t read English must be able to identify their
+language.
+
+**11.3 Bilingual Labels --- Key UI Strings**
+
+Certain high-frequency UI elements use bilingual labels at launch ---
+especially in the mobile app --- to reduce friction for Spanish speakers
+even before they\'ve set their language preference:
+
+-   Clock In / Fichar Entrada --- shown bilingually until user has set
+    language preference
+
+-   Submit Report / Enviar Reporte --- daily report submit button on
+    mobile
+
+-   Inspection FAILED / INSPECCIÓN FALLIDA --- critical safety
+    notification always bilingual regardless of language setting
+
+-   Emergency contact / Contacto de emergencia --- safety onboarding
+    screen
+
+**11.4 RTL Layout Preparation**
+
+Arabic (v2.0+) requires right-to-left layout. The design system must be
+built with RTL in mind from v1.0 to avoid a rebuild later. Key design
+rules:
+
+-   Use CSS logical properties in all components: margin-inline-start,
+    padding-inline-end, border-inline-start --- never directional
+    margin-left/margin-right
+
+-   Icons that imply direction (arrows, navigation chevrons) must flip
+    in RTL --- use CSS transform: scaleX(-1) or dedicated RTL icon
+    variants
+
+-   Text alignment: use start/end not left/right --- text-align: start
+    aligns left in LTR, right in RTL automatically
+
+-   Bidirectional text: user-entered content may mix Arabic and English
+    --- use unicode-bidi: embed on text containers

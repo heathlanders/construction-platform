@@ -1,0 +1,27 @@
+# Assert the entry created with no network made it to the server.
+#
+# Today's Entries renders from `GET /v1/time-entries`, so the value can only appear
+# here if the batch push actually delivered a row that was written offline. That
+# round-trip is the whole §B2 claim in one assertion.
+#
+# This flow does NOT wait for the sync — the harness does (see run-offline-sync.sh:
+# it foregrounds the app, gives the sweep real time, and re-runs this flow a few
+# times). Keeping the waiting in bash means a failure here reads as "not synced yet"
+# rather than hiding inside a Maestro retry that also swallows selector mistakes.
+appId: com.thejobsite.app
+# HOURS is REQUIRED from the harness (-e HOURS=…) — see offline-log-time.yaml.
+---
+- launchApp        # resumes the running app (no clearState)
+- tapOn: 'Time'
+
+# Pull to refresh — the hub fetches entries once on mount, so a screen that was
+# mounted while offline will otherwise show a stale empty list forever.
+- swipe:
+    start: '50%,35%'
+    end: '50%,80%'
+- waitForAnimationToEnd
+
+- assertVisible: "Today's Entries"
+
+# `Number(hours_worked).toFixed(2)}h` — a server value, formatted by the row renderer.
+- assertVisible: '${HOURS}h'

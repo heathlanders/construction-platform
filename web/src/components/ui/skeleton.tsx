@@ -1,0 +1,24 @@
+/** Loading placeholder — replaces bare "Loading…" text (DESIGN.md §4). */
+export function Skeleton({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-surface-alt ${className}`} />;
+}
+
+/** A few stacked skeleton lines for list/table loading. */
+export function SkeletonRows({ rows = 5, className = '' }: { rows?: number; className?: string }) {
+  return (
+    <div className={`flex flex-col gap-2 ${className}`}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} className="h-10 w-full" />
+      ))}
+    </div>
+  );
+}
+
+export function Spinner({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg className={`animate-spin text-muted ${className}`} fill="none" viewBox="0 0 24 24" role="status" aria-label="Loading">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}

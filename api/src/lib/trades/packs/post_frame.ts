@@ -1,0 +1,256 @@
+// Trade Knowledge Pack — post_frame (Post-Frame Construction / pole barns). Wave 07 — NEW-TRADE pattern
+// (no hand recipe). Dossier: docs/trade-packs/dossiers/post_frame.md. Sources: NFBA Guide Specification
+// for Post-Frame Building Systems, ASABE EP 484/486/559 (reference only), UFGS 06 10 00, IBC 1807.3 /
+// 1809.5 / 2304.12 / 2306.1 and IRC R317 / R403.1.4.1 (reference only), 29 CFR 1926 (C, E, H, I, L, M, O,
+// P, CC), Wis. Stat. 101.01(11) (WI farm-building scope note).
+import { definePack, PENDING_ES } from './schema.js';
+
+const D = '2026-10-08';
+const nfba = { src: ['post_frame-nfba-guide-spec'], confidence: 'verified' as const, last_verified: D };
+const nfbaEp = { src: ['post_frame-nfba-guide-spec', 'post_frame-asabe-eps'], confidence: 'derived' as const, last_verified: D, note: 'NFBA guide spec practice; the numbers come from the sealed post-frame design (ASABE EPs), not from this pack.' };
+const ufgs = { src: ['ufgs-06-10-00'], confidence: 'derived' as const, last_verified: D, note: 'Rough-carpentry execution practice applied to post-frame members.' };
+const osha = (sub: string) => ({ src: [`ecfr-1926-${sub}`], confidence: 'verified' as const, last_verified: D });
+const est = (note: string) => ({ src: ['platform-baseline'], confidence: 'estimate' as const, last_verified: D, note });
+const icc = { src: ['icc-pa'], confidence: 'verified' as const, last_verified: D };
+
+export default definePack({
+  key: 'post_frame',
+  schema_version: 1,
+  pack_version: '1.0.0',
+  status: 'draft',
+  identity: {
+    summary: 'Builds post-frame (pole barn) structures: embedded or pier-mounted treated or laminated columns set on footing pads with uplift anchorage, plumbed and braced, then wall girts, roof purlins, knee and diaphragm bracing, with the steel skin fastened as the structural diaphragm. Truss supply/setting and metal panel trim are separate trades.',
+    summary_es: 'Construye edificios de marco de postes (pole barn): columnas tratadas o laminadas sobre zapatas con anclaje contra levantamiento, aplomadas y arriostradas; luego largueros, correas y riostras, con la lámina de acero fijada como diafragma. Las armaduras y los remates metálicos son otros oficios.',
+    glossary: [
+      { term: 'Post-frame building', term_es: 'Edificio de marco de postes', def: 'Building whose walls hang on widely spaced columns set in the ground or on piers, instead of stud walls on a continuous foundation.', def_es: 'Edificio cuyos muros cuelgan de columnas muy separadas, empotradas en el suelo o sobre pilares, en lugar de muros de montantes sobre cimentación corrida.' },
+      { term: 'Laminated column', term_es: 'Columna laminada', def: 'Column made of three or four boards nailed or glued together, usually with a treated lower section for the part in the ground.', def_es: 'Columna de tres o cuatro tablas clavadas o pegadas, normalmente con una sección inferior tratada para la parte enterrada.' },
+      { term: 'Footing pad', term_es: 'Zapata de apoyo', def: 'Precast or poured concrete disk at the bottom of the post hole that spreads the column load onto the soil.', def_es: 'Disco de concreto prefabricado o colado en el fondo del hoyo que reparte la carga de la columna sobre el suelo.' },
+      { term: 'Uplift anchor (cleat or collar)', term_es: 'Anclaje contra levantamiento (taco o collar)', def: 'Wood cleats, a concrete collar or a bracket at the base of the column that keeps wind from pulling it out of the ground.', def_es: 'Tacos de madera, un collar de concreto o un soporte en la base de la columna que evitan que el viento la arranque del suelo.' },
+      { term: 'Embedment depth', term_es: 'Profundidad de empotramiento', def: 'How deep the column sits in the ground; set by the engineer for frost, bearing and side load.', def_es: 'Qué tan profunda queda la columna en el suelo; la fija el ingeniero por helada, apoyo y carga lateral.' },
+      { term: 'Girt', term_es: 'Larguero de muro', def: 'Horizontal board run across the columns that the wall steel is screwed to.', def_es: 'Tabla horizontal colocada entre columnas a la que se atornilla la lámina del muro.' },
+      { term: 'Purlin', term_es: 'Correa', def: 'Board run across the trusses or rafters that the roof steel is screwed to.', def_es: 'Tabla colocada sobre las armaduras o vigas a la que se atornilla la lámina del techo.' },
+      { term: 'Splash plank (skirt board)', term_es: 'Tabla de zócalo', def: 'Treated bottom girt at grade that closes the base of the wall and takes splash and soil contact.', def_es: 'Larguero inferior tratado a nivel del suelo que cierra la base del muro y recibe salpicaduras y contacto con tierra.' },
+      { term: 'Diaphragm', term_es: 'Diafragma', def: 'The roof or wall skin acting with its framing as one stiff panel that carries wind to the end walls.', def_es: 'La lámina del techo o muro trabajando con su armazón como un panel rígido que lleva el viento hacia los muros de cabecera.' },
+      { term: 'Knee brace', term_es: 'Riostra de rodilla', def: 'Short diagonal from column to truss or header that stiffens the frame against sway.', def_es: 'Diagonal corta de la columna a la armadura o cabezal que rigidiza el marco contra el balanceo.' },
+    ],
+  },
+  est_bucket: 'building',
+  recipes: [
+    {
+      id: 'set_columns',
+      example_title: 'Set post-frame columns / poles & plumb',
+      when: { title_re: '(?:post[- ]?frame|pole)[^.]*\\b(?:columns?|posts?|poles?)\\b|\\b(?:set|plumb|erect|brace)\\b[^.]*\\b(?:columns?|posts?|poles?)\\b' },
+      steps: [
+        {
+          title: 'Check holes and pads before any column goes in',
+          instruction: 'Walk every hole against the column layout: spacing, diagonals, diameter and depth on the sealed post-frame plans. Bottoms below the frost line, on undisturbed soil, with loose material cleaned out. Footing pads (precast or poured) seated level and centered. Hold for the footing inspection where the AHJ requires one.',
+          tools: ['tape measure', 'string line', 'laser or transit', 'depth rod'],
+          materials: ['precast footing pads or pad concrete per plan'],
+          safety_ids: ['open_hole', 'utility_strike'],
+          qa_ids: ['layout_square', 'hole_depth_frost', 'pad_bearing', 'holes_covered'],
+          gating_inspection_type: 'footing',
+          code_refs: [{ section: '1807.3', code_type: 'IBC', note: 'Embedded posts and poles — embedment designed for the loads' }, { section: '1809.5', code_type: 'IBC', note: 'Frost protection of footings' }, { section: 'R403.1.4.1', code_type: 'IRC', note: 'Footings below frost depth (accessory buildings on IRC lots)' }],
+        },
+        {
+          title: 'Set columns with treated end down and anchor for uplift',
+          instruction: 'Lift each column with the telehandler or by hand crew and lower it onto its pad, treated section down and the face orientation shown on the plans. Fasten the uplift anchorage the plans call for — cleats, bracket or reinforcing for a concrete collar — before any backfill goes in.',
+          detail: 'Never field-cut the treated end that goes into the ground or notch a column without the designer’s approval.',
+          tools: ['telehandler or crew lift', 'drill/driver', 'framing nailer', 'sledge'],
+          materials: ['treated or laminated columns per plan', 'uplift cleats or anchor brackets', 'hot-dip galvanized or stainless fasteners'],
+          safety_ids: ['suspended_load', 'rigging', 'column_tipover', 'power_line'],
+          qa_ids: ['treatment_tag', 'uplift_anchor', 'lam_fasteners', 'no_field_cuts'],
+        },
+        {
+          title: 'Plumb, align and brace every column',
+          instruction: 'Pull string lines on the outside face of each wall. Plumb each column both ways and line it to the string, then set temporary diagonal braces in two directions staked to the ground. Mark the top bearing height for the truss or header from one benchmark so the roof line runs level.',
+          tools: ['4-ft level or post level', 'string line', 'laser', 'stakes'],
+          materials: ['2x temporary brace lumber', 'duplex nails or screws'],
+          safety_ids: ['column_tipover', 'backing_equipment'],
+          qa_ids: ['plumb_tolerance', 'bracing_complete'],
+        },
+        {
+          title: 'Backfill or pour collars, then recheck plumb',
+          instruction: 'Backfill with the material the plans specify — compacted native soil or coarse fill in thin lifts, concrete, or flowable fill (CLSM) — or pour the concrete collar around the uplift reinforcing. Recheck every column for plumb and line as the fill comes up and before the braces come off.',
+          tools: ['hand tamper or plate compactor', 'shovels', 'level'],
+          materials: ['backfill per plan', 'collar concrete per plan'],
+          safety_ids: ['open_hole', 'backing_equipment'],
+          qa_ids: ['backfill_lifts', 'plumb_tolerance'],
+          gating_inspection_type: 'framing',
+          code_refs: [{ section: 'R317.1.4', code_type: 'IRC', note: 'Wood columns — decay-resistant or preservative-treated wood' }, { section: '2304.12', code_type: 'IBC', note: 'Protection of wood against decay and termites' }],
+        },
+      ],
+    },
+    {
+      id: 'post_holes_pads',
+      priority: 10,
+      example_title: 'Auger post holes and set column footing pads',
+      when: { title_re: '\\b(?:post|column|pole)s?\\b[^.]*\\b(?:holes?|footings?|pads?|piers?|collars?)\\b|\\b(?:holes?|footings?|pads?|piers?|collars?)\\b[^.]*\\b(?:post|column|pole)s?\\b' },
+      steps: [
+        {
+          title: 'Locate utilities and stake column centers',
+          instruction: 'Get a utility locate ticket before digging and hand-expose any marked line near a hole. Stake each column center from the survey corners, check the building diagonals, and offset stakes so they survive the auger.',
+          tools: ['tape measure', 'transit or laser', 'stakes and paint'],
+          materials: ['marking paint', 'stakes'],
+          safety_ids: ['utility_strike'],
+          qa_ids: ['utilities_located', 'layout_square'],
+        },
+        {
+          title: 'Auger the holes to plan diameter and depth',
+          instruction: 'Drill each hole with the skid-steer or tractor auger to the diameter and depth on the post-frame plans, below the frost line. Clean loose soil from the bottom; if you hit soft soil, water or rock, stop and call the designer before going deeper or shallower. Cover or barricade every hole left open.',
+          tools: ['skid steer with auger', 'clean-out spade', 'depth rod'],
+          materials: ['hole covers or barricade'],
+          safety_ids: ['auger_entangle', 'open_hole', 'backing_equipment'],
+          qa_ids: ['hole_depth_frost', 'holes_covered'],
+        },
+        {
+          title: 'Set or pour the footing pads',
+          instruction: 'Drop precast pads flat and centered on undisturbed soil, or pour the pad concrete to the thickness on the plans. Precast or cast-in-place concrete piers go in here instead when the plans use pier-mounted columns. Hold for the footing inspection where required.',
+          tools: ['level', 'tape measure', 'wheelbarrow or chute'],
+          materials: ['precast footing pads or pad concrete', 'precast piers or pier forms where specified'],
+          safety_ids: ['open_hole', 'panel_cut'],
+          qa_ids: ['pad_bearing'],
+          gating_inspection_type: 'footing',
+          code_refs: [{ section: '1807.3', code_type: 'IBC', note: 'Embedded posts and poles — design for embedment and bearing' }, { section: '1809.5', code_type: 'IBC', note: 'Frost protection of footings' }],
+        },
+        {
+          title: 'Place uplift collars and backfill',
+          instruction: 'After the columns are set and braced, place the uplift anchorage — cleats, bracket or reinforcing — and pour the collar or backfill in lifts with the material the plans specify. Keep the treated section fully covered and recheck plumb before the braces come off.',
+          tools: ['hand tamper', 'level', 'shovels'],
+          materials: ['collar concrete or backfill per plan', 'uplift cleats or reinforcing'],
+          safety_ids: ['open_hole', 'column_tipover'],
+          qa_ids: ['uplift_anchor', 'backfill_lifts'],
+        },
+      ],
+    },
+    {
+      id: 'girts_purlins_bracing',
+      example_title: 'Install wall girts and roof purlins',
+      when: { title_re: '\\b(?:girts?|purlins?|knee[- ]?brac\\w*|diaphragm|splash plank|skirt ?board)\\b' },
+      steps: [
+        {
+          title: 'Hang the splash plank and wall girts',
+          instruction: 'Set the treated splash plank / skirt board to the grade line, then hang the wall girts at the spacing and position (outside face or inset) on the plans, fastened to each column with the fastener schedule from the design. Girts within 8 in. of grade must be treated for ground contact.',
+          tools: ['framing nailer or impact driver', 'level', 'chalk line', 'circular saw'],
+          materials: ['treated splash plank', 'girt lumber per plan', 'galvanized or stainless fasteners in treated wood'],
+          safety_ids: ['fall_edge', 'aerial_lift', 'panel_cut'],
+          qa_ids: ['girt_treated_grade', 'lam_fasteners'],
+          code_refs: [{ section: 'R317.3', code_type: 'IRC', note: 'Fasteners and connectors in contact with treated wood' }],
+        },
+        {
+          title: 'Install roof purlins on the trusses',
+          instruction: 'Once the trusses are set and braced, lay out purlins at the spacing, size and orientation (on edge or flat) shown on the plans and fasten them with the hangers, clips or screws specified. Work from a lift or a protected edge, never from an unbraced truss.',
+          tools: ['boom lift', 'impact driver', 'chalk line', 'tape measure'],
+          materials: ['purlin lumber per plan', 'purlin hangers or clips', 'structural screws'],
+          safety_ids: ['steep_roof', 'aerial_lift', 'fall_edge', 'suspended_load'],
+          qa_ids: ['purlin_spacing'],
+        },
+        {
+          title: 'Install permanent bracing',
+          instruction: 'Install every knee brace, truss and purlin brace, corner and endwall brace on the plans before the temporary column braces come off. Do not cut or remove a brace to clear a door or equipment without the designer’s approval.',
+          tools: ['impact driver', 'framing nailer', 'level'],
+          materials: ['brace lumber per plan', 'structural fasteners'],
+          safety_ids: ['column_tipover', 'aerial_lift', 'fall_edge'],
+          qa_ids: ['bracing_complete', 'no_field_cuts'],
+        },
+        {
+          title: 'Fasten the steel skin as the diaphragm',
+          instruction: 'The roof and wall steel is part of the structure. Check with the cladding crew that the screw pattern on purlins, girts, panel edges, endwalls and corners matches the design, including stitch screws at side laps and any extra rows at endwalls. Hold for the framing inspection with the bracing and skin fastening visible.',
+          tools: ['impact driver with screw gun bit'],
+          materials: ['diaphragm screws per design'],
+          safety_ids: ['steep_roof', 'panel_cut', 'aerial_lift'],
+          qa_ids: ['diaphragm_fasteners'],
+          gating_inspection_type: 'framing',
+          code_refs: [{ section: '2306.1', code_type: 'IBC', note: 'Wood design standards — includes post-frame diaphragm and foundation EPs' }],
+        },
+      ],
+    },
+  ],
+  code_refs: {
+    footing: [
+      { section: '1807.3', code_type: 'IBC', note: 'Embedded posts and poles — embedment designed for lateral and vertical loads', prov: icc },
+      { section: '1809.5', code_type: 'IBC', note: 'Frost protection of footings', prov: icc },
+      { section: 'R403.1.4.1', code_type: 'IRC', note: 'Frost protection — footings below frost depth', prov: icc },
+    ],
+    framing: [
+      { section: '2306.1', code_type: 'IBC', note: 'Wood design standards incl. ASABE post-frame diaphragm, post foundation, laminated column EPs', prov: icc },
+      { section: '2304.12', code_type: 'IBC', note: 'Protection of wood against decay and termites', prov: icc },
+      { section: 'R317.1.4', code_type: 'IRC', note: 'Wood columns — natural decay resistance or preservative treatment', prov: icc },
+      { section: 'R317.3', code_type: 'IRC', note: 'Fasteners and connectors in contact with treated wood', prov: icc },
+    ],
+  },
+  equipment: [
+    { when: { title_re: '\\b(?:auger|holes?|pads?|stake)\\b' }, type: 'skid_steer', reason: 'Auger attachment drills post holes to plan diameter and depth' },
+    { when: { title_re: '\\b(?:set|lift)\\b[^.]*\\bcolumns?\\b|\\bcolumns?\\b[^.]*\\b(?:set|lift)\\b' }, type: 'telehandler', reason: 'Lift and lower long laminated columns onto their pads', optional: true },
+    { when: { title_re: '\\b(?:girts?|purlins?|bracing|steel skin|diaphragm)\\b' }, type: 'boom_lift', reason: 'Work girts, purlins and bracing at eave height from a guarded platform' },
+    { when: { title_re: '\\bcolumns?\\b', building_types: ['commercial', 'industrial'] }, type: 'crane', reason: 'Set long glulam or heavy columns on large commercial post-frame buildings', optional: true },
+  ],
+  hazards: [
+    { id: 'utility_strike', hazard: 'Auger striking a buried electric, gas or water line', hazard_es: PENDING_ES, controls: ['Get a utility locate before digging and hand-expose marked lines near a hole', 'Stop and call the utility if an unmarked line is found'], controls_es: PENDING_ES, osha_ref: '1926.651(b)(1)', severity: 4, prov: osha('p') },
+    { id: 'open_hole', hazard: 'Stepping or falling into open post holes', hazard_es: PENDING_ES, controls: ['Cover or barricade every hole not being worked', 'Backfill or pour as soon as the column is set'], controls_es: PENDING_ES, osha_ref: '1926.501(b)(4)(ii)', severity: 2, prov: osha('m') },
+    { id: 'auger_entangle', hazard: 'Clothing or limbs caught in a turning auger flight', hazard_es: PENDING_ES, controls: ['Keep everyone clear of the flight while it turns; no hand-guiding the auger', 'Stop rotation and lower the auger before cleaning the hole'], controls_es: PENDING_ES, osha_ref: '1926.300(b)(2)', severity: 4, prov: osha('i') },
+    { id: 'column_tipover', hazard: 'Unbraced column or frame falling over, especially in wind', hazard_es: PENDING_ES, controls: ['Brace each column in two directions as soon as it is set', 'Leave temporary bracing until permanent bracing and cladding are in; stop work in high wind'], controls_es: PENDING_ES, osha_ref: '1926.20(b)(1)', severity: 4, prov: { src: ['ecfr-1926-c', 'post_frame-nfba-guide-spec'], confidence: 'verified', last_verified: D } },
+    { id: 'suspended_load', hazard: 'Struck by a column, truss or bundle while it is lifted', hazard_es: PENDING_ES, controls: ['Stay out of the fall zone except to guide the load, using a tag line', 'A telehandler hoisting with a hook or winch falls under the crane rules'], controls_es: PENDING_ES, osha_ref: '1926.1425(b)', severity: 4, prov: osha('cc') },
+    { id: 'power_line', hazard: 'Long columns or lift equipment contacting overhead power lines', hazard_es: PENDING_ES, controls: ['Identify the work zone and power-line clearances before lifting', 'Use a spotter when equipment or columns could reach toward a line'], controls_es: PENDING_ES, osha_ref: '1926.1408(a)', severity: 4, prov: osha('cc') },
+    { id: 'rigging', hazard: 'Sling or strap failure dropping a column or bundle', hazard_es: PENDING_ES, controls: ['Inspect slings and straps every shift; tag out damaged ones'], controls_es: PENDING_ES, osha_ref: '1926.251(a)(1)', severity: 3, prov: osha('h') },
+    { id: 'fall_edge', hazard: 'Fall from girts, eave edge or open endwall framing', hazard_es: PENDING_ES, controls: ['Use fall protection at 6 ft or more — guardrail, net or personal fall arrest', 'Never climb girts as a ladder'], controls_es: PENDING_ES, osha_ref: '1926.501(b)(1)', severity: 4, ppe: ['harness + lanyard when required'], prov: osha('m') },
+    { id: 'steep_roof', hazard: 'Sliding off a sloped roof while setting purlins or steel', hazard_es: PENDING_ES, controls: ['Guardrail with toeboards, safety net or personal fall arrest on steep roofs', 'Do not walk wet, frosted or oily steel'], controls_es: PENDING_ES, osha_ref: '1926.501(b)(11)', severity: 4, ppe: ['harness + lanyard', 'soft-sole boots'], prov: osha('m') },
+    { id: 'aerial_lift', hazard: 'Thrown from or tipping a boom lift on uneven ground', hazard_es: PENDING_ES, controls: ['Wear a harness tied to the basket anchor', 'Set up on firm, level ground away from open holes'], controls_es: PENDING_ES, osha_ref: '1926.453(b)(2)(v)', severity: 4, ppe: ['harness + lanyard'], prov: osha('l') },
+    { id: 'backing_equipment', hazard: 'Struck by a skid steer or telehandler backing around the layout', hazard_es: PENDING_ES, controls: ['Backup alarm working or a signal person when the rear view is blocked', 'Keep crew out of the swing and travel path'], controls_es: PENDING_ES, osha_ref: '1926.602(a)(9)(ii)', severity: 3, ppe: ['high-visibility vest'], prov: osha('o') },
+    { id: 'panel_cut', hazard: 'Cuts from steel panel edges, screw tips and wet concrete burns', hazard_es: PENDING_ES, controls: ['Wear cut-resistant gloves and long sleeves handling steel', 'Wear waterproof gloves and boots around wet concrete'], controls_es: PENDING_ES, osha_ref: '1926.95(a)', severity: 2, ppe: ['cut-resistant gloves', 'safety glasses'], prov: osha('e') },
+  ],
+  qa_checklist: [
+    { id: 'layout_square', phase: 'foundation', item: 'Column layout matches the plans: spacing, wall lines and building diagonals equal within the plan tolerance.', item_es: { status: 'translated', text: 'El trazo de columnas coincide con los planos: separación, líneas de muro y diagonales del edificio iguales dentro de la tolerancia del plano.' }, prov: nfba },
+    { id: 'hole_depth_frost', phase: 'foundation', item: 'Every hole meets plan diameter and depth, bottom below frost depth on undisturbed soil, loose material removed.', item_es: { status: 'translated', text: 'Cada hoyo cumple el diámetro y profundidad del plano, fondo bajo la línea de helada en suelo sin alterar y sin material suelto.' }, prov: nfbaEp },
+    { id: 'pad_bearing', phase: 'foundation', item: 'Footing pad size and thickness per plan, seated level and centered under the column.', item_es: { status: 'translated', text: 'Zapata con tamaño y espesor según plano, asentada a nivel y centrada bajo la columna.' }, prov: nfbaEp },
+    { id: 'treatment_tag', phase: 'framing', item: 'Column parts below grade and within 8 in. of grade are preservative-treated for ground contact (UC4B tag) or protected as the design allows.', item_es: { status: 'translated', text: 'Las partes de la columna bajo el suelo y a menos de 8 pulg. del nivel están tratadas para contacto con suelo (etiqueta UC4B) o protegidas según el diseño.' }, prov: nfba },
+    { id: 'uplift_anchor', phase: 'foundation', item: 'Uplift anchorage (cleats, bracket or collar reinforcing) installed per plan before backfill.', item_es: { status: 'translated', text: 'Anclaje contra levantamiento (tacos, soporte o refuerzo del collar) instalado según plano antes de rellenar.' }, prov: nfbaEp },
+    { id: 'plumb_tolerance', phase: 'framing', item: 'Columns plumb both ways and on line within the plan or NFBA framing tolerance; truss bearing heights set from one benchmark.', item_es: { status: 'translated', text: 'Columnas a plomo en ambos sentidos y alineadas dentro de la tolerancia del plano o de NFBA; alturas de apoyo de armaduras desde un solo punto de referencia.' }, prov: nfba },
+    { id: 'backfill_lifts', phase: 'foundation', item: 'Backfill is the type the plans call for (compacted soil, coarse fill, concrete or CLSM), placed in lifts with no voids.', item_es: { status: 'translated', text: 'El relleno es del tipo indicado en planos (suelo compactado, material grueso, concreto o CLSM), colocado por capas sin vacíos.' }, prov: nfba },
+    { id: 'lam_fasteners', phase: 'framing', item: 'Laminated column nailing pattern intact; every fastener in treated wood is hot-dip galvanized or stainless.', item_es: { status: 'translated', text: 'Patrón de clavado de la columna laminada intacto; todo sujetador en madera tratada es galvanizado en caliente o inoxidable.' }, prov: nfba },
+    { id: 'girt_treated_grade', phase: 'framing', item: 'Splash plank and any girt within 8 in. of grade are treated for ground contact (UC4A or better).', item_es: { status: 'translated', text: 'La tabla de zócalo y todo larguero a menos de 8 pulg. del nivel están tratados para contacto con suelo (UC4A o mejor).' }, prov: nfba },
+    { id: 'purlin_spacing', phase: 'framing', item: 'Purlin size, spacing and orientation match the plans; every hanger or clip fully fastened.', item_es: { status: 'translated', text: 'Tamaño, separación y orientación de las correas según planos; cada colgador o clip totalmente fijado.' }, prov: ufgs },
+    { id: 'no_field_cuts', phase: 'framing', item: 'No column, girt, purlin or brace cut, notched or removed without written approval from the designer of record.', item_es: { status: 'translated', text: 'Ninguna columna, larguero, correa o riostra cortada, ranurada o retirada sin aprobación escrita del diseñador responsable.' }, prov: nfba },
+    { id: 'diaphragm_fasteners', phase: 'framing', item: 'Steel skin screw pattern at purlins, girts, laps, endwalls and corners matches the diaphragm design, including stitch screws.', item_es: { status: 'translated', text: 'El patrón de tornillos de la lámina en correas, largueros, traslapes, muros de cabecera y esquinas coincide con el diseño del diafragma, incluyendo tornillos de costura.' }, prov: nfbaEp },
+    { id: 'bracing_complete', phase: 'framing', item: 'Temporary column bracing stays in until every permanent knee, truss and endwall brace and the cladding are installed.', item_es: PENDING_ES, safety: true, prov: nfba },
+    { id: 'holes_covered', phase: 'foundation', item: 'Open post holes are covered or barricaded whenever the crew is not working at them.', item_es: PENDING_ES, safety: true, prov: osha('m') },
+    { id: 'utilities_located', phase: 'site_prep', item: 'Utility locate ticket active and marks visible before the first hole is augered.', item_es: PENDING_ES, safety: true, prov: osha('p') },
+  ],
+  inspection_checklists: {
+    footing: [
+      { item: 'Holes at plan diameter and depth, bottoms below frost on undisturbed soil', item_es: PENDING_ES, ref: '1807.3' },
+      { item: 'Footing pads or piers per plan, level and centered', item_es: PENDING_ES },
+      { item: 'Sealed post-frame design drawings and column layout on site', item_es: PENDING_ES },
+    ],
+    framing: [
+      { item: 'Treated column sections and ground-contact girts carry the correct treatment tag', item_es: PENDING_ES, ref: 'R317.1.4' },
+      { item: 'Uplift anchorage and backfill per plan; columns plumb and on line', item_es: PENDING_ES },
+      { item: 'Knee, truss and endwall bracing complete; no unapproved cuts', item_es: PENDING_ES },
+      { item: 'Diaphragm screw pattern visible and matching the design', item_es: PENDING_ES, ref: '2306.1' },
+    ],
+    final: [
+      { item: 'Temporary bracing removed only after permanent bracing and cladding are complete', item_es: PENDING_ES },
+      { item: 'Splash plank intact and grade sloped away from the wall', item_es: PENDING_ES },
+    ],
+  },
+  assemblies: [
+    { code: 'B-PF-COLUMN-EA', name: 'Post-frame column, 3-ply laminated with treated lower section (~14–16 ft), set, plumbed and braced, each', name_es: 'Columna laminada de 3 capas con base tratada (~14–16 pies), colocada, aplomada y arriostrada, c/u', unit: 'EA', csi: '06 13 00',
+      description: 'Column only — hole, pad and uplift collar are B-PF-FOOTING-EA.',
+      material_cost_cents: { v: 18000, prov: est('mid-size 3-ply laminated 2x8 column with treated bottom + temporary brace lumber, national baseline 2026') }, labor_hours_per_unit: { v: 1.5, prov: est('2-person crew: set, orient, plumb, brace, recheck') },
+      equipment_cost_cents: { v: 2000, prov: est('telehandler day share') }, waste_pct: { v: 0, prov: est('columns ordered to length') } },
+    { code: 'B-PF-FOOTING-EA', name: 'Post hole augered + footing pad + uplift collar/cleats + backfill, per column', name_es: 'Hoyo perforado + zapata + collar o tacos contra levantamiento + relleno, por columna', unit: 'EA', csi: '31 63 00',
+      material_cost_cents: { v: 5500, prov: est('precast pad + ~0.15 CY collar concrete or cleats + fill, national baseline 2026') }, labor_hours_per_unit: { v: 1.25, prov: est('stake, auger, clean, set pad, collar/backfill in lifts') },
+      equipment_cost_cents: { v: 3000, prov: est('skid steer + auger attachment day share') }, waste_pct: { v: 5, prov: est('concrete over-order') } },
+    { code: 'B-PF-SECFRAME-SF', name: 'Post-frame secondary framing (girts, purlins, splash plank, knee/diaphragm bracing), per SF of footprint', name_es: 'Armazón secundario de marco de postes (largueros, correas, zócalo, riostras y arriostramiento), por pie² de planta', unit: 'SF', csi: '06 11 00',
+      description: 'Roughly 1.1 LF of girt + purlin per SF of footprint on a typical 40x60 barn; excludes trusses and steel skin.',
+      material_cost_cents: { v: 160, prov: est('≈1.1 LF SPF 2x4/2x6 + treated splash plank share + hangers and screws per SF footprint, 2026') }, labor_hours_per_unit: { v: 0.025, prov: est('girt, purlin and brace install from a lift') },
+      equipment_cost_cents: { v: 15, prov: est('boom lift share') }, waste_pct: { v: 10, prov: est('cut-offs and lap trim') } },
+  ],
+  quantity_rules: [
+    { code: 'B-PF-COLUMN-EA', assumption: '≈1 column per 100 SF of footprint (8 ft column spacing on a 40x60) — replace with the column schedule count', when: { facts_any: ['post_frame_columns'] }, qty: { basis: 'area_sf_sum', mul: 0.01, round: 'ceil' } },
+    { code: 'B-PF-FOOTING-EA', assumption: 'One hole, pad and uplift collar per post-frame column', when: { facts_any: ['post_frame_columns'] }, qty: { basis: 'area_sf_sum', mul: 0.01, round: 'ceil' } },
+    { code: 'B-PF-SECFRAME-SF', assumption: 'Girts, purlins and bracing over the pole-barn footprint (summed plan area)', when: { building_types: ['pole_barn'] }, qty: { basis: 'area_sf_sum', round: 'round' } },
+  ],
+  dependency_hints: [
+    { after_trades: ['surveying', 'excavation'], before_phase: 'roofing', note: 'Columns are set, braced and backfilled after layout and rough grade, and before trusses, purlins and the roof steel.' },
+  ],
+});

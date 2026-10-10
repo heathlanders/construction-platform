@@ -1,0 +1,291 @@
+// Trade Knowledge Pack — excavation (Excavation / Earthwork / Grading). Wave 06 — NEW-TRADE pattern
+// (not in HAND_RECIPE_KEYS; replaces the generic site-prep branch in task-buildout/building.ts).
+// Dossier: docs/trade-packs/dossiers/excavation.md. Sources: 29 CFR 1926 Subpart P (+ App. A–F) and
+// Subpart O, OSHA 2226 + Trench Safety QuickCard, UFGS 31 23 00, WisDOT Standard Spec 205/207/208 and
+// the WisDOT Average Unit Price List (FY 2023–2025), Wisconsin Digger's Hotline,
+// IRC R401.3/R403.1/R403.1.4/R404.1.7/R405.1/R406.1 (reference only).
+import { definePack, PENDING_ES } from './schema.js';
+
+const D = '2026-10-08';
+const osha = (sub: string) => ({ src: [`ecfr-1926-${sub}`], confidence: 'verified' as const, last_verified: D });
+const est = (note: string) => ({ src: ['platform-baseline'], confidence: 'estimate' as const, last_verified: D, note });
+const aup = (note: string) => ({ src: ['excavation-wisdot-aup'], confidence: 'derived' as const, last_verified: D, note });
+const irc = { src: ['icc-pa'], confidence: 'verified' as const, last_verified: D };
+const ufgs = { src: ['excavation-ufgs-31-23-00'], confidence: 'verified' as const, last_verified: D };
+const dot = (n: '205' | '207' | '208') => ({ src: [`excavation-wisdot-ss-${n}`], confidence: 'verified' as const, last_verified: D });
+const trench = { src: ['ecfr-1926-p', 'excavation-osha-trench-pubs'], confidence: 'verified' as const, last_verified: D };
+
+const EXCAVATE = '\\bexcavat|\\bbasement\\b|\\bdig\\b|over-?dig|\\bbackfill';
+const GRADE = 'cut\\s*/\\s*fill|\\bclearing\\b|\\bgrubbing\\b|mass\\s+grading|(?:finish|fine|final)\\s+grad|\\btopsoil\\b|\\bstrip(?:ping)?\\s+(?:sod|topsoil)';
+const TRENCH = '\\btrench|utility\\s+(?:line|excavat|trench)|\\blaterals?\\b|service\\s+line';
+
+export default definePack({
+  key: 'excavation',
+  schema_version: 1,
+  pack_version: '1.0.0',
+  status: 'draft',
+  identity: {
+    summary: 'Moves earth for the building and the lot — clearing and stripping topsoil, digging the basement or footing excavation to bearing soil, cutting utility trenches, placing and compacting backfill in lifts, and shaping rough and finish grades so water drains away from the house. Covers locates, trench and excavation protection, and the footing, backfill and final-grade checkpoints.',
+    summary_es: 'Mueve tierra para el edificio y el terreno — desmonte y retiro de capa vegetal, excavación del sótano o de las zapatas hasta suelo de apoyo, zanjas para servicios, relleno compactado por capas y nivelación gruesa y final para que el agua escurra lejos de la casa. Incluye localización de servicios, protección de zanjas y excavaciones, y los puntos de control de zapatas, relleno y nivel final.',
+    glossary: [
+      { term: 'Competent person', term_es: 'Persona competente', def: 'The person on site trained to spot cave-in and trench hazards and with authority to stop work and fix them.', def_es: 'La persona en obra capacitada para detectar peligros de derrumbe y zanjas, con autoridad para detener el trabajo y corregirlos.' },
+      { term: 'Protective system', term_es: 'Sistema de protección', def: 'Sloping, benching, shoring or a trench box that keeps the walls of a dig from caving in on workers.', def_es: 'Talud, escalonamiento, apuntalamiento o caja de zanja que evita que las paredes de la excavación se derrumben sobre los trabajadores.' },
+      { term: 'Spoil pile', term_es: 'Montón de tierra excavada', def: 'The dirt dug out of a hole or trench; it has to sit back from the edge so it cannot slide in.', def_es: 'La tierra sacada de un hoyo o zanja; debe quedar retirada del borde para que no se deslice adentro.' },
+      { term: 'Benching', term_es: 'Escalonamiento', def: 'Cutting the side of an excavation into steps so the wall is less likely to collapse.', def_es: 'Cortar la pared de una excavación en escalones para que sea menos probable que se derrumbe.' },
+      { term: 'Over-dig', term_es: 'Sobreexcavación', def: 'Extra width dug outside the foundation so crews can form, waterproof and drain the walls.', def_es: 'Ancho adicional excavado fuera de la cimentación para que las cuadrillas puedan cimbrar, impermeabilizar y drenar los muros.' },
+      { term: 'Lift', term_es: 'Capa (de relleno)', def: 'One layer of fill spread and compacted before the next layer goes on.', def_es: 'Una capa de relleno extendida y compactada antes de colocar la siguiente.' },
+      { term: 'Proctor (maximum dry density)', term_es: 'Proctor (densidad seca máxima)', def: 'Lab test that sets the target density compaction tests are compared against.', def_es: 'Prueba de laboratorio que fija la densidad objetivo contra la que se comparan las pruebas de compactación.' },
+      { term: 'Subgrade', term_es: 'Subrasante', def: 'The prepared soil surface that a slab, base course or pavement sits on.', def_es: 'La superficie de suelo preparada sobre la que se apoya una losa, base granular o pavimento.' },
+      { term: 'Undisturbed soil', term_es: 'Suelo no alterado', def: 'Native ground that has not been dug and loosened — what footings bear on unless engineered fill is used.', def_es: 'Terreno natural que no ha sido excavado ni aflojado — donde se apoyan las zapatas salvo que se use relleno de ingeniería.' },
+      { term: 'Cut and fill', term_es: 'Corte y relleno', def: 'Taking soil off high spots (cut) and placing it in low spots (fill) to reach plan grades.', def_es: 'Quitar suelo de las partes altas (corte) y colocarlo en las bajas (relleno) para llegar a los niveles del plano.' },
+    ],
+  },
+  est_bucket: 'building',
+  recipes: [
+    {
+      id: 'foundation_excavation_backfill',
+      example_title: 'Excavation & rough grading',
+      when: { title_re: EXCAVATE },
+      priority: 5,
+      steps: [
+        {
+          title: 'Locate utilities and check the soils data',
+          instruction: 'Confirm the one-call (811) ticket is active and every line is marked, then hand-expose any line within the tolerance zone before machine digging. Read the soils report or the plan’s assumed bearing value, and get the surveyor’s building corners, offsets and benchmark staked. Put erosion controls in before stripping.',
+          tools: ['site plan', 'marking paint', 'shovel / vacuum excavation for exposing lines'],
+          materials: ['offset stakes', 'silt fence or other perimeter control'],
+          safety_ids: ['utility_strike', 'overhead_lines'],
+          qa_ids: ['locates_marked', 'soil_report_bearing', 'benchmarks_staked', 'erosion_first'],
+        },
+        {
+          title: 'Strip topsoil and dig to bearing',
+          instruction: 'Strip and stockpile topsoil away from the dig. Excavate to the footing elevation from the benchmark with the over-dig the crew needs to form, waterproof and drain. Slope, bench, shore or box the walls before anyone goes in below 5 ft, keep spoil at least 2 ft back from the edge, and give a ladder or ramp within 25 ft of travel once the cut is 4 ft deep.',
+          detail: 'Water, frost, soft spots or organic soil in the bottom: stop and get direction — dig to firm soil and replace with compacted engineered fill or lean concrete, never loose spoil.',
+          tools: ['excavator', 'laser level / grade rod', 'dump truck for haul-off'],
+          materials: [],
+          safety_ids: ['cave_in', 'spoil_edge', 'trench_egress', 'competent_inspection', 'water_accum', 'earthmoving_backing', 'truck_backing', 'struck_by_load', 'undermining'],
+          qa_ids: ['topsoil_stockpiled', 'protective_system', 'spoil_setback'],
+        },
+        {
+          title: 'Ready the bottom for the footing inspection',
+          instruction: 'Hand-trim the footing bottom flat and to elevation on undisturbed soil or tested engineered fill, at least as deep as the local frost depth. Pump out water, remove frost and loose material, and leave the excavation open and safe to enter for the footing inspection.',
+          tools: ['laser level / grade rod', 'trimming shovel', 'trash pump'],
+          materials: [],
+          safety_ids: ['cave_in', 'trench_egress', 'water_accum'],
+          qa_ids: ['overdig_not_loose'],
+          gating_inspection_type: 'footing',
+          code_refs: [{ section: 'R403.1', code_type: 'IRC', note: 'Footings rest on undisturbed natural soil or engineered fill' }, { section: 'R403.1.4', code_type: 'IRC', note: 'Minimum footing depth, including frost protection' }],
+        },
+        {
+          title: 'Backfill in lifts after walls are inspected and braced',
+          instruction: 'Backfill only after the dampproofing/waterproofing and foundation drain are inspected and the walls are braced or the first floor framing is on. Place clean backfill — no debris, organics, frozen clods or large rock against the wall — in even lifts, compacting each one with equipment kept off the wall so it is not pushed in.',
+          tools: ['skid steer or excavator', 'plate compactor / jumping-jack', 'water truck or hose'],
+          materials: ['approved backfill (site or granular per plans)'],
+          safety_ids: ['cave_in', 'earthmoving_backing', 'struck_by_load'],
+          qa_ids: ['backfill_after_inspection', 'backfill_clean', 'compaction_lifts'],
+          code_refs: [{ section: 'R404.1.7', code_type: 'IRC', note: 'Backfill waits until walls have strength or are braced' }],
+        },
+        {
+          title: 'Rough grade away from the foundation',
+          instruction: 'Shape the backfill to fall away from the foundation, leaving room for topsoil, and swale water around the house toward the street or a drainage outlet. Keep or restore the erosion controls until the lot is stabilized.',
+          tools: ['skid steer', 'laser level'],
+          materials: [],
+          safety_ids: ['earthmoving_backing'],
+          qa_ids: ['positive_drainage', 'erosion_first'],
+        },
+      ],
+    },
+    {
+      id: 'site_grading',
+      example_title: 'Excavation, cut/fill & rough grading',
+      when: { title_re: GRADE },
+      priority: 8,
+      steps: [
+        {
+          title: 'Locate, stake and set controls',
+          instruction: 'Confirm the 811 ticket and marks, then have the surveyor stake grades, cut/fill marks and the benchmark. Install silt fence, a stone construction entrance and any inlet protection before disturbing the ground.',
+          tools: ['site / grading plan', 'marking paint'],
+          materials: ['grade stakes', 'silt fence', 'clear stone for the construction entrance'],
+          safety_ids: ['utility_strike', 'overhead_lines'],
+          qa_ids: ['locates_marked', 'benchmarks_staked', 'erosion_first'],
+        },
+        {
+          title: 'Clear, grub and strip topsoil',
+          instruction: 'Clear brush and grub stumps and roots inside the work limits, then strip topsoil and stockpile it where it will not wash off. Remove organic, frozen or soft material from areas that will receive fill or structures.',
+          tools: ['skid steer or dozer', 'excavator'],
+          materials: [],
+          safety_ids: ['earthmoving_backing', 'truck_backing', 'overhead_lines'],
+          qa_ids: ['topsoil_stockpiled', 'unsuitable_removed'],
+        },
+        {
+          title: 'Cut and fill in compacted lifts',
+          instruction: 'Cut high areas and place fill in thin, even lifts at workable moisture, compacting each lift before the next. Do not compact rutting-wet or frozen material — dry it, rework it or replace it. Proof-roll the subgrade and dig out soft spots.',
+          tools: ['dozer or skid steer', 'smooth-drum or padfoot roller', 'water truck'],
+          materials: ['approved fill / borrow'],
+          safety_ids: ['earthmoving_backing', 'truck_backing', 'struck_by_load'],
+          qa_ids: ['fill_material_ok', 'compaction_lifts', 'unsuitable_removed'],
+        },
+        {
+          title: 'Finish grade, spread topsoil and stabilize',
+          instruction: 'Bring subgrade to plan grades, spread the stockpiled topsoil, and fine-grade so the ground falls away from the building and swales carry water to the planned outlets. Seed, sod or mulch disturbed areas, then call for the final inspection.',
+          tools: ['skid steer with grading bucket', 'landscape rake', 'laser level'],
+          materials: ['topsoil (stockpiled)', 'seed / mulch or sod'],
+          safety_ids: ['earthmoving_backing'],
+          qa_ids: ['positive_drainage', 'erosion_first'],
+          gating_inspection_type: 'final',
+          code_refs: [{ section: 'R401.3', code_type: 'IRC', note: 'Lot graded to drain surface water away from foundation' }],
+        },
+      ],
+    },
+    {
+      id: 'utility_trench',
+      example_title: 'Utility trench excavation & backfill',
+      when: { title_re: TRENCH },
+      priority: 20,
+      steps: [
+        {
+          title: 'Locate lines and plan the trench',
+          instruction: 'Confirm the 811 marks and hand-expose crossing lines. Decide the protective system before digging: a trench 5 ft or deeper needs sloping, shoring or a trench box, and the competent person checks it before each shift and after rain.',
+          tools: ['marking paint', 'shovel / vacuum excavation'],
+          materials: [],
+          safety_ids: ['utility_strike', 'overhead_lines', 'competent_inspection'],
+          qa_ids: ['locates_marked'],
+        },
+        {
+          title: 'Dig the trench to line and grade',
+          instruction: 'Dig to the depth and slope the plans call for, setting the box or shoring as the trench advances. Keep spoil at least 2 ft back, put a ladder within 25 ft of every worker once the trench is 4 ft deep, test the air first if gas or low oxygen is possible, and keep water out.',
+          tools: ['excavator or trencher', 'trench box / shoring', 'laser or grade rod', 'gas meter where needed', 'trash pump'],
+          materials: [],
+          safety_ids: ['cave_in', 'spoil_edge', 'trench_egress', 'haz_atmosphere', 'water_accum', 'struck_by_load'],
+          qa_ids: ['protective_system', 'spoil_setback'],
+        },
+        {
+          title: 'Bed, backfill and compact',
+          instruction: 'Place bedding under the pipe or conduit and hand-tamp around it, lay tracer wire or warning tape where specified, then backfill in lifts and compact each one — mechanical compaction only after there is cover over the pipe. Restore the surface to grade.',
+          tools: ['plate compactor / jumping-jack', 'shovel'],
+          materials: ['bedding sand or stone', 'tracer wire / warning tape where specified', 'backfill'],
+          safety_ids: ['cave_in', 'earthmoving_backing'],
+          qa_ids: ['trench_bedding', 'compaction_lifts', 'backfill_clean'],
+        },
+      ],
+    },
+  ],
+  code_refs: {
+    footing: [
+      { section: 'R403.1', code_type: 'IRC', note: 'Footings on undisturbed natural soil or engineered fill', prov: irc },
+      { section: 'R403.1.4', code_type: 'IRC', note: 'Minimum footing depth below grade and frost protection', prov: irc },
+    ],
+    foundation: [
+      { section: 'R404.1.7', code_type: 'IRC', note: 'Backfill placement only after walls gain strength or are braced', prov: irc },
+      { section: 'R406.1', code_type: 'IRC', note: 'Dampproofing of below-grade foundation walls before backfill', prov: irc },
+      { section: 'R405.1', code_type: 'IRC', note: 'Foundation drains around below-grade spaces', prov: irc },
+    ],
+    final: [
+      { section: 'R401.3', code_type: 'IRC', note: 'Lot grading and drainage away from the foundation', prov: irc },
+    ],
+  },
+  equipment: [
+    { when: { title_re: `${EXCAVATE}|${TRENCH}|mass\\s+grading` }, type: 'excavator', reason: 'Dig the basement, footings or trench to grade and load trucks' },
+    { when: { title_re: `${GRADE}|\\bgrad(?:e|ing)\\b|\\bbackfill` }, type: 'skid_steer', reason: 'Strip topsoil, move fill, backfill and fine-grade' },
+    { when: { title_re: `\\bbackfill|\\bcompact|${TRENCH}|cut\\s*/\\s*fill|mass\\s+grading` }, type: 'compactor', reason: 'Compact fill and backfill in lifts' },
+    { when: { title_re: `\\bhaul|mass\\s+excavat|${EXCAVATE}` }, type: 'dump_truck', reason: 'Haul excess spoil off site or bring in fill', optional: true },
+    { when: { title_re: TRENCH }, type: 'trencher', reason: 'Narrow, shallow utility or irrigation trenches', optional: true },
+  ],
+  hazards: [
+    { id: 'utility_strike', hazard: 'Striking a buried gas, electric, water or communication line while digging', hazard_es: PENDING_ES, controls: ['Find the estimated location of underground lines before opening any excavation (call 811 and wait for marks)', 'Expose marked lines by hand or vacuum excavation before machine digging near them', 'Support or protect exposed lines while the excavation is open'], controls_es: PENDING_ES, osha_ref: '1926.651(b)(1)', severity: 4, prov: { src: ['ecfr-1926-p', 'excavation-diggers-hotline'], confidence: 'verified', last_verified: D } },
+    { id: 'cave_in', hazard: 'Cave-in burying or crushing a worker in an excavation or trench', hazard_es: PENDING_ES, controls: ['Protect every worker in an excavation 5 ft or deeper with sloping, benching, shoring or a shield (trench box)', 'Under 5 ft, only skip a protective system when the competent person finds no sign of a possible cave-in', 'Never enter an unprotected trench'], controls_es: PENDING_ES, osha_ref: '1926.652(a)(1)', severity: 4, ppe: ['hard hat', 'high-visibility vest'], prov: trench },
+    { id: 'trench_egress', hazard: 'Being trapped in a trench with no quick way out', hazard_es: PENDING_ES, controls: ['In trenches 4 ft or deeper, place a ladder, stair or ramp so no one travels more than 25 ft sideways to reach it'], controls_es: PENDING_ES, osha_ref: '1926.651(c)(2)', severity: 3, prov: osha('p') },
+    { id: 'spoil_edge', hazard: 'Spoil, rocks or equipment rolling or sliding into the excavation', hazard_es: PENDING_ES, controls: ['Keep spoil, materials and equipment at least 2 ft back from the edge, or use retaining devices', 'Scale loose rock and soil off the face'], controls_es: PENDING_ES, osha_ref: '1926.651(j)(2)', severity: 3, prov: osha('p') },
+    { id: 'competent_inspection', hazard: 'Unnoticed signs of failure — cracks, bulging, seepage, a failing shield', hazard_es: PENDING_ES, controls: ['Competent person inspects the excavation, adjacent areas and protective system daily before work, as needed during the shift, and after every rain', 'Pull workers out immediately when signs of a cave-in or system failure appear'], controls_es: PENDING_ES, osha_ref: '1926.651(k)(1)', severity: 4, prov: osha('p') },
+    { id: 'haz_atmosphere', hazard: 'Low oxygen or toxic/flammable gas in a trench (near landfills, fuel or sewer lines)', hazard_es: PENDING_ES, controls: ['Test the air before entry into excavations deeper than 4 ft where a hazardous atmosphere could exist', 'Ventilate or provide respiratory protection; keep rescue equipment ready and retest as needed'], controls_es: PENDING_ES, osha_ref: '1926.651(g)(1)(i)', severity: 4, ppe: ['4-gas meter where required'], prov: osha('p') },
+    { id: 'water_accum', hazard: 'Working in an excavation where water is collecting, softening the walls', hazard_es: PENDING_ES, controls: ['Do not work in accumulated or accumulating water unless the walls are supported and the water is controlled', 'Have the competent person watch any pumps, and divert surface runoff away from the excavation'], controls_es: PENDING_ES, osha_ref: '1926.651(h)(1)', severity: 3, prov: osha('p') },
+    { id: 'undermining', hazard: 'Collapse of an adjacent foundation, wall or sidewalk undercut by the excavation', hazard_es: PENDING_ES, controls: ['Do not dig below a nearby footing or retaining wall unless it is underpinned or shored, it is stable rock, or an engineer approves', 'Shore or brace adjoining structures whose stability is in question'], controls_es: PENDING_ES, osha_ref: '1926.651(i)(2)', severity: 4, prov: osha('p') },
+    { id: 'struck_by_load', hazard: 'Struck by a swinging bucket, falling load or spillage from a truck being loaded', hazard_es: PENDING_ES, controls: ['Never stand under loads handled by digging or lifting equipment', 'Stand clear of any vehicle being loaded or unloaded', 'Stay out of the excavator’s swing radius — barricade it'], controls_es: PENDING_ES, osha_ref: '1926.651(e)', severity: 3, ppe: ['hard hat', 'high-visibility vest'], prov: osha('p') },
+    { id: 'earthmoving_backing', hazard: 'Run over by a loader, dozer, skid steer or roller backing up', hazard_es: PENDING_ES, controls: ['Earthmoving and compacting equipment with an obstructed rear view needs a working back-up alarm or a signal person', 'Wear the seat belt on equipment with a rollover structure'], controls_es: PENDING_ES, osha_ref: '1926.602(a)(9)(ii)', severity: 4, ppe: ['high-visibility vest'], prov: osha('o') },
+    { id: 'truck_backing', hazard: 'Run over by a dump truck backing to the dig or the stockpile', hazard_es: PENDING_ES, controls: ['Trucks with an obstructed rear view back only with a working reverse alarm or when an observer signals it is safe', 'Set a one-way haul route and keep walkers out of it'], controls_es: PENDING_ES, osha_ref: '1926.601(b)(4)', severity: 4, ppe: ['high-visibility vest'], prov: osha('o') },
+    { id: 'overhead_lines', hazard: 'Excavator boom or dump body contacting overhead power lines', hazard_es: PENDING_ES, controls: ['Keep every part of the machine at least 10 ft from lines rated 50 kV or less (more for higher voltage) unless the line is de-energized and grounded', 'Use a spotter when working or traveling near lines'], controls_es: PENDING_ES, osha_ref: '1926.600(a)(6)', severity: 4, prov: osha('o') },
+  ],
+  qa_checklist: [
+    { id: 'locates_marked', item: 'One-call (811) ticket active and every marked line exposed or confirmed before machine digging near it; private lines located separately.', item_es: PENDING_ES, safety: true, prov: { src: ['ecfr-1926-p', 'excavation-diggers-hotline'], confidence: 'verified', last_verified: D } },
+    { id: 'soil_report_bearing', item: 'Soils report or plan bearing assumption on site; bottom soil matches it (no fill, organics or soft clay where native soil was expected).', item_es: { status: 'translated', text: 'Informe de suelos o capacidad de carga del plano en obra; el suelo del fondo coincide (sin relleno, materia orgánica ni arcilla blanda donde se esperaba suelo natural).' }, prov: ufgs },
+    { id: 'benchmarks_staked', item: 'Building corners, offsets and a protected benchmark staked by the surveyor; grades shot from that benchmark.', item_es: { status: 'translated', text: 'Esquinas del edificio, referencias y un banco de nivel protegido estacados por el topógrafo; niveles tomados desde ese banco.' }, prov: est('Standard layout practice — elevations are only as good as the benchmark.') },
+    { id: 'erosion_first', item: 'Perimeter erosion controls and a stone construction entrance installed before stripping, and kept working until the lot is stabilized.', item_es: { status: 'translated', text: 'Controles de erosión perimetrales y entrada de piedra instalados antes de retirar la capa vegetal y mantenidos hasta estabilizar el terreno.' }, prov: { src: ['excavation-wisdot-ss-205', 'excavation-ufgs-31-23-00'], confidence: 'derived', last_verified: D, note: 'Coordinate with the erosion_control trade and the site’s erosion-control plan.' } },
+    { id: 'topsoil_stockpiled', item: 'Topsoil stripped before cuts and fills and stockpiled separately from subsoil, protected from washing away.', item_es: { status: 'translated', text: 'Capa vegetal retirada antes de cortes y rellenos y acopiada aparte del subsuelo, protegida contra el lavado.' }, prov: dot('205') },
+    { id: 'unsuitable_removed', item: 'Organic, frozen, soft or wet unstable material removed from under fills, slabs and structures and replaced with approved fill.', item_es: { status: 'translated', text: 'Material orgánico, congelado, blando o húmedo inestable retirado bajo rellenos, losas y estructuras y reemplazado con relleno aprobado.' }, prov: dot('205') },
+    { id: 'overdig_not_loose', item: 'Footing bottom at plan elevation and frost depth on undisturbed soil or tested engineered fill — free of water, frost and mud; any over-dig replaced with compacted fill or lean concrete, never loose spoil.', item_es: { status: 'translated', text: 'Fondo de zapata al nivel del plano y a la profundidad de congelamiento sobre suelo no alterado o relleno de ingeniería probado — sin agua, escarcha ni lodo; toda sobreexcavación se repone con relleno compactado o concreto pobre, nunca tierra suelta.' }, prov: { src: ['icc-pa', 'excavation-ufgs-31-23-00'], confidence: 'verified', last_verified: D } },
+    { id: 'fill_material_ok', item: 'Imported fill approved before placement — no logs, stumps, brush, trash or other perishable material.', item_es: { status: 'translated', text: 'Relleno importado aprobado antes de colocarlo — sin troncos, tocones, ramas, basura ni otro material perecedero.' }, prov: { src: ['excavation-wisdot-ss-207', 'excavation-wisdot-ss-208'], confidence: 'verified', last_verified: D } },
+    { id: 'compaction_lifts', item: 'Fill and backfill placed in even lifts (generally 8 in. or less loose) at workable moisture and each lift compacted; density tested against the Proctor target where the plans or soils report specify.', item_es: { status: 'translated', text: 'Relleno colocado en capas parejas (en general 8 pulg. o menos sueltas) con humedad adecuada y cada capa compactada; densidad probada contra el valor Proctor donde lo pidan los planos o el informe de suelos.' }, prov: { src: ['excavation-wisdot-ss-207', 'excavation-ufgs-31-23-00'], confidence: 'verified', last_verified: D } },
+    { id: 'backfill_after_inspection', item: 'Foundation backfill placed only after dampproofing/waterproofing and drain tile are inspected and the walls are braced or the floor framing is on.', item_es: { status: 'translated', text: 'Relleno de cimentación colocado solo después de inspeccionar la impermeabilización y el tubo de drenaje y con los muros apuntalados o la estructura del piso colocada.' }, prov: irc },
+    { id: 'backfill_clean', item: 'Backfill against walls and around pipe free of debris, organics, frozen clods and large rock; equipment kept back from the wall while compacting.', item_es: { status: 'translated', text: 'Relleno junto a muros y alrededor de tuberías sin escombros, materia orgánica, terrones congelados ni rocas grandes; equipo alejado del muro al compactar.' }, prov: ufgs },
+    { id: 'trench_bedding', item: 'Pipe and conduit bedded and haunched by hand, tracer wire or warning tape placed where specified, cover over the pipe before mechanical compaction.', item_es: { status: 'translated', text: 'Tubería y conducto con cama y acostillado a mano, cable trazador o cinta de advertencia donde se especifique, y cubierta sobre el tubo antes de compactar con equipo.' }, prov: ufgs },
+    { id: 'positive_drainage', item: 'Finished grade falls away from the foundation on all sides and swales carry water to an approved outlet — no low spots against the house.', item_es: { status: 'translated', text: 'El nivel final cae alejándose de la cimentación por todos los lados y las cunetas llevan el agua a una salida aprobada — sin zonas bajas junto a la casa.' }, prov: irc },
+    { id: 'protective_system', item: 'Every excavation a worker enters at 5 ft or deeper is sloped, benched, shored or boxed before entry, and the competent person’s inspection is logged before each shift and after rain.', item_es: PENDING_ES, safety: true, prov: trench },
+    { id: 'spoil_setback', item: 'Spoil, materials and equipment held at least 2 ft back from every excavation edge.', item_es: PENDING_ES, safety: true, prov: osha('p') },
+  ],
+  inspection_checklists: {
+    footing: [
+      { item: 'Excavation at plan footing elevation and below the local frost depth', item_es: PENDING_ES, ref: 'R403.1.4' },
+      { item: 'Bottom on undisturbed soil or tested engineered fill; no loose spoil in over-digs', item_es: PENDING_ES, ref: 'R403.1' },
+      { item: 'No standing water, frost or mud in the footing excavation', item_es: PENDING_ES },
+      { item: 'Building location matches survey stakes and setbacks', item_es: PENDING_ES },
+      { item: 'Excavation safe for the inspector to enter (protected, ladder access, spoil back)', item_es: PENDING_ES, ref: '1926.652(a)(1)' },
+    ],
+    foundation: [
+      { item: 'Dampproofing/waterproofing and foundation drain inspected before any backfill', item_es: PENDING_ES, ref: 'R406.1' },
+      { item: 'Walls braced or floor framing installed before backfill', item_es: PENDING_ES, ref: 'R404.1.7' },
+      { item: 'Backfill material clean; compaction records available where specified', item_es: PENDING_ES },
+    ],
+    final: [
+      { item: 'Grade slopes away from the foundation on all sides; swales drain to an outlet', item_es: PENDING_ES, ref: 'R401.3' },
+      { item: 'Disturbed areas topsoiled and seeded, sodded or mulched; erosion controls maintained or removed as allowed', item_es: PENDING_ES },
+    ],
+  },
+  assemblies: [
+    { code: 'B-EXC-BULK-CY', name: 'Bulk excavation, common earth — dig and load or stockpile on site, per CY', name_es: 'Excavación masiva en tierra común — excavar y cargar o acopiar en obra, por YD3', unit: 'CY', csi: '31 23 16',
+      description: 'Basement / mass excavation in common (non-rock) soil, bank measure. Haul-off is a separate hauling line.',
+      material_cost_cents: { v: 0, prov: est('no material') },
+      labor_hours_per_unit: { v: 0.05, prov: aup('WisDOT 205.0100 Excavation Common FY23–25 avg ≈ $11.62/CY (highway bid); split ≈ 0.05 operator/laborer hr + equipment so a burdened rate lands near that average. Small residential digs run higher.') },
+      equipment_cost_cents: { v: 700, prov: aup('Balance of WisDOT 205.0100 3-yr average after labor (excavator + truck time share).') },
+      waste_pct: { v: 0, prov: est('bank-measure quantity; swell handled on the hauling line') } },
+    { code: 'B-EXC-ROCK-CY', name: 'Rock excavation with hydraulic hammer, per CY', name_es: 'Excavación en roca con martillo hidráulico, por YD3', unit: 'CY', csi: '31 23 16',
+      description: 'Ledge or boulders that cannot be dug with a bucket. Blasting is excluded.',
+      material_cost_cents: { v: 0, prov: est('no material') },
+      labor_hours_per_unit: { v: 0.35, prov: est('Hammering + loading on a small site; WisDOT 205.0200 Excavation Rock (≈$17/CY avg FY23–25) is a highway-scale floor, not a residential rate.') },
+      equipment_cost_cents: { v: 5500, prov: est('Excavator with hydraulic hammer attachment, wear parts, national baseline 2026') },
+      waste_pct: { v: 0, prov: est('bank measure') } },
+    { code: 'B-EXC-TRENCH-LF', name: 'Utility trench to ≈4 ft deep — excavate, bed, backfill and compact, per LF', name_es: 'Zanja para servicios hasta ≈4 pies — excavar, cama, rellenar y compactar, por pie lineal', unit: 'LF', csi: '31 23 16',
+      description: '≈2 ft wide, under 5 ft deep (no trench box). Pipe/conduit itself is priced by the utility trade.',
+      material_cost_cents: { v: 300, prov: est('≈0.07 CY bedding sand/stone per LF, national baseline 2026') },
+      labor_hours_per_unit: { v: 0.15, prov: est('dig, hand-bed, backfill in lifts, compact; ≈50–60 LF/crew-hr pair') },
+      equipment_cost_cents: { v: 400, prov: est('mini excavator / backhoe + plate compactor time share') },
+      waste_pct: { v: 10, prov: est('bedding over-order') } },
+    { code: 'B-EXC-STRUCT-BACKFILL-CY', name: 'Granular structural backfill — furnish, place and compact in lifts, per CY', name_es: 'Relleno estructural granular — suministrar, colocar y compactar por capas, por YD3', unit: 'CY', csi: '31 23 23',
+      description: 'Imported granular backfill against foundation walls or under structures. Native backfill from stockpile: delete the material cost.',
+      material_cost_cents: { v: 1200, prov: aup('WisDOT 209.2100 Backfill Granular Grade 2 FY23–25 avg ≈ $17.71/CY furnished + placed; ≈ $12 of that taken as material.') },
+      labor_hours_per_unit: { v: 0.06, prov: aup('Remainder of the WisDOT 209.2100 average split between labor and equipment; residential lifts against walls run slower.') },
+      equipment_cost_cents: { v: 250, prov: aup('Loader/skid steer + compactor share of the WisDOT 209.2100 average.') },
+      waste_pct: { v: 15, prov: est('compaction shrink from loose to compacted volume') } },
+    { code: 'B-EXC-FINE-GRADE-SF', name: 'Finish grading around the building, per SF', name_es: 'Nivelación final alrededor del edificio, por pie cuadrado', unit: 'SF', csi: '31 22 00',
+      description: 'Shape subgrade to plan grades and fine-grade topsoil for seed or sod. Topsoil import and seeding are separate.',
+      material_cost_cents: { v: 0, prov: est('no material — uses stockpiled topsoil') },
+      labor_hours_per_unit: { v: 0.003, prov: est('skid steer + hand rake ≈ 330 SF/crew-hr') },
+      equipment_cost_cents: { v: 4, prov: est('skid steer with grading bucket time share') },
+      waste_pct: { v: 0, prov: est('area item') } },
+    { code: 'B-EXC-COMPACT-TEST-EA', name: 'Field compaction (density) test by testing agency, each', name_es: 'Prueba de compactación (densidad) en campo por laboratorio, c/u', unit: 'EA', csi: '01 45 23',
+      description: 'One nuclear-gauge or equivalent field density test; the agency fee is carried in the equipment column so it is not taxed as material.',
+      material_cost_cents: { v: 0, prov: est('fee carried as equipment/service') },
+      labor_hours_per_unit: { v: 0, prov: est('agency technician — no crew hours') },
+      equipment_cost_cents: { v: 6500, prov: est('per-test share of a testing-agency site visit, national baseline 2026') },
+      waste_pct: { v: 0, prov: est('service') } },
+  ],
+  quantity_rules: [
+    { code: 'B-EXC-BULK-CY', assumption: 'Foundation walls on a single-family plan → basement dig allowance ≈ 550 CY (≈1,500 SF footprint + 3 ft over-dig × ≈8.5 ft) — replace with the plan footprint', when: { facts_any: ['foundation_wall'], building_types: ['residential_sf'] }, qty: { basis: { component: 'foundation_wall' }, mul: 550 } },
+    { code: 'B-EXC-STRUCT-BACKFILL-CY', assumption: 'Foundation-wall backfill in the over-dig ≈ 140 CY (≈160 LF perimeter × 3 ft × 8 ft) — remove material if site soil is reused', when: { facts_any: ['foundation_wall'], building_types: ['residential_sf'] }, qty: { basis: { component: 'foundation_wall' }, mul: 140 } },
+    { code: 'B-EXC-FINE-GRADE-SF', assumption: 'Finish grading allowance ≈ 5,000 SF of yard around a new single-family house with a foundation on the plans', when: { facts_any: ['foundation_wall', 'concrete_footing', 'slab_on_grade'], building_types: ['residential_sf'] }, qty: { basis: 'const', mul: 5000 } },
+    { code: 'B-EXC-COMPACT-TEST-EA', assumption: 'Allowance of 8 field density tests (fill, backfill and subgrade) on a commercial/industrial site — set from the testing plan', when: { building_types: ['commercial', 'industrial'] }, qty: { basis: 'const', mul: 8 } },
+    { code: 'B-AGG-BASE-SY', assumption: 'Compacted aggregate base under the slab-on-grade, plan floor area ÷ 9 (existing assembly)', when: { facts_any: ['slab_on_grade'] }, qty: { basis: 'area_sf_sum', mul: 1 / 9, round: 'ceil' } },
+  ],
+  dependency_hints: [
+    { after_trades: ['erosion_control'], before_phase: 'foundation', note: 'Perimeter erosion controls go in before stripping; excavation to bearing comes before footings.' },
+    { after_trades: ['waterproofing', 'concrete'], note: 'Foundation backfill waits for dampproofing, drain tile and the foundation inspection, with walls braced.' },
+  ],
+});

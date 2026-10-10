@@ -1,0 +1,1060 @@
+**\[PLATFORM NAME\]**
+
+Construction Management Platform
+
+**MOBILE APP SPECIFICATION**
+
+*Document 9 of 9 \| Version 1.0 \| Confidential*
+
+March 2026
+
+FOR ENGINEERING & MOBILE DEVELOPMENT --- CONFIDENTIAL
+
+**Table of Contents**
+
+**1. Overview & Platform Decision**
+
+The \[PLATFORM NAME\] mobile app is a first-class product --- not a
+companion app or a stripped-down version of the web platform. For field
+workers, it is the primary interface. This document specifies the full
+mobile app requirements, screens, offline capabilities, native
+integrations, and technical implementation decisions.
+
+**1.1 Platform Decision**
+
+> **Decision:**
+>
+> React Native --- iOS and Android from a single codebase. Rationale:
+> shares business logic and component patterns with the React web app,
+> significantly reduces development time, has the largest talent pool of
+> all cross-platform options, and delivers sufficient performance for
+> all required use cases (no 3D graphics or high-frequency animation).
+
+  --------------------------------------------------------------------------
+  **Option**   **Pros**                 **Cons**              **Decision**
+  ------------ ------------------------ --------------------- --------------
+  React Native Code sharing with web,   Slightly below native ✓ SELECTED
+               large talent pool, Expo  performance for       
+               toolchain, mature        complex animations    
+               ecosystem, OTA updates                         
+
+  Flutter      Excellent performance    Dart language         Rejected
+               and UI consistency,      (separate skill),     
+               growing ecosystem        less code sharing     
+                                        with React web        
+
+  Native       Best performance and     Two full codebases,   Rejected ---
+  (Swift +     platform integration     2× engineering cost,  not viable for
+  Kotlin)                               2× maintenance        v1.0 budget
+
+  Ionic /      Fastest initial dev for  Worst performance,    Rejected ---
+  Capacitor    web devs                 webview-based, poor   field use
+                                        offline support       requires real
+                                                              performance
+  --------------------------------------------------------------------------
+
+**1.2 Platform Support**
+
+  -----------------------------------------------------------------------------
+  **Platform**   **Minimum       **Target**   **Distribution**
+                 Version**                    
+  -------------- --------------- ------------ ---------------------------------
+  iOS            iOS 16.0        iOS 17+      Apple App Store
+
+  Android        Android 10 (API Android 13+  Google Play Store
+                 29)                          
+
+  Tablets        iPad (iOS 16+), Full         Same apps --- responsive layout
+                 Android tablet  responsive   
+                 (10+)           layout for   
+                                 10\" screens 
+  -----------------------------------------------------------------------------
+
+**1.3 Who Uses the Mobile App**
+
+  ------------------------------------------------------------------------
+  **User Type**   **Primary Use Cases**      **Mobile vs Web**
+  --------------- -------------------------- -----------------------------
+  Foreman         Clock crew in/out, daily   Primarily mobile --- rarely
+                  reports, inspect photos,   uses web
+                  task updates, voice notes  
+
+  Field           Clock in/out, task         Mobile only
+  Technician      completion, photo capture, 
+                  view schedule              
+
+  Project Manager Project dashboard review,  Hybrid --- both mobile and
+                  approve reports/invoices,  web
+                  respond to RFIs, schedule  
+                  changes                    
+
+  Owner           Dashboard review, approve  Primarily web --- occasional
+                  high-value items           mobile
+
+  Subcontractor   View scope, submit daily   Mobile-first
+  (portal)        reports, submit invoices,  
+                  sign lien waivers          
+
+  Client (portal) View progress photos,      Mobile-friendly portal
+                  approve COs and invoices,  (responsive web, not native
+                  view milestones            app)
+  ------------------------------------------------------------------------
+
+**2. Offline-First Architecture**
+
+> **Core Requirement:**
+>
+> The app MUST work with zero connectivity. Construction sites
+> frequently have no reliable cell service. A foreman cannot be unable
+> to submit a daily report or clock out their crew because of bad
+> signal. Every critical field flow must work offline.
+
+**2.1 Offline Data Strategy**
+
+  ---------------------------------------------------------------------------
+  **Data           **Offline Behavior**  **Storage        **Sync Direction**
+  Category**                             Method**         
+  ---------------- --------------------- ---------------- -------------------
+  Active project   Cached at last sync   SQLite           Read --- server →
+  list             --- available offline (WatermelonDB)   device
+
+  Project schedule Full task list cached SQLite           Read + write queue
+  (tasks)          --- can mark complete                  
+                   offline                                
+
+  Crew list        Employee names and    SQLite           Read only
+                   IDs cached                             
+
+  Plan PDFs        Manually              File system ---  Read only --- large
+                   pre-downloaded or     React Native FS  files
+                   auto-downloaded on                     
+                   project open                           
+
+  Daily reports    Created and queued    SQLite write     Write --- device →
+                   offline --- uploaded  queue            server
+                   on reconnect                           
+
+  Time entries     Clock in/out recorded SQLite write     Write --- device →
+                   locally with device   queue            server
+                   timestamp --- synced                   
+                   on reconnect                           
+
+  Task completions Marked complete       SQLite write     Write --- device →
+                   locally --- synced on queue            server
+                   reconnect                              
+
+  Photos           Captured and stored   File system +    Write --- device →
+                   locally --- uploaded  SQLite queue     server
+                   in background when                     
+                   connected                              
+
+  Notifications    Not available offline Not cached       N/A
+                   --- require                            
+                   connectivity                           
+  ---------------------------------------------------------------------------
+
+**2.2 Offline Queue & Sync Engine**
+
+The sync engine is the most technically complex component of the mobile
+app. It must handle:
+
+1.  Queue management --- all offline writes are added to a SQLite queue
+    table with: action_type, payload JSON, created_at, retry_count,
+    status
+
+2.  Background sync --- when connectivity is detected, the queue
+    processor runs automatically. It does not require the user to
+    manually trigger sync.
+
+3.  Ordered processing --- queue items are processed in created_at order
+    to maintain correct sequence (e.g. clock-in before clock-out)
+
+4.  Retry logic --- failed uploads retry up to 5 times with exponential
+    backoff
+
+5.  Conflict detection --- server returns a conflict flag if the record
+    was modified server-side since last sync. App surfaces a conflict
+    banner to the user.
+
+6.  Progress indicator --- sync status shown in the app header:
+    \'Syncing 3 items\...\' / \'✓ All synced\' / \'⚠ 2 items pending (no
+    connection)\'
+
+7.  Merge pull --- after pushing the queue, app pulls any server changes
+    since last sync timestamp
+
+**2.3 Local Database Schema**
+
+The app uses WatermelonDB (a high-performance SQLite-based database for
+React Native) for all local data. Key tables mirroring the server
+schema:
+
+-   projects --- id, name, status, job_type, sync_at
+
+-   schedule_tasks --- id, project_id, name, status, percent_complete,
+    planned_start, planned_end, sync_at
+
+-   employees --- id, name, trade, sync_at
+
+-   time_entries --- id, employee_id, project_id, clocked_in_at,
+    clocked_out_at, status (pending \| synced \| failed)
+
+-   daily_reports --- id, project_id, report_date, payload JSON, status
+    (draft \| pending_sync \| synced)
+
+-   sync_queue --- id, action_type, entity_type, entity_id, payload
+    JSON, created_at, retry_count, status
+
+-   plan_cache_index --- plan_revision_id, local_file_path, file_size,
+    cached_at
+
+**3. Mobile Navigation Architecture**
+
+The mobile app uses a bottom tab bar for primary navigation --- the
+industry standard for mobile apps. This is different from the web
+sidebar. Each tab is a full navigation stack.
+
+> ┌──────────────────────────────────────────┐
+>
+> │ ← Back Project: Main St Office 🔔 │ ← Top navigation bar
+>
+> │ │
+>
+> │ │
+>
+> │ │
+>
+> │ SCREEN CONTENT │
+>
+> │ │
+>
+> │ │
+>
+> │ │
+>
+> │ │
+>
+> │ │
+>
+> │ │
+>
+> │ │
+>
+> ├───────┬──────────┬──────────┬────────────┤
+>
+> │ 🏠 │ 📋 │ ⏱ │ 📁 │ ← Bottom tab bar
+>
+> │ Home │ Field │ Time │ Docs │
+>
+> └───────┴──────────┴──────────┴────────────┘
+
+**3.1 Bottom Tab Definitions**
+
+  ---------------------------------------------------------------------------
+  **Tab**   **Icon**    **Content**                       **Available To**
+  --------- ----------- --------------------------------- -------------------
+  Home      House       My projects list, company         All roles
+                        dashboard, notifications,         
+                        upcoming tasks                    
+
+  Field     Clipboard   Daily reports, inspections, punch Foreman, Field
+                        list, trade phases                Tech, Safety
+
+  Time      Clock       Clock in/out, crew clock-in, time Foreman, Field
+                        entry review                      Tech, Owner, PM
+
+  Docs      Folder      Plan viewer, document access,     All field roles
+                        photo capture, photo gallery      
+  ---------------------------------------------------------------------------
+
+**3.2 Floating Action Button (FAB)**
+
+A persistent floating action button (FAB) appears on the home screen and
+project screens. It provides one-tap access to the most common field
+actions without navigating menus:
+
+> ┌──────────────────────────────────────────┐
+>
+> │ │
+>
+> │ \[📷 Photo\] │ ← FAB expanded
+>
+> │ \[📋 Report\] │
+>
+> │ \[✓ Task\] │
+>
+> │ \[⏱ Clock\] │
+>
+> │ \[+\] │ ← FAB collapsed
+>
+> ├───────┬──────────┬──────────┬────────────┤
+>
+> │ Home │ Field │ Time │ Docs │
+>
+> └───────┴──────────┴──────────┴────────────┘
+
+FAB tap opens a radial/vertical menu with: Clock In/Out (context-aware),
+New Daily Report, Complete a Task, Take Photos. This is the \'zero
+training\' entry point for field workers.
+
+**4. Clock In / Out Flow**
+
+Clock in/out is the highest-frequency action in the app. It must work in
+under 10 seconds, with one hand, while wearing gloves, in direct
+sunlight. The flow is optimized for speed above all else.
+
+**4.1 Individual Clock-In Screen**
+
+> ┌──────────────────────────────────────────┐
+>
+> │ ← Time CLOCK IN │
+>
+> │ │
+>
+> │ Project: │
+>
+> │ ┌────────────────────────────────────┐ │
+>
+> │ │ Main St Office ▸│ │ ← Tap to change
+>
+> │ └────────────────────────────────────┘ │
+>
+> │ │
+>
+> │ 📍 123 Main St, Springfield, IL │
+>
+> │ ✓ You are within 300ft of the job site │
+>
+> │ │
+>
+> │ Cost Code (optional): │
+>
+> │ ┌────────────────────────────────────┐ │
+>
+> │ │ Electrical --- Rough-in ▸│ │
+>
+> │ └────────────────────────────────────┘ │
+>
+> │ │
+>
+> │ ┌────────────────────────────────────┐ │
+>
+> │ │ ⏱ CLOCK IN NOW │ │ ← Large primary button
+>
+> │ └────────────────────────────────────┘ │
+>
+> │ │
+>
+> └──────────────────────────────────────────┘
+
+**4.2 Crew Clock-In Screen (Foreman)**
+
+The foreman can clock in multiple workers simultaneously --- the most
+common morning flow on site:
+
+> ┌──────────────────────────────────────────┐
+>
+> │ ← Time CREW CLOCK IN │
+>
+> │ Main St Office • 📍 On site ✓ │
+>
+> │ │
+>
+> │ Select crew members: │
+>
+> │ ☑ J. Rivera (Electrical) │
+>
+> │ ☑ M. Torres (Electrical) │
+>
+> │ ☑ K. Johnson (Electrical) │
+>
+> │ ☐ D. Smith (Plumbing) --- on different │
+>
+> │ ☐ A. Lee (Plumbing) site today │
+>
+> │ ☑ R. Williams (Gen Labor) │
+>
+> │ │
+>
+> │ Selected: 4 workers │
+>
+> │ Cost code: Electrical --- Rough-in ▸ │
+>
+> │ │
+>
+> │ ┌────────────────────────────────────┐ │
+>
+> │ │ ⏱ CLOCK IN 4 WORKERS │ │
+>
+> │ └────────────────────────────────────┘ │
+>
+> └──────────────────────────────────────────┘
+
+**4.3 Geofencing Logic**
+
+-   On clock-in attempt, the app reads device GPS (requires location
+    permission)
+
+-   Distance calculated between device GPS and project
+    site_address.lat/lng
+
+-   If distance \< 500 feet: green confirmation --- \'You are on site
+    ✓\'
+
+-   If distance 500--2000 feet: yellow warning --- \'You appear to be
+    near the site. Continue?\'
+
+-   If distance \> 2000 feet: orange warning --- \'You are not at the
+    job site. Clock in anyway?\' --- PM is notified
+
+-   If GPS unavailable: allows clock-in with a flag --- PM sees \'(no
+    GPS)\' on the time entry
+
+-   Foreman crew clock-in: uses foreman\'s GPS for the entire crew ---
+    not each worker\'s device
+
+**5. Daily Report --- Mobile**
+
+The mobile daily report is optimized for voice and quick capture. A
+foreman should be able to submit a daily report in under 3 minutes at
+end of day.
+
+> ┌──────────────────────────────────────────┐
+>
+> │ ← Field DAILY REPORT │
+>
+> │ Main St Office • Mar 13, 2026 │
+>
+> │ │
+>
+> │ ☁ 48°F Overcast Wind 12mph (auto) │
+>
+> │ Weather delay: \[ 0 \] hours │
+>
+> │ │
+>
+> │ CREW ON SITE TODAY \[from clock\]│
+>
+> │ ┌──────────────────────────────────────┐│
+>
+> │ │ Electrical: 6 workers • 48 hrs total ││
+>
+> │ │ Plumbing: 4 workers • 32 hrs total ││
+>
+> │ │ Gen Labor: 3 workers • 24 hrs total ││
+>
+> │ └──────────────────────────────────────┘│
+>
+> │ ↑ Auto-populated from today\'s clock-ins │
+>
+> │ │
+>
+> │ WORK PERFORMED TODAY \[🎤 Dictate\] │
+>
+> │ ┌──────────────────────────────────────┐│
+>
+> │ │ Tap to type or use voice input\... ││
+>
+> │ └──────────────────────────────────────┘│
+>
+> │ │
+>
+> │ PHOTOS \[📷 Add\] │
+>
+> │ \[ \] \[ \] \[ \] + Add up to 20 │
+>
+> │ │
+>
+> │ ISSUES / DELAYS \[🎤 Dictate\] │
+>
+> │ ┌──────────────────────────────────────┐│
+>
+> │ │ None today ││
+>
+> │ └──────────────────────────────────────┘│
+>
+> │ │
+>
+> │ \[Save Draft\] \[▶ SUBMIT REPORT \] │
+>
+> └──────────────────────────────────────────┘
+
+**5.1 Voice Dictation Integration**
+
+-   Microphone button (🎤) on every text field --- long press to record,
+    release to transcribe
+
+-   Uses device native speech-to-text (iOS: SFSpeechRecognizer, Android:
+    SpeechRecognizer API)
+
+-   Works offline for short phrases --- full transcription requires
+    connectivity
+
+-   Transcribed text appears in the field --- user can edit before
+    submitting
+
+-   \'Work performed\' field supports multi-sentence dictation --- most
+    important use case
+
+**5.2 Photo Auto-Tagging**
+
+-   Photos taken within the daily report flow are automatically tagged
+    with: project, date, report, GPS coordinates
+
+-   Photos stored locally immediately --- uploaded in background when
+    connectivity available
+
+-   Up to 20 photos per daily report --- original resolution captured,
+    thumbnails generated on upload
+
+-   Photos from daily report automatically appear in project photo feed
+    on web
+
+**6. Task Completion & Inspection Screens**
+
+**6.1 My Tasks Screen**
+
+> ┌──────────────────────────────────────────┐
+>
+> │ ← Home MY TASKS Today / Week ⇄ │
+>
+> │ │
+>
+> │ TODAY --- Mar 13 │
+>
+> │ Main St Office │
+>
+> │ ┌──────────────────────────────────────┐│
+>
+> │ │ ○ Complete elec rough-in Floor 3 ││
+>
+> │ │ Electrical • Due today ││ ← Tap to mark complete
+>
+> │ └──────────────────────────────────────┘│
+>
+> │ ┌──────────────────────────────────────┐│
+>
+> │ │ ○ Plumbing rough-in --- Bath cluster B ││
+>
+> │ │ Plumbing • Due today ││
+>
+> │ └──────────────────────────────────────┘│
+>
+> │ │
+>
+> │ UPCOMING --- Next 7 days │
+>
+> │ ┌──────────────────────────────────────┐│
+>
+> │ │ ○ Final electrical trim --- Floors 1-3 ││
+>
+> │ │ Electrical • Due Mar 18 ││
+>
+> │ └──────────────────────────────────────┘│
+>
+> └──────────────────────────────────────────┘
+
+Tapping a task opens a task completion sheet (bottom sheet modal). The
+user confirms percent complete (slider from current value to 100%), adds
+optional notes, and can attach photos. Submitting while offline queues
+the update.
+
+**6.2 Record Inspection Result Screen**
+
+> ┌──────────────────────────────────────────┐
+>
+> │ ← Inspections RECORD RESULT │
+>
+> │ Electrical Rough-In • Mar 13, 2026 │
+>
+> │ Inspector: Tom Moore • AHJ: City Bldg │
+>
+> │ │
+>
+> │ RESULT: │
+>
+> │ ┌──────────────┐ ┌────────────────────┐│
+>
+> │ │ ✓ PASSED │ │ ✗ FAILED ││ ← Large tap targets
+>
+> │ └──────────────┘ └────────────────────┘│
+>
+> │ │
+>
+> │ Inspector Notes: │
+>
+> │ ┌──────────────────────────────────────┐│
+>
+> │ │ \[type or dictate\...\] ││
+>
+> │ └──────────────────────────────────────┘│
+>
+> │ │
+>
+> │ Photos: \[📷 Add Photos\] │
+>
+> │ \[ \] \[ \] \[ \] │
+>
+> │ │
+>
+> │ Re-inspection needed: \[ \] Yes │
+>
+> │ │
+>
+> │ \[ SAVE RESULT \] │
+>
+> └──────────────────────────────────────────┘
+
+**7. Mobile Plan Viewer**
+
+Plan viewing on mobile is one of the most technically demanding
+features. Construction plans are often 50--200MB PDFs with fine detail
+that must be readable at zoom. The implementation must handle large
+files smoothly.
+
+> ┌──────────────────────────────────────────┐
+>
+> │ ← Docs PLANS │
+>
+> │ Electrical Plans --- Rev C \[Rev C ▾\] │
+>
+> │ \[E-101 ▾\] E-101 Electrical Site Plan │
+>
+> ├──────────────────────────────────────────┤
+>
+> │ │
+>
+> │ │
+>
+> │ │
+>
+> │ \[ PLAN PDF --- FULL SCREEN \] │
+>
+> │ │
+>
+> │ Pinch to zoom │
+>
+> │ Swipe to pan │
+>
+> │ Double tap to zoom 200% │
+>
+> │ │
+>
+> │ │
+>
+> │ │
+>
+> │ │
+>
+> │ 📌 RFI-003 │
+>
+> ├──────────────────────────────────────────┤
+>
+> │ ◀ E-100 Sheet 2 of 8 E-102 ▶ \[⬇ DL\] │
+>
+> └──────────────────────────────────────────┘
+
+**7.1 Plan Viewer Technical Requirements**
+
+  ---------------------------------------------------------------------------
+  **Requirement**    **Specification**   **Implementation Approach**
+  ------------------ ------------------- ------------------------------------
+  PDF rendering      Smooth zoom to      react-native-pdf or custom PDF.js
+                     400%+ without       bridge --- vector rendering, not
+                     quality loss        rasterized
+
+  File caching       Plans cached        React Native FS --- cache to device
+                     locally after first storage, cache index in SQLite
+                     open --- no         
+                     re-download         
+
+  Large file         50MB+ PDFs open in  Progressive rendering --- render
+  handling           \< 5 seconds        visible portion first, stream
+                                         remainder
+
+  Offline access     Previously          Cache index tracks which revisions
+                     downloaded plans    are locally available
+                     available offline   
+
+  Page navigation    Swipe between pages Bottom sheet picker + left/right
+                     or use sheet picker swipe gesture
+
+  RFI pins           Optional overlay of Transparent overlay layer with
+                     RFI location        tappable markers
+                     markers             
+
+  Download for       Explicit \'Download Downloads all pages of current
+  offline            for offline\'       revision to device storage
+                     button per plan set 
+  ---------------------------------------------------------------------------
+
+**8. Push Notifications & Camera**
+
+**8.1 Push Notifications**
+
+Push notifications are critical for keeping field workers and PMs
+informed in real time. The app uses APNs (iOS) and FCM (Android).
+
+  --------------------------------------------------------------------------
+  **Notification Event**  **Recipient**    **Tap Action**     **Priority**
+  ----------------------- ---------------- ------------------ --------------
+  Inspection result ---   PM + Foreman on  Opens inspection   High --- alert
+  FAILED                  project          result screen      sound
+
+  Inspection result ---   PM + Foreman     Opens inspection   Normal
+  PASSED                                   detail             
+
+  Change order requires   PM (if           Opens CO detail    High
+  approval                owner-to-gc) or                     
+                          Client (owner                       
+                          CO)                                 
+
+  Invoice approved / paid PM + Accountant  Opens invoice      Normal
+                                           detail             
+
+  Daily report submitted  PM               Opens daily report Normal ---
+                                                              silent
+
+  New RFI assigned to you Assigned user    Opens RFI detail   Normal
+
+  Task marked complete    PM               Opens task detail  Low --- silent
+  (on your scope)                                             
+
+  Schedule task overdue   PM + assigned    Opens task detail  Normal
+                          user                                
+
+  Vendor COI expiring     Owner + PM       Opens vendor       Normal
+  soon                                     detail             
+
+  Clock-out reminder      Field tech (if   Opens time screen  Normal
+                          still clocked in                    
+                          after 9 hours)                      
+
+  New message in project  Participants     Opens message      Normal
+  thread                                   thread             
+
+  Punch list item         Assignee         Opens punch list   Normal
+  assigned to you                          item               
+  --------------------------------------------------------------------------
+
+**8.2 Camera & Media Integration**
+
+-   Photo capture: React Native Camera --- full resolution capture, EXIF
+    data preserved (GPS, timestamp)
+
+-   Batch capture mode: field workers stay in camera mode and capture
+    multiple photos in sequence
+
+-   Photo compression: images resized to 2048px max dimension, JPEG 85%
+    quality before upload --- reduces bandwidth without meaningful
+    quality loss at viewing size
+
+-   Thumbnails: 200px thumbnails generated on server after upload ---
+    used in lists and feeds
+
+-   Video: not supported in v1.0 --- file size and bandwidth concerns.
+    Planned for v2.0.
+
+-   Document scanning: camera-based document capture for field notes or
+    paper forms --- auto-cropping and perspective correction via ML Kit
+    (future)
+
+**9. Technical Specification**
+
+**9.1 Technology Stack**
+
+  ------------------------------------------------------------------------
+  **Component**   **Technology**     **Version   **Notes**
+                                     Target**    
+  --------------- ------------------ ----------- -------------------------
+  Framework       React Native       0.73+       Expo-managed workflow for
+                                                 OTA updates and build
+                                                 simplification
+
+  Navigation      React Navigation   6.x         Stack + Bottom Tab
+                  v6                             navigators
+
+  Local database  WatermelonDB       0.27+       High-performance SQLite
+                                                 ORM --- handles large
+                                                 local datasets
+                                                 efficiently
+
+  State           Zustand            4.x         Lightweight, performant
+  management                                     --- no Redux complexity
+                                                 for mobile
+
+  API client      Axios + React      5.x         Caching, background
+                  Query                          refetch, offline-aware
+                                                 query config
+
+  PDF viewer      react-native-pdf   6.x         iOS PDFKit + Android
+                                                 PdfiumAndroid bridge
+
+  Camera          React Native       3.x         High performance camera
+                  Vision Camera                  with EXIF support
+
+  Maps /          React Native       N/A         Address validation and
+  geocoding       Maps + Google                  geofencing
+                  Places SDK                     
+
+  Push            Firebase Cloud     N/A         via react-native-firebase
+  notifications   Messaging + APNs               
+
+  Offline storage WatermelonDB +     N/A         SQLite for structured
+                  React Native FS                data, file system for
+                                                 documents and plans
+
+  Auth token      React Native       N/A         Secure enclave / Keystore
+  storage         Keychain                       --- never AsyncStorage
+                                                 for tokens
+
+  OTA updates     Expo Updates (EAS  N/A         Ship JS bundle updates
+                  Update)                        without App Store review
+                                                 for bug fixes
+
+  Build & CI      EAS Build          N/A         Cloud-based iOS and
+                                                 Android builds --- no Mac
+                                                 required for Android devs
+
+  Crash reporting Sentry             N/A         Mobile crash and
+                                                 performance monitoring
+  ------------------------------------------------------------------------
+
+**9.2 Security Requirements**
+
+-   JWT tokens stored in React Native Keychain (iOS Keychain / Android
+    Keystore) --- never in AsyncStorage which is unencrypted
+
+-   Biometric authentication: Face ID / Touch ID option for app unlock
+    --- token is unlocked from Keychain after biometric success
+
+-   Certificate pinning: API calls validate against pinned certificate
+    to prevent MITM attacks
+
+-   Screenshot prevention: sensitive financial screens use FLAG_SECURE
+    (Android) / UIScreen.isCaptured detection (iOS) to prevent
+    screenshots --- configurable
+
+-   Jailbreak/root detection: app logs a warning if device is jailbroken
+    or rooted --- does not block use but flags in audit log
+
+-   Auto-lock: app locks after 30 minutes of inactivity --- requires
+    biometric or PIN to re-enter
+
+**9.3 Performance Requirements**
+
+  -----------------------------------------------------------------------
+  **Metric**         **Target**      **Measurement**
+  ------------------ --------------- ------------------------------------
+  App cold start     \< 3 seconds to Measured on mid-range Android device
+                     interactive     
+
+  App warm start     \< 1 second     Device has recent memory --- app
+                                     resumes quickly
+
+  Time to            \< 2 seconds on React Query cache serves data
+  interactive (home  good            immediately, background refetch
+  screen)            connectivity    
+
+  Clock-in flow time \< 10 seconds   From tap to confirmed clock-in ---
+                     end-to-end      includes GPS reading
+
+  Plan viewer open   \< 2 seconds    Plan already downloaded to device
+  (cached)                           
+
+  Plan viewer open   \< 5 seconds    On LTE --- progressive render starts
+  (download)         per 10MB        within 1 second
+
+  Daily report       \< 5 seconds    Report submitted + photos begin
+  submit             (online),       uploading in background
+                     instant         
+                     (offline queue) 
+
+  Photo capture to   \< 1 second     Camera to confirmation --- no
+  saved                              blocking upload required
+
+  Offline sync (100  \< 30 seconds   Batch upload of accumulated field
+  queued items)      on LTE          data after return to connectivity
+  -----------------------------------------------------------------------
+
+**10. App Store & Distribution**
+
+**10.1 App Store Requirements**
+
+  -----------------------------------------------------------------------
+  **Item**           **iOS (Apple App       **Android (Google Play)**
+                     Store)**               
+  ------------------ ---------------------- -----------------------------
+  App name           \[PLATFORM NAME\] ---  \[PLATFORM NAME\] ---
+                     Construction           Construction
+
+  Category           Business               Business
+
+  Age rating         4+ (no objectionable   Everyone
+                     content)               
+
+  Required           Camera, Microphone,    Camera, Microphone, Location,
+  permissions        Location (always ---   Notifications, Storage
+                     for geofencing),       
+                     Notifications, Local   
+                     Network                
+
+  Privacy policy URL Required --- hosted on Required --- same policy
+                     platform domain        
+
+  App privacy labels Location, Usage Data,  Data Safety form required
+                     Identifiers            
+
+  Minimum device     iPhone 12 / iOS 16     Android 10 / 2GB RAM
+
+  Screenshots        6.7\" iPhone           Phone + 7\" tablet
+  required           screenshots required + screenshots
+                     12.9\" iPad            
+
+  Review timeline    1--3 business days     1--3 business days typical
+                     typical                
+  -----------------------------------------------------------------------
+
+**10.2 Release Strategy**
+
+-   Beta: TestFlight (iOS) and Google Play Internal Testing track ---
+    30-day beta before public launch
+
+-   Beta users: design partners (first 10 customers), internal team,
+    advisory board members
+
+-   Staged rollout: v1.0 launches to 25% of users for 48 hours before
+    full rollout --- monitors crash rate
+
+-   OTA updates: JS bundle updates ship via Expo EAS Update for bug
+    fixes --- no App Store review required
+
+-   Native updates: any change to native modules (camera, permissions,
+    etc.) requires full App Store submission
+
+-   Version policy: minimum supported version maintained for 12 months
+    after release --- force-upgrade after that
+
+**10.3 Accessibility Requirements**
+
+-   WCAG 2.1 AA compliance target --- not optional
+
+-   VoiceOver (iOS) and TalkBack (Android) support for all interactive
+    elements --- aria labels required
+
+-   Dynamic text size support --- app scales with system font size
+    preferences
+
+-   Color contrast: all text meets 4.5:1 minimum contrast ratio ---
+    status indicators do not rely on color alone (icons + text labels
+    required)
+
+-   Touch targets: minimum 44×44pt on all interactive elements --- no
+    exceptions
+
+**11. Internationalization --- Mobile Implementation**
+
+The mobile app is the most critical surface for language support ---
+field workers use mobile exclusively, and they are the workers most
+likely to have Spanish (or another language) as their primary language.
+Every field-facing screen must be fully bilingual at v1.0 launch.
+
+**11.1 react-i18next Mobile Setup**
+
+> // i18n.ts --- root configuration
+>
+> import i18n from \'i18next\';
+>
+> import { initReactI18next } from \'react-i18next\';
+>
+> import \* as Localization from \'expo-localization\';
+>
+> import enCommon from \'./locales/en/common.json\';
+>
+> import esCommon from \'./locales/es/common.json\';
+>
+> // \... other namespaces loaded lazily
+>
+> const deviceLocale = Localization.locale.split(\'-\')\[0\]; // \'es\',
+> \'en\', etc.
+>
+> const userLocale = await getStoredUserLocale(); // from Keychain /
+> SQLite
+>
+> const resolvedLocale = userLocale \|\| deviceLocale \|\| \'en\';
+
+**11.2 Voice Dictation --- Multilingual Support**
+
+Voice dictation on daily reports and notes must work in Spanish. Both
+iOS and Android native speech recognition support Spanish --- no
+third-party service required.
+
+  -----------------------------------------------------------------------------------------
+  **Platform**   **Implementation**           **Spanish   **Notes**
+                                              Support**   
+  -------------- ---------------------------- ----------- ---------------------------------
+  iOS            SFSpeechRecognizer(locale:   Full ---    Locale passed at recognizer
+                 Locale(identifier:           es-US,      initialization --- changes with
+                 userLocale))                 es-MX,      user\'s language preference
+                                              es-ES all   
+                                              supported   
+
+  Android        SpeechRecognizer with        Full ---    Pass language extra:
+                 languageModel + language     es-US,      RecognizerIntent.EXTRA_LANGUAGE =
+                 extras                       es-MX       \'es-US\'
+                                              supported   
+
+  Offline        Device on-device speech      ES offline  Prompt user to download Spanish
+  fallback       model (iOS: downloaded       model       speech model if not present on
+                 model, Android: offline      available   first-time ES selection
+                 model)                       on both     
+                                              platforms   
+  -----------------------------------------------------------------------------------------
+
+> // React Native --- language-aware speech recognition
+>
+> Voice.start(userLocale === \'es\' ? \'es-US\' : \'en-US\');
+
+**11.3 Language Selection UI --- Mobile**
+
+-   First-run experience: if device locale is Spanish, app opens in
+    Spanish --- no prompt needed
+
+-   If device locale is not a supported language, app defaults to
+    English with a banner: \'Change language in Profile settings\'
+
+-   Profile \> Language: dropdown of supported languages --- changing
+    takes effect immediately, all screens re-render in new locale
+
+-   Language change does NOT require re-login --- JWT claims updated via
+    a silent /users/me/language PUT call
+
+-   Language selection persisted in WatermelonDB locally --- survives
+    offline, survives app restarts
+
+**11.4 OTA Translation Updates**
+
+-   Translation JSON files are bundled with the app but can be updated
+    via Expo EAS Update OTA --- fixing translation errors does not
+    require an App Store submission
+
+-   On app launch, the sync engine checks for translation updates
+    alongside data sync
+
+-   New language additions (e.g. adding PT-BR in v1.1) require a full
+    App Store submission --- OTA only for corrections to existing
+    translation files
+
+**11.5 String Length & UI Accommodation**
+
+-   All mobile UI components tested with Spanish strings --- ES strings
+    are 20-30% longer than EN equivalents
+
+-   Clock-in button: \'Clock In\' (8 chars) → \'Fichar Entrada\' (14
+    chars) --- button must accommodate
+
+-   Tab labels shortened if needed for ES: \'Field\' → \'Campo\',
+    \'Time\' → \'Tiempo\', \'Docs\' → \'Docs\' (same)
+
+-   Critical safety text (inspection FAILED, weather delay) must never
+    truncate --- these messages must be read in full

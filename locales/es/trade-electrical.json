@@ -1,0 +1,19 @@
+{
+  "panels": {
+    "title": "Tableros Eléctricos",
+    "add": "Agregar Tablero",
+    "name": "Nombre del Tablero",
+    "amperage": "Amperaje (A)",
+    "voltage": "Voltaje (V)",
+    "location": "Ubicación",
+    "circuits": "Circuitos"
+  },
+  "circuits": {
+    "title": "Circuitos",
+    "add": "Agregar Circuito",
+    "number": "Circuito #",
+    "description": "Descripción",
+    "amperage": "Amperaje (A)",
+    "status": "Estado"
+  }
+}

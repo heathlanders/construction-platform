@@ -1,0 +1,2080 @@
+**\[PLATFORM NAME\]**
+
+Construction Management Platform
+
+**DATA MODEL & SCHEMA OVERVIEW**
+
+*Document 4 of 9 \| Version 1.0 \| Confidential*
+
+March 2026
+
+FOR ENGINEERING & TECHNICAL LEADERSHIP --- CONFIDENTIAL
+
+**Table of Contents**
+
+**1. Overview & Conventions**
+
+This document defines the complete database schema for \[PLATFORM
+NAME\]. Every table, column, data type, relationship, and index is
+specified here. This document serves as the authoritative reference for
+backend engineers building the data layer and the migration scripts that
+create it.
+
+The schema is designed for PostgreSQL 15+ with Row-Level Security (RLS)
+enforcement as defined in Document 3 (Multi-Tenant Architecture). Every
+tenant-scoped table includes a tenant_id column and has RLS policies
+applied.
+
+**1.1 Naming Conventions**
+
+  --------------------------------------------------------------------------------
+  **Convention**   **Rule**                          **Example**
+  ---------------- --------------------------------- -----------------------------
+  Table names      snake_case, plural nouns          projects, change_orders,
+                                                     inspection_results
+
+  Column names     snake_case                        tenant_id, created_at,
+                                                     contract_value
+
+  Primary keys     id --- UUID v4 always             id UUID DEFAULT
+                                                     gen_random_uuid()
+
+  Foreign keys     {referenced_table_singular}\_id   project_id, tenant_id,
+                                                     user_id
+
+  Timestamps       created_at and updated_at on      TIMESTAMPTZ NOT NULL DEFAULT
+                   every table                       NOW()
+
+  Soft deletes     deleted_at TIMESTAMPTZ (NULL =    WHERE deleted_at IS NULL in
+                   active)                           all queries
+
+  Boolean flags    Prefix: is\_ or has\_             is_active, is_archived,
+                                                     has_retainage
+
+  Status fields    VARCHAR(30) with CHECK constraint status VARCHAR(30) CHECK
+                                                     (status IN
+                                                     (\'active\',\'closed\'))
+
+  JSONB fields     Used for flexible/sparse data     settings JSONB, custom_fields
+                   only                              JSONB, metadata JSONB
+
+  Enum-like values VARCHAR with CHECK constraint     Avoids migration pain when
+                   (not PG ENUM type)                adding new values
+  --------------------------------------------------------------------------------
+
+**1.2 Universal Columns**
+
+Every table in the schema includes these columns unless explicitly
+noted:
+
+  ------------------------------------------------------------------------
+  **Column**   **Type**                     **Purpose**
+  ------------ ---------------------------- ------------------------------
+  id           UUID NOT NULL DEFAULT        Unique identifier --- UUID v4,
+               gen_random_uuid() PRIMARY    never sequential integer
+               KEY                          
+
+  tenant_id    UUID NOT NULL REFERENCES     Tenant isolation --- present
+               tenants(id)                  on every tenant-scoped table
+
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT Record creation timestamp
+               NOW()                        
+
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT Last modification timestamp
+               NOW()                        --- updated via trigger
+
+  deleted_at   TIMESTAMPTZ NULL             Soft delete --- NULL means
+                                            active; timestamp means
+                                            deleted
+  ------------------------------------------------------------------------
+
+**1.3 Schema Domain Map**
+
+The schema is organized into 10 functional domains. Each domain groups
+related tables:
+
+  ----------------------------------------------------------------------------
+  **Domain**      **Tables**                 **Description**
+  --------------- -------------------------- ---------------------------------
+  Platform        tenants, subscriptions,    Multi-tenant foundation ---
+                  feature_flags              company accounts and billing
+
+  Identity        users, user_roles,         Authentication, roles, and access
+                  user_invitations, sessions control
+
+  Company         company_employees,         Company-level resources and
+                  equipment, vendors,        relationships
+                  subcontractors,            
+                  certifications             
+
+  Project         projects,                  Project setup, team, and
+                  project_team_members,      financial structure
+                  project_budgets,           
+                  budget_line_items          
+
+  Scheduling      schedule_tasks,            Gantt chart, critical path, and
+                  task_dependencies,         timeline data
+                  milestones, weather_delays 
+
+  Financial       change_orders, invoices,   All money movement and legal
+                  payments, lien_waivers,    financial records
+                  preliminary_notices,       
+                  draw_schedules             
+
+  Documents       documents,                 File management, plan sets, and
+                  document_versions,         media
+                  plan_sets, plan_revisions, 
+                  photos, photo_albums       
+
+  Field Ops       daily_reports,             Field data capture and quality
+                  daily_report_crew,         control
+                  inspections,               
+                  inspection_results,        
+                  punch_list_items,          
+                  time_entries               
+
+  Communication   rfis, rfi_responses,       Project communication and
+                  submittals,                approval workflows
+                  submittal_reviews,         
+                  messages, notifications    
+
+  Trade Modules   trade_phases, trade_tasks, Trade-specific data models per
+                  trade_inspections,         discipline
+                  electrical_panels,         
+                  plumbing_fixtures,         
+                  hvac_equipment,            
+                  concrete_pours, (etc.)     
+  ----------------------------------------------------------------------------
+
+**2. Platform Domain**
+
+**2.1 tenants**
+
+  ----------------------------------------------------------------------------------------------
+  **Column**                   **Type**       **Nullable**   **Description**
+  ---------------------------- -------------- -------------- -----------------------------------
+  **TABLE: tenants**                                         
+
+  **id**                       UUID           NOT NULL       Primary key --- tenant identifier
+                                                             used in all tenant_id FK columns
+
+  **name**                     VARCHAR(255)   NOT NULL       Company legal name
+
+  **slug**                     VARCHAR(100)   NOT NULL       URL-safe company identifier (e.g.
+                                              UNIQUE         \'abc-general-contractors\')
+
+  **trade_type**               VARCHAR(50)    NOT NULL       Primary trade: gc \| electrical \|
+                                                             plumbing \| hvac \| concrete \|
+                                                             framing \| roofing \| painting \|
+                                                             landscaping \| specialty
+
+  **subscription_tier**        VARCHAR(20)    NOT NULL       starter \| professional \| business
+                                                             \| enterprise
+
+  **subscription_status**      VARCHAR(20)    NOT NULL       trialing \| active \| past_due \|
+                                                             suspended \| cancelled \| purged
+
+  **stripe_customer_id**       VARCHAR(100)   NULL           Stripe customer object ID
+
+  **stripe_subscription_id**   VARCHAR(100)   NULL           Active Stripe subscription ID
+
+  **trial_ends_at**            TIMESTAMPTZ    NULL           Trial expiration --- NULL if not on
+                                                             trial
+
+  **cancelled_at**             TIMESTAMPTZ    NULL           Cancellation timestamp --- starts
+                                                             30-day data retention window
+
+  **purge_at**                 TIMESTAMPTZ    NULL           Scheduled purge date --- set to
+                                                             cancelled_at + 30 days
+
+  **settings**                 JSONB          NOT NULL       Tenant config: branding, module
+                                              DEFAULT \'{}\' flags, integration tokens, custom
+                                                             fields
+
+  **is_active**                BOOLEAN        NOT NULL       Soft-disable flag for
+                                              DEFAULT true   suspended/cancelled tenants
+
+  **created_at**               TIMESTAMPTZ    NOT NULL       Tenant creation (signup) timestamp
+
+  **updated_at**               TIMESTAMPTZ    NOT NULL       Last settings or status change
+  ----------------------------------------------------------------------------------------------
+
+**2.2 subscriptions**
+
+  -------------------------------------------------------------------------------------------
+  **Column**                 **Type**      **Nullable**   **Description**
+  -------------------------- ------------- -------------- -----------------------------------
+  **TABLE: subscriptions**                                
+
+  **id**                     UUID          NOT NULL       Primary key
+
+  **tenant_id**              UUID          NOT NULL       FK -\> tenants(id)
+
+  **tier**                   VARCHAR(20)   NOT NULL       starter \| professional \| business
+                                                          \| enterprise
+
+  **billing_cycle**          VARCHAR(10)   NOT NULL       monthly \| annual
+
+  **base_price_cents**       INTEGER       NOT NULL       Base subscription price in cents
+
+  **current_period_start**   TIMESTAMPTZ   NOT NULL       Current billing period start
+
+  **current_period_end**     TIMESTAMPTZ   NOT NULL       Current billing period end
+
+  **status**                 VARCHAR(20)   NOT NULL       active \| past_due \| cancelled \|
+                                                          paused
+
+  **addon_modules**          JSONB         NOT NULL       Array of active add-on module keys
+                                           DEFAULT        and their prices
+                                           \'\[\]\'       
+
+  **addon_seats**            INTEGER       NOT NULL       Additional user seats purchased
+                                           DEFAULT 0      beyond tier limit
+
+  **created_at**             TIMESTAMPTZ   NOT NULL       
+
+  **updated_at**             TIMESTAMPTZ   NOT NULL       
+  -------------------------------------------------------------------------------------------
+
+**2.3 feature_flags**
+
+  -----------------------------------------------------------------------------------
+  **Column**        **Type**       **Nullable**   **Description**
+  ----------------- -------------- -------------- -----------------------------------
+  **TABLE:                                        
+  feature_flags**                                 
+
+  **id**            UUID           NOT NULL       Primary key
+
+  **tenant_id**     UUID           NULL           FK -\> tenants(id) --- NULL means
+                                                  platform-wide flag
+
+  **flag_key**      VARCHAR(100)   NOT NULL       Feature identifier:
+                                                  cross_tenant_collaboration \|
+                                                  aia_billing \| lien_management \|
+                                                  etc.
+
+  **is_enabled**    BOOLEAN        NOT NULL       Whether the feature is active
+                                   DEFAULT false  
+
+  **enabled_at**    TIMESTAMPTZ    NULL           When the flag was enabled
+
+  **enabled_by**    UUID           NULL           Super admin user who enabled it
+
+  **metadata**      JSONB          NULL           Optional configuration for the flag
+
+  **created_at**    TIMESTAMPTZ    NOT NULL       
+  -----------------------------------------------------------------------------------
+
+**3. Identity Domain**
+
+**3.1 users**
+
+  ------------------------------------------------------------------------------------------
+  **Column**               **Type**       **Nullable**   **Description**
+  ------------------------ -------------- -------------- -----------------------------------
+  **TABLE: users**                                       
+
+  **id**                   UUID           NOT NULL       Primary key
+
+  **tenant_id**            UUID           NOT NULL       FK -\> tenants(id) --- user belongs
+                                                         to exactly one tenant
+
+  **email**                VARCHAR(255)   NOT NULL       Login email --- unique within
+                                                         tenant scope
+
+  **password_hash**        VARCHAR(255)   NOT NULL       bcrypt hash (cost 12+) --- never
+                                                         plain text
+
+  **first_name**           VARCHAR(100)   NOT NULL       
+
+  **last_name**            VARCHAR(100)   NOT NULL       
+
+  **phone**                VARCHAR(20)    NULL           Mobile number for SMS notifications
+
+  **role**                 VARCHAR(50)    NOT NULL       owner \| project_manager \|
+                                                         estimator \| foreman \| field_tech
+                                                         \| subcontractor \| client \|
+                                                         accountant \| safety_officer
+
+  **is_mfa_enabled**       BOOLEAN        NOT NULL       Whether user has MFA configured
+                                          DEFAULT false  
+
+  **mfa_secret**           VARCHAR(255)   NULL           Encrypted TOTP secret
+
+  **avatar_url**           TEXT           NULL           Profile photo URL (pre-signed path
+                                                         in object storage)
+
+  **last_login_at**        TIMESTAMPTZ    NULL           Last successful authentication
+
+  **is_active**            BOOLEAN        NOT NULL       Deactivated users cannot log in but
+                                          DEFAULT true   data is preserved
+
+  **notification_prefs**   JSONB          NOT NULL       Per-user notification preferences:
+                                          DEFAULT \'{}\' email, SMS, push toggles per event
+                                                         type
+
+  **created_at**           TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**           TIMESTAMPTZ    NOT NULL       
+
+  **deleted_at**           TIMESTAMPTZ    NULL           Soft delete
+  ------------------------------------------------------------------------------------------
+
+**3.2 user_invitations**
+
+  ------------------------------------------------------------------------------------------
+  **Column**               **Type**       **Nullable**   **Description**
+  ------------------------ -------------- -------------- -----------------------------------
+  **TABLE:                                               
+  user_invitations**                                     
+
+  **id**                   UUID           NOT NULL       Primary key
+
+  **tenant_id**            UUID           NOT NULL       FK -\> tenants(id)
+
+  **invited_by_user_id**   UUID           NOT NULL       FK -\> users(id) --- who sent the
+                                                         invite
+
+  **email**                VARCHAR(255)   NOT NULL       Invitee email address
+
+  **role**                 VARCHAR(50)    NOT NULL       Role to assign on acceptance
+
+  **token**                VARCHAR(255)   NOT NULL       Secure random token --- included in
+                                          UNIQUE         invite link
+
+  **expires_at**           TIMESTAMPTZ    NOT NULL       Invite expiry --- 7 days from
+                                                         creation
+
+  **accepted_at**          TIMESTAMPTZ    NULL           When the invite was accepted ---
+                                                         NULL if pending
+
+  **created_at**           TIMESTAMPTZ    NOT NULL       
+  ------------------------------------------------------------------------------------------
+
+**3.3 sessions (token revocation)**
+
+  -----------------------------------------------------------------------------------
+  **Column**        **Type**       **Nullable**   **Description**
+  ----------------- -------------- -------------- -----------------------------------
+  **TABLE:                                        
+  sessions**                                      
+
+  **id**            UUID           NOT NULL       Primary key
+
+  **user_id**       UUID           NOT NULL       FK -\> users(id)
+
+  **tenant_id**     UUID           NOT NULL       Denormalized for fast lookup
+
+  **jti**           VARCHAR(255)   NOT NULL       JWT ID --- used for revocation
+                                   UNIQUE         check on every request
+
+  **device_type**   VARCHAR(20)    NULL           web \| ios \| android
+
+  **ip_address**    INET           NULL           Login IP for audit purposes
+
+  **user_agent**    TEXT           NULL           Browser/device user agent
+
+  **expires_at**    TIMESTAMPTZ    NOT NULL       Token expiry
+
+  **revoked_at**    TIMESTAMPTZ    NULL           NULL = valid; timestamp = revoked
+                                                  (logout, security event)
+
+  **created_at**    TIMESTAMPTZ    NOT NULL       
+  -----------------------------------------------------------------------------------
+
+**4. Company Domain**
+
+**4.1 company_employees**
+
+  -----------------------------------------------------------------------------------------
+  **Column**              **Type**       **Nullable**   **Description**
+  ----------------------- -------------- -------------- -----------------------------------
+  **TABLE:                                              
+  company_employees**                                   
+
+  **id**                  UUID           NOT NULL       Primary key
+
+  **tenant_id**           UUID           NOT NULL       FK -\> tenants(id)
+
+  **user_id**             UUID           NULL           FK -\> users(id) --- NULL if
+                                                        employee has no login account
+
+  **first_name**          VARCHAR(100)   NOT NULL       
+
+  **last_name**           VARCHAR(100)   NOT NULL       
+
+  **trade**               VARCHAR(50)    NULL           Primary trade specialty
+
+  **employment_type**     VARCHAR(20)    NOT NULL       employee \| subcontractor \| owner
+
+  **hourly_rate_cents**   INTEGER        NULL           Burdened hourly rate for job
+                                                        costing --- encrypted at app layer
+
+  **certifications**      JSONB          NOT NULL       Array of {cert_type, cert_number,
+                                         DEFAULT        issued_at, expires_at,
+                                         \'\[\]\'       document_url}
+
+  **is_active**           BOOLEAN        NOT NULL       
+                                         DEFAULT true   
+
+  **created_at**          TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**          TIMESTAMPTZ    NOT NULL       
+  -----------------------------------------------------------------------------------------
+
+**4.2 vendors**
+
+  --------------------------------------------------------------------------------------------
+  **Column**                 **Type**       **Nullable**   **Description**
+  -------------------------- -------------- -------------- -----------------------------------
+  **TABLE: vendors**                                       
+
+  **id**                     UUID           NOT NULL       Primary key
+
+  **tenant_id**              UUID           NOT NULL       FK -\> tenants(id)
+
+  **name**                   VARCHAR(255)   NOT NULL       Company or individual name
+
+  **vendor_type**            VARCHAR(30)    NOT NULL       subcontractor \| supplier \|
+                                                           equipment_rental \| consultant \|
+                                                           other
+
+  **trade_type**             VARCHAR(50)    NULL           Trade specialty (for
+                                                           subcontractors)
+
+  **contact_name**           VARCHAR(200)   NULL           Primary contact person
+
+  **email**                  VARCHAR(255)   NULL           
+
+  **phone**                  VARCHAR(20)    NULL           
+
+  **address**                JSONB          NULL           {street, city, state, zip}
+
+  **license_number**         VARCHAR(100)   NULL           Contractor license number
+
+  **license_expires_at**     DATE           NULL           License expiration --- alert
+                                                           generated 60/30/14 days before
+
+  **insurance_expires_at**   DATE           NULL           COI expiration --- alert generated
+                                                           60/30/14 days before
+
+  **coi_document_url**       TEXT           NULL           Storage path to current COI
+
+  **bonding_amount_cents**   BIGINT         NULL           Bonding capacity in cents
+
+  **is_preferred**           BOOLEAN        NOT NULL       Preferred vendor flag
+                                            DEFAULT false  
+
+  **is_prequalified**        BOOLEAN        NOT NULL       Prequalification status
+                                            DEFAULT false  
+
+  **performance_notes**      TEXT           NULL           Internal notes on vendor
+                                                           performance
+
+  **payment_terms**          VARCHAR(50)    NULL           NET30 \| NET45 \| NET60 \| etc.
+
+  **created_at**             TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**             TIMESTAMPTZ    NOT NULL       
+
+  **deleted_at**             TIMESTAMPTZ    NULL           Soft delete
+  --------------------------------------------------------------------------------------------
+
+**5. Project Domain**
+
+**5.1 projects**
+
+  --------------------------------------------------------------------------------------------
+  **Column**                 **Type**       **Nullable**   **Description**
+  -------------------------- -------------- -------------- -----------------------------------
+  **TABLE: projects**                                      
+
+  **id**                     UUID           NOT NULL       Primary key
+
+  **tenant_id**              UUID           NOT NULL       FK -\> tenants(id) --- RLS
+                                                           enforcement
+
+  **name**                   VARCHAR(255)   NOT NULL       Project / job name
+
+  **job_number**             VARCHAR(100)   NULL           Internal job number --- unique
+                                                           within tenant
+
+  **job_type**               VARCHAR(30)    NOT NULL       self_perform_prime \| gc_with_subs
+                                                           \| trade_prime \| subcontract_work
+                                                           \| mixed
+
+  **project_type**           VARCHAR(30)    NOT NULL       residential_new \|
+                                                           residential_remodel \|
+                                                           commercial_new \| commercial_ti \|
+                                                           service_repair \| pole_barn \|
+                                                           other
+
+  **status**                 VARCHAR(30)    NOT NULL       setup \| active \| on_hold \|
+                                            DEFAULT        completed \| cancelled
+                                            \'setup\'      
+
+  **client_id**              UUID           NULL           FK -\> clients(id)
+
+  **site_address**           JSONB          NOT NULL       {street, city, state, zip, lat,
+                                                           lng, apn}
+
+  **contract_type**          VARCHAR(20)    NOT NULL       fixed_price \| time_and_materials
+                                                           \| cost_plus \| gmp
+
+  **contract_value_cents**   BIGINT         NULL           Original contract value in cents
+
+  **retainage_pct**          DECIMAL(5,2)   NOT NULL       Retainage percentage (e.g. 10.00 =
+                                            DEFAULT 10.00  10%)
+
+  **start_date**             DATE           NULL           Planned project start
+
+  **end_date**               DATE           NULL           Planned project completion
+
+  **actual_start_date**      DATE           NULL           Actual start date
+
+  **actual_end_date**        DATE           NULL           Actual completion date
+
+  **active_trade_modules**   JSONB          NOT NULL       Array of trade module keys active
+                                            DEFAULT        on this project
+                                            \'\[\]\'       
+
+  **description**            TEXT           NULL           Project description / scope summary
+
+  **custom_fields**          JSONB          NOT NULL       Tenant-defined custom field values
+                                            DEFAULT \'{}\' 
+
+  **created_by_user_id**     UUID           NOT NULL       FK -\> users(id)
+
+  **created_at**             TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**             TIMESTAMPTZ    NOT NULL       
+
+  **deleted_at**             TIMESTAMPTZ    NULL           Soft delete
+  --------------------------------------------------------------------------------------------
+
+**5.2 clients**
+
+  ---------------------------------------------------------------------------------------
+  **Column**            **Type**       **Nullable**   **Description**
+  --------------------- -------------- -------------- -----------------------------------
+  **TABLE: clients**                                  
+
+  **id**                UUID           NOT NULL       Primary key
+
+  **tenant_id**         UUID           NOT NULL       FK -\> tenants(id)
+
+  **type**              VARCHAR(20)    NOT NULL       individual \| business
+
+  **name**              VARCHAR(255)   NOT NULL       Client name (person or company)
+
+  **contact_name**      VARCHAR(200)   NULL           Primary contact (for business
+                                                      clients)
+
+  **email**             VARCHAR(255)   NULL           
+
+  **phone**             VARCHAR(20)    NULL           
+
+  **billing_address**   JSONB          NULL           {street, city, state, zip}
+
+  **portal_user_id**    UUID           NULL           FK -\> users(id) --- linked portal
+                                                      user account if created
+
+  **notes**             TEXT           NULL           
+
+  **created_at**        TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**        TIMESTAMPTZ    NOT NULL       
+  ---------------------------------------------------------------------------------------
+
+**5.3 project_team_members**
+
+  -----------------------------------------------------------------------------------------
+  **Column**               **Type**      **Nullable**   **Description**
+  ------------------------ ------------- -------------- -----------------------------------
+  **TABLE:                                              
+  project_team_members**                                
+
+  **id**                   UUID          NOT NULL       Primary key
+
+  **tenant_id**            UUID          NOT NULL       FK -\> tenants(id)
+
+  **project_id**           UUID          NOT NULL       FK -\> projects(id)
+
+  **user_id**              UUID          NOT NULL       FK -\> users(id)
+
+  **project_role**         VARCHAR(30)   NOT NULL       project_manager \| superintendent
+                                                        \| foreman \| estimator \|
+                                                        safety_officer
+
+  **is_primary_pm**        BOOLEAN       NOT NULL       Primary PM flag --- only one per
+                                         DEFAULT false  project
+
+  **assigned_at**          TIMESTAMPTZ   NOT NULL       
+                                         DEFAULT NOW()  
+  -----------------------------------------------------------------------------------------
+
+**5.4 budget_line_items**
+
+  ----------------------------------------------------------------------------------------------
+  **Column**                   **Type**       **Nullable**   **Description**
+  ---------------------------- -------------- -------------- -----------------------------------
+  **TABLE: budget_line_items**                               
+
+  **id**                       UUID           NOT NULL       Primary key
+
+  **tenant_id**                UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**               UUID           NOT NULL       FK -\> projects(id)
+
+  **csi_division**             VARCHAR(10)    NULL           CSI division code (e.g. \'16000\'
+                                                             for Electrical)
+
+  **category**                 VARCHAR(100)   NOT NULL       Budget category name
+
+  **cost_type**                VARCHAR(20)    NOT NULL       labor \| material \| equipment \|
+                                                             subcontract \| overhead \| other
+
+  **budgeted_amount_cents**    BIGINT         NOT NULL       Original budgeted amount
+                                              DEFAULT 0      
+
+  **committed_amount_cents**   BIGINT         NOT NULL       Awarded subcontracts + approved POs
+                                              DEFAULT 0      
+
+  **actual_cost_cents**        BIGINT         NOT NULL       Actual costs incurred to date
+                                              DEFAULT 0      
+
+  **projected_final_cents**    BIGINT         NOT NULL       Projected cost at completion
+                                              DEFAULT 0      
+
+  **variance_cents**           BIGINT         GENERATED      budgeted - projected_final
+                                                             (computed column)
+
+  **notes**                    TEXT           NULL           
+
+  **created_at**               TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**               TIMESTAMPTZ    NOT NULL       
+  ----------------------------------------------------------------------------------------------
+
+**6. Scheduling Domain**
+
+**6.1 schedule_tasks**
+
+  ------------------------------------------------------------------------------------------------
+  **Column**                  **Type**       **Nullable**      **Description**
+  --------------------------- -------------- ----------------- -----------------------------------
+  **TABLE: schedule_tasks**                                    
+
+  **id**                      UUID           NOT NULL          Primary key
+
+  **tenant_id**               UUID           NOT NULL          FK -\> tenants(id)
+
+  **project_id**              UUID           NOT NULL          FK -\> projects(id)
+
+  **parent_task_id**          UUID           NULL              FK -\> schedule_tasks(id) --- for
+                                                               nested/summary tasks
+
+  **name**                    VARCHAR(255)   NOT NULL          Task name
+
+  **trade_module**            VARCHAR(50)    NULL              Associated trade module key
+
+  **phase**                   VARCHAR(100)   NULL              Phase within trade module (e.g.
+                                                               \'rough_in\', \'trim\')
+
+  **assigned_to_user_id**     UUID           NULL              FK -\> users(id)
+
+  **assigned_to_vendor_id**   UUID           NULL              FK -\> vendors(id) --- if assigned
+                                                               to sub
+
+  **planned_start**           DATE           NULL              
+
+  **planned_end**             DATE           NULL              
+
+  **actual_start**            DATE           NULL              
+
+  **actual_end**              DATE           NULL              
+
+  **baseline_start**          DATE           NULL              Original baseline start --- set
+                                                               when schedule is baselined
+
+  **baseline_end**            DATE           NULL              Original baseline end
+
+  **duration_days**           INTEGER        NULL              Planned duration in working days
+
+  **percent_complete**        DECIMAL(5,2)   NOT NULL DEFAULT  0.00 to 100.00
+                                             0.00              
+
+  **is_milestone**            BOOLEAN        NOT NULL DEFAULT  Milestone tasks have zero duration
+                                             false             
+
+  **is_critical_path**        BOOLEAN        NOT NULL DEFAULT  Computed --- true if on critical
+                                             false             path
+
+  **show_in_client_portal**   BOOLEAN        NOT NULL DEFAULT  Whether milestone is visible to
+                                             false             client
+
+  **status**                  VARCHAR(20)    NOT NULL DEFAULT  not_started \| in_progress \|
+                                             \'not_started\'   completed \| delayed \| blocked
+
+  **notes**                   TEXT           NULL              
+
+  **sort_order**              INTEGER        NOT NULL DEFAULT  Display order in Gantt
+                                             0                 
+
+  **created_at**              TIMESTAMPTZ    NOT NULL          
+
+  **updated_at**              TIMESTAMPTZ    NOT NULL          
+  ------------------------------------------------------------------------------------------------
+
+**6.2 task_dependencies**
+
+  ------------------------------------------------------------------------------------------
+  **Column**                **Type**      **Nullable**   **Description**
+  ------------------------- ------------- -------------- -----------------------------------
+  **TABLE:                                               
+  task_dependencies**                                    
+
+  **id**                    UUID          NOT NULL       Primary key
+
+  **tenant_id**             UUID          NOT NULL       FK -\> tenants(id)
+
+  **predecessor_task_id**   UUID          NOT NULL       FK -\> schedule_tasks(id) --- the
+                                                         task that must happen first
+
+  **successor_task_id**     UUID          NOT NULL       FK -\> schedule_tasks(id) --- the
+                                                         dependent task
+
+  **dependency_type**       VARCHAR(5)    NOT NULL       FS (finish-to-start) \| SS
+                                          DEFAULT \'FS\' (start-to-start) \| FF
+                                                         (finish-to-finish) \| SF
+                                                         (start-to-finish)
+
+  **lag_days**              INTEGER       NOT NULL       Lag or lead time in days (negative
+                                          DEFAULT 0      = lead)
+
+  **created_at**            TIMESTAMPTZ   NOT NULL       
+  ------------------------------------------------------------------------------------------
+
+**6.3 milestones**
+
+  -----------------------------------------------------------------------------------------
+  **Column**              **Type**       **Nullable**   **Description**
+  ----------------------- -------------- -------------- -----------------------------------
+  **TABLE: milestones**                                 
+
+  **id**                  UUID           NOT NULL       Primary key
+
+  **tenant_id**           UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**          UUID           NOT NULL       FK -\> projects(id)
+
+  **schedule_task_id**    UUID           NULL           FK -\> schedule_tasks(id) ---
+                                                        linked Gantt task if applicable
+
+  **name**                VARCHAR(255)   NOT NULL       
+
+  **planned_date**        DATE           NOT NULL       
+
+  **actual_date**         DATE           NULL           
+
+  **is_client_visible**   BOOLEAN        NOT NULL       Show in client portal
+                                         DEFAULT false  
+
+  **status**              VARCHAR(20)    NOT NULL       pending \| completed \| delayed
+                                         DEFAULT        
+                                         \'pending\'    
+
+  **created_at**          TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**          TIMESTAMPTZ    NOT NULL       
+  -----------------------------------------------------------------------------------------
+
+**7. Financial Domain**
+
+**7.1 change_orders**
+
+  --------------------------------------------------------------------------------------------
+  **Column**                 **Type**       **Nullable**   **Description**
+  -------------------------- -------------- -------------- -----------------------------------
+  **TABLE: change_orders**                                 
+
+  **id**                     UUID           NOT NULL       Primary key
+
+  **tenant_id**              UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**             UUID           NOT NULL       FK -\> projects(id)
+
+  **co_number**              VARCHAR(30)    NOT NULL       Sequential CO number within project
+                                                           (e.g. CO-001)
+
+  **direction**              VARCHAR(10)    NOT NULL       owner_to_gc \| gc_to_sub --- which
+                                                           contract is being modified
+
+  **vendor_id**              UUID           NULL           FK -\> vendors(id) --- for
+                                                           gc_to_sub change orders
+
+  **title**                  VARCHAR(255)   NOT NULL       Short description
+
+  **description**            TEXT           NULL           Full scope description
+
+  **reason_code**            VARCHAR(50)    NULL           owner_directed \| design_error \|
+                                                           unforeseen \| value_engineering \|
+                                                           other
+
+  **amount_cents**           BIGINT         NOT NULL       Change in contract value ---
+                                                           negative for deductions
+
+  **schedule_impact_days**   INTEGER        NOT NULL       Days added or removed from schedule
+                                            DEFAULT 0      
+
+  **status**                 VARCHAR(20)    NOT NULL       draft \| submitted \| approved \|
+                                            DEFAULT        rejected \| void \| executed
+                                            \'draft\'      
+
+  **submitted_at**           TIMESTAMPTZ    NULL           
+
+  **approved_at**            TIMESTAMPTZ    NULL           
+
+  **approved_by_user_id**    UUID           NULL           FK -\> users(id)
+
+  **docusign_envelope_id**   VARCHAR(255)   NULL           DocuSign envelope reference for
+                                                           e-signature
+
+  **executed_at**            TIMESTAMPTZ    NULL           When fully executed (all signatures
+                                                           collected)
+
+  **created_by_user_id**     UUID           NOT NULL       FK -\> users(id)
+
+  **created_at**             TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**             TIMESTAMPTZ    NOT NULL       
+  --------------------------------------------------------------------------------------------
+
+**7.2 invoices**
+
+  ------------------------------------------------------------------------------------------------
+  **Column**                     **Type**       **Nullable**   **Description**
+  ------------------------------ -------------- -------------- -----------------------------------
+  **TABLE: invoices**                                          
+
+  **id**                         UUID           NOT NULL       Primary key
+
+  **tenant_id**                  UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**                 UUID           NOT NULL       FK -\> projects(id)
+
+  **invoice_type**               VARCHAR(20)    NOT NULL       owner_invoice \| sub_invoice ---
+                                                               billing direction
+
+  **invoice_number**             VARCHAR(50)    NOT NULL       Sequential invoice number
+
+  **vendor_id**                  UUID           NULL           FK -\> vendors(id) --- for sub
+                                                               invoices
+
+  **billing_period_start**       DATE           NULL           
+
+  **billing_period_end**         DATE           NULL           
+
+  **subtotal_cents**             BIGINT         NOT NULL       
+                                                DEFAULT 0      
+
+  **retainage_held_cents**       BIGINT         NOT NULL       Retainage withheld this period
+                                                DEFAULT 0      
+
+  **retainage_released_cents**   BIGINT         NOT NULL       Retainage released this period
+                                                DEFAULT 0      
+
+  **tax_cents**                  BIGINT         NOT NULL       
+                                                DEFAULT 0      
+
+  **total_cents**                BIGINT         NOT NULL       Net amount due after retainage and
+                                                DEFAULT 0      tax
+
+  **status**                     VARCHAR(20)    NOT NULL       draft \| submitted \| approved \|
+                                                DEFAULT        paid \| void
+                                                \'draft\'      
+
+  **due_date**                   DATE           NULL           
+
+  **paid_at**                    TIMESTAMPTZ    NULL           
+
+  **stripe_payment_intent_id**   VARCHAR(255)   NULL           Stripe PaymentIntent reference
+
+  **quickbooks_invoice_id**      VARCHAR(255)   NULL           QBO invoice reference for sync
+
+  **notes**                      TEXT           NULL           
+
+  **created_at**                 TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**                 TIMESTAMPTZ    NOT NULL       
+  ------------------------------------------------------------------------------------------------
+
+**7.3 lien_waivers**
+
+  --------------------------------------------------------------------------------------------
+  **Column**                 **Type**       **Nullable**   **Description**
+  -------------------------- -------------- -------------- -----------------------------------
+  **TABLE: lien_waivers**                                  
+
+  **id**                     UUID           NOT NULL       Primary key
+
+  **tenant_id**              UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**             UUID           NOT NULL       FK -\> projects(id)
+
+  **invoice_id**             UUID           NULL           FK -\> invoices(id) --- associated
+                                                           invoice
+
+  **vendor_id**              UUID           NOT NULL       FK -\> vendors(id) --- the signing
+                                                           party
+
+  **waiver_type**            VARCHAR(30)    NOT NULL       conditional_progress \|
+                                                           unconditional_progress \|
+                                                           conditional_final \|
+                                                           unconditional_final
+
+  **through_date**           DATE           NOT NULL       Waiver covers work through this
+                                                           date
+
+  **amount_cents**           BIGINT         NOT NULL       Amount covered by waiver
+
+  **signed_at**              TIMESTAMPTZ    NULL           When the waiver was signed
+
+  **document_url**           TEXT           NULL           Storage path to signed waiver
+                                                           document
+
+  **docusign_envelope_id**   VARCHAR(255)   NULL           DocuSign reference if e-signed
+
+  **status**                 VARCHAR(20)    NOT NULL       pending \| signed \| received \|
+                                            DEFAULT        void
+                                            \'pending\'    
+
+  **created_at**             TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**             TIMESTAMPTZ    NOT NULL       
+  --------------------------------------------------------------------------------------------
+
+**8. Documents Domain**
+
+**8.1 documents**
+
+  -------------------------------------------------------------------------------------------
+  **Column**                **Type**       **Nullable**   **Description**
+  ------------------------- -------------- -------------- -----------------------------------
+  **TABLE: documents**                                    
+
+  **id**                    UUID           NOT NULL       Primary key
+
+  **tenant_id**             UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**            UUID           NULL           FK -\> projects(id) --- NULL for
+                                                          company-level documents
+
+  **name**                  VARCHAR(255)   NOT NULL       Display name
+
+  **document_type**         VARCHAR(50)    NOT NULL       contract \| submittal \| rfi \|
+                                                          daily_report \| safety \| permit \|
+                                                          warranty \| as_built \| general \|
+                                                          template
+
+  **file_path**             TEXT           NOT NULL       Object storage path (not public URL
+                                                          --- pre-signed on access)
+
+  **file_size_bytes**       BIGINT         NOT NULL       
+
+  **mime_type**             VARCHAR(100)   NOT NULL       
+
+  **version_number**        INTEGER        NOT NULL       Version counter --- incremented on
+                                           DEFAULT 1      each replacement upload
+
+  **is_current_version**    BOOLEAN        NOT NULL       Only one version is current at a
+                                           DEFAULT true   time
+
+  **uploaded_by_user_id**   UUID           NOT NULL       FK -\> users(id)
+
+  **description**           TEXT           NULL           
+
+  **tags**                  JSONB          NOT NULL       Array of string tags for
+                                           DEFAULT        search/filter
+                                           \'\[\]\'       
+
+  **created_at**            TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**            TIMESTAMPTZ    NOT NULL       
+
+  **deleted_at**            TIMESTAMPTZ    NULL           Soft delete
+  -------------------------------------------------------------------------------------------
+
+**8.2 plan_sets**
+
+  -------------------------------------------------------------------------------------------
+  **Column**                **Type**       **Nullable**   **Description**
+  ------------------------- -------------- -------------- -----------------------------------
+  **TABLE: plan_sets**                                    
+
+  **id**                    UUID           NOT NULL       Primary key
+
+  **tenant_id**             UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**            UUID           NOT NULL       FK -\> projects(id)
+
+  **name**                  VARCHAR(255)   NOT NULL       Plan set name (e.g.
+                                                          \'Architectural\', \'Electrical\')
+
+  **discipline**            VARCHAR(50)    NULL           architectural \| structural \|
+                                                          electrical \| plumbing \|
+                                                          mechanical \| civil \| landscape
+
+  **current_revision_id**   UUID           NULL           FK -\> plan_revisions(id) ---
+                                                          points to latest approved revision
+
+  **created_at**            TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**            TIMESTAMPTZ    NOT NULL       
+  -------------------------------------------------------------------------------------------
+
+**8.3 plan_revisions**
+
+  ------------------------------------------------------------------------------------------
+  **Column**                **Type**      **Nullable**   **Description**
+  ------------------------- ------------- -------------- -----------------------------------
+  **TABLE: plan_revisions**                              
+
+  **id**                    UUID          NOT NULL       Primary key
+
+  **tenant_id**             UUID          NOT NULL       FK -\> tenants(id)
+
+  **plan_set_id**           UUID          NOT NULL       FK -\> plan_sets(id)
+
+  **revision_label**        VARCHAR(20)   NOT NULL       Rev A \| Rev B \| Rev C \| CD Set 1
+                                                         \| etc.
+
+  **issue_date**            DATE          NOT NULL       Date plans were issued
+
+  **issue_purpose**         VARCHAR(50)   NULL           for_bid \| for_construction \|
+                                                         for_permit \| record_set
+
+  **file_path**             TEXT          NOT NULL       Object storage path to the plan PDF
+
+  **file_size_bytes**       BIGINT        NOT NULL       
+
+  **page_count**            INTEGER       NULL           
+
+  **uploaded_by_user_id**   UUID          NOT NULL       FK -\> users(id)
+
+  **is_superseded**         BOOLEAN       NOT NULL       True when a newer revision has been
+                                          DEFAULT false  issued
+
+  **notes**                 TEXT          NULL           
+
+  **created_at**            TIMESTAMPTZ   NOT NULL       
+  ------------------------------------------------------------------------------------------
+
+**8.4 photos**
+
+  ---------------------------------------------------------------------------------------------
+  **Column**                 **Type**        **Nullable**   **Description**
+  -------------------------- --------------- -------------- -----------------------------------
+  **TABLE: photos**                                         
+
+  **id**                     UUID            NOT NULL       Primary key
+
+  **tenant_id**              UUID            NOT NULL       FK -\> tenants(id)
+
+  **project_id**             UUID            NOT NULL       FK -\> projects(id)
+
+  **album_id**               UUID            NULL           FK -\> photo_albums(id)
+
+  **daily_report_id**        UUID            NULL           FK -\> daily_reports(id) --- if
+                                                            taken as part of a report
+
+  **inspection_result_id**   UUID            NULL           FK -\> inspection_results(id) ---
+                                                            if documenting an inspection
+
+  **file_path**              TEXT            NOT NULL       Object storage path
+
+  **thumbnail_path**         TEXT            NULL           Auto-generated thumbnail path
+
+  **caption**                TEXT            NULL           
+
+  **taken_at**               TIMESTAMPTZ     NULL           EXIF timestamp from device
+
+  **gps_lat**                DECIMAL(10,7)   NULL           GPS latitude at time of capture
+
+  **gps_lng**                DECIMAL(10,7)   NULL           GPS longitude at time of capture
+
+  **taken_by_user_id**       UUID            NULL           FK -\> users(id)
+
+  **is_client_visible**      BOOLEAN         NOT NULL       Show in client portal photo feed
+                                             DEFAULT false  
+
+  **created_at**             TIMESTAMPTZ     NOT NULL       
+  ---------------------------------------------------------------------------------------------
+
+**9. Field Operations Domain**
+
+**9.1 daily_reports**
+
+  --------------------------------------------------------------------------------------------
+  **Column**                 **Type**       **Nullable**   **Description**
+  -------------------------- -------------- -------------- -----------------------------------
+  **TABLE: daily_reports**                                 
+
+  **id**                     UUID           NOT NULL       Primary key
+
+  **tenant_id**              UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**             UUID           NOT NULL       FK -\> projects(id)
+
+  **report_date**            DATE           NOT NULL       Date of work being reported
+
+  **submitted_by_user_id**   UUID           NOT NULL       FK -\> users(id) --- foreman or
+                                                           field tech
+
+  **total_manpower**         INTEGER        NOT NULL       Total workers on site
+                                            DEFAULT 0      
+
+  **total_hours**            DECIMAL(6,2)   NOT NULL       Total labor hours
+                                            DEFAULT 0      
+
+  **work_performed**         TEXT           NULL           Free-text description of work
+                                                           completed
+
+  **materials_received**     TEXT           NULL           Materials delivered to site
+
+  **equipment_on_site**      TEXT           NULL           Equipment present
+
+  **visitors**               TEXT           NULL           Visitors and inspectors on site
+
+  **issues_and_delays**      TEXT           NULL           Problems encountered
+
+  **weather_conditions**     JSONB          NULL           {temp_f, condition, wind_mph,
+                                                           precipitation} --- auto-populated
+                                                           via Weather API
+
+  **weather_delay_hours**    DECIMAL(4,2)   NOT NULL       Hours lost to weather
+                                            DEFAULT 0      
+
+  **status**                 VARCHAR(20)    NOT NULL       draft \| submitted \| approved
+                                            DEFAULT        
+                                            \'draft\'      
+
+  **submitted_at**           TIMESTAMPTZ    NULL           
+
+  **created_at**             TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**             TIMESTAMPTZ    NOT NULL       
+  --------------------------------------------------------------------------------------------
+
+**9.2 time_entries**
+
+  ---------------------------------------------------------------------------------------
+  **Column**           **Type**        **Nullable**   **Description**
+  -------------------- --------------- -------------- -----------------------------------
+  **TABLE:                                            
+  time_entries**                                      
+
+  **id**               UUID            NOT NULL       Primary key
+
+  **tenant_id**        UUID            NOT NULL       FK -\> tenants(id)
+
+  **project_id**       UUID            NOT NULL       FK -\> projects(id)
+
+  **employee_id**      UUID            NOT NULL       FK -\> company_employees(id)
+
+  **clocked_in_at**    TIMESTAMPTZ     NOT NULL       GPS-verified clock-in timestamp
+
+  **clocked_out_at**   TIMESTAMPTZ     NULL           GPS-verified clock-out timestamp
+                                                      --- NULL if still clocked in
+
+  **clock_in_lat**     DECIMAL(10,7)   NULL           GPS latitude at clock-in
+
+  **clock_in_lng**     DECIMAL(10,7)   NULL           GPS longitude at clock-in
+
+  **clock_out_lat**    DECIMAL(10,7)   NULL           GPS latitude at clock-out
+
+  **clock_out_lng**    DECIMAL(10,7)   NULL           GPS longitude at clock-out
+
+  **regular_hours**    DECIMAL(5,2)    NULL           Computed on clock-out (up to 8 hrs)
+
+  **overtime_hours**   DECIMAL(5,2)    NULL           Computed on clock-out (beyond 8
+                                                      hrs)
+
+  **cost_code**        VARCHAR(50)     NULL           Budget line item cost code for job
+                                                      costing
+
+  **notes**            TEXT            NULL           
+
+  **created_at**       TIMESTAMPTZ     NOT NULL       
+
+  **updated_at**       TIMESTAMPTZ     NOT NULL       
+  ---------------------------------------------------------------------------------------
+
+**9.3 inspections**
+
+  ----------------------------------------------------------------------------------------------
+  **Column**                  **Type**       **Nullable**    **Description**
+  --------------------------- -------------- --------------- -----------------------------------
+  **TABLE: inspections**                                     
+
+  **id**                      UUID           NOT NULL        Primary key
+
+  **tenant_id**               UUID           NOT NULL        FK -\> tenants(id)
+
+  **project_id**              UUID           NOT NULL        FK -\> projects(id)
+
+  **trade_module**            VARCHAR(50)    NOT NULL        electrical \| plumbing \| hvac \|
+                                                             framing \| concrete \| etc.
+
+  **inspection_type**         VARCHAR(100)   NOT NULL        Phase-specific type (e.g.
+                                                             \'rough\', \'underground\',
+                                                             \'final\')
+
+  **scheduled_date**          DATE           NULL            
+
+  **inspector_name**          VARCHAR(200)   NULL            
+
+  **inspector_contact**       VARCHAR(200)   NULL            Phone or email
+
+  **jurisdiction**            VARCHAR(200)   NULL            AHJ name
+
+  **permit_id**               UUID           NULL            FK -\> permits(id)
+
+  **status**                  VARCHAR(20)    NOT NULL        scheduled \| passed \| failed \|
+                                             DEFAULT         correction_required \| cancelled
+                                             \'scheduled\'   
+
+  **result_notes**            TEXT           NULL            Inspector comments or correction
+                                                             items
+
+  **inspected_at**            TIMESTAMPTZ    NULL            Actual inspection date/time
+
+  **reinspection_required**   BOOLEAN        NOT NULL        
+                                             DEFAULT false   
+
+  **reinspection_id**         UUID           NULL            FK -\> inspections(id) ---
+                                                             follow-up inspection record
+
+  **created_at**              TIMESTAMPTZ    NOT NULL        
+
+  **updated_at**              TIMESTAMPTZ    NOT NULL        
+  ----------------------------------------------------------------------------------------------
+
+**9.4 punch_list_items**
+
+  ---------------------------------------------------------------------------------------------
+  **Column**                  **Type**       **Nullable**   **Description**
+  --------------------------- -------------- -------------- -----------------------------------
+  **TABLE: punch_list_items**                               
+
+  **id**                      UUID           NOT NULL       Primary key
+
+  **tenant_id**               UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**              UUID           NOT NULL       FK -\> projects(id)
+
+  **item_number**             VARCHAR(20)    NOT NULL       Sequential punch item number (e.g.
+                                                            PL-001)
+
+  **description**             TEXT           NOT NULL       
+
+  **location**                VARCHAR(255)   NULL           Room, area, or grid reference
+
+  **trade_module**            VARCHAR(50)    NULL           Responsible trade
+
+  **assigned_to_vendor_id**   UUID           NULL           FK -\> vendors(id)
+
+  **assigned_to_user_id**     UUID           NULL           FK -\> users(id)
+
+  **due_date**                DATE           NULL           
+
+  **completed_at**            TIMESTAMPTZ    NULL           
+
+  **status**                  VARCHAR(20)    NOT NULL       open \| in_progress \| completed \|
+                                             DEFAULT        verified \| void
+                                             \'open\'       
+
+  **priority**                VARCHAR(10)    NOT NULL       low \| normal \| high \| critical
+                                             DEFAULT        
+                                             \'normal\'     
+
+  **created_at**              TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**              TIMESTAMPTZ    NOT NULL       
+  ---------------------------------------------------------------------------------------------
+
+**10. Communication Domain**
+
+**10.1 rfis**
+
+  ---------------------------------------------------------------------------------------------
+  **Column**                  **Type**       **Nullable**   **Description**
+  --------------------------- -------------- -------------- -----------------------------------
+  **TABLE: rfis**                                           
+
+  **id**                      UUID           NOT NULL       Primary key
+
+  **tenant_id**               UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**              UUID           NOT NULL       FK -\> projects(id)
+
+  **rfi_number**              VARCHAR(30)    NOT NULL       Sequential RFI number (e.g.
+                                                            RFI-001)
+
+  **subject**                 VARCHAR(255)   NOT NULL       
+
+  **question**                TEXT           NOT NULL       Full RFI question text
+
+  **submitted_by_user_id**    UUID           NOT NULL       FK -\> users(id)
+
+  **assigned_to_user_id**     UUID           NULL           FK -\> users(id) --- who must
+                                                            respond
+
+  **assigned_to_vendor_id**   UUID           NULL           FK -\> vendors(id) --- external
+                                                            respondent
+
+  **plan_set_id**             UUID           NULL           FK -\> plan_sets(id) --- relevant
+                                                            drawing
+
+  **plan_revision_id**        UUID           NULL           FK -\> plan_revisions(id)
+
+  **drawing_reference**       VARCHAR(100)   NULL           Sheet number and detail reference
+
+  **date_required**           DATE           NULL           Response needed by this date
+
+  **status**                  VARCHAR(20)    NOT NULL       open \| answered \| closed \| void
+                                             DEFAULT        
+                                             \'open\'       
+
+  **submitted_at**            TIMESTAMPTZ    NOT NULL       
+                                             DEFAULT NOW()  
+
+  **answered_at**             TIMESTAMPTZ    NULL           
+
+  **created_at**              TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**              TIMESTAMPTZ    NOT NULL       
+  ---------------------------------------------------------------------------------------------
+
+**10.2 submittals**
+
+  ---------------------------------------------------------------------------------------------------
+  **Column**                   **Type**       **Nullable**        **Description**
+  ---------------------------- -------------- ------------------- -----------------------------------
+  **TABLE: submittals**                                           
+
+  **id**                       UUID           NOT NULL            Primary key
+
+  **tenant_id**                UUID           NOT NULL            FK -\> tenants(id)
+
+  **project_id**               UUID           NOT NULL            FK -\> projects(id)
+
+  **submittal_number**         VARCHAR(30)    NOT NULL            Sequential number (e.g. SUB-001)
+
+  **spec_section**             VARCHAR(50)    NULL                CSI spec section reference
+
+  **title**                    VARCHAR(255)   NOT NULL            
+
+  **submittal_type**           VARCHAR(50)    NOT NULL            shop_drawing \| product_data \|
+                                                                  sample \| operation_manual \|
+                                                                  warranty \| other
+
+  **submitted_by_vendor_id**   UUID           NULL                FK -\> vendors(id) --- submitting
+                                                                  subcontractor
+
+  **submitted_by_user_id**     UUID           NOT NULL            FK -\> users(id)
+
+  **reviewer_user_id**         UUID           NULL                FK -\> users(id) --- assigned
+                                                                  reviewer
+
+  **date_required**            DATE           NULL                
+
+  **submitted_at**             DATE           NULL                
+
+  **reviewed_at**              DATE           NULL                
+
+  **status**                   VARCHAR(30)    NOT NULL DEFAULT    not_submitted \| submitted \|
+                                              \'not_submitted\'   under_review \| approved \|
+                                                                  approved_as_noted \|
+                                                                  revise_resubmit \| rejected \| void
+
+  **reviewer_notes**           TEXT           NULL                
+
+  **revision_number**          INTEGER        NOT NULL DEFAULT 1  Increments on each resubmittal
+
+  **created_at**               TIMESTAMPTZ    NOT NULL            
+
+  **updated_at**               TIMESTAMPTZ    NOT NULL            
+  ---------------------------------------------------------------------------------------------------
+
+**10.3 notifications**
+
+  -----------------------------------------------------------------------------------------
+  **Column**              **Type**       **Nullable**   **Description**
+  ----------------------- -------------- -------------- -----------------------------------
+  **TABLE:                                              
+  notifications**                                       
+
+  **id**                  UUID           NOT NULL       Primary key
+
+  **tenant_id**           UUID           NOT NULL       FK -\> tenants(id)
+
+  **user_id**             UUID           NOT NULL       FK -\> users(id) --- recipient
+
+  **notification_type**   VARCHAR(80)    NOT NULL       schedule_change \|
+                                                        inspection_result \|
+                                                        co_approval_needed \|
+                                                        invoice_approval \| rfi_response \|
+                                                        message \| etc.
+
+  **title**               VARCHAR(255)   NOT NULL       
+
+  **body**                TEXT           NOT NULL       
+
+  **entity_type**         VARCHAR(50)    NULL           projects \| change_orders \|
+                                                        inspections \| etc. --- for deep
+                                                        link
+
+  **entity_id**           UUID           NULL           The specific record this
+                                                        notification relates to
+
+  **channel**             VARCHAR(10)    NOT NULL       in_app \| email \| sms \| push
+
+  **is_read**             BOOLEAN        NOT NULL       
+                                         DEFAULT false  
+
+  **sent_at**             TIMESTAMPTZ    NULL           When external notification was
+                                                        dispatched
+
+  **read_at**             TIMESTAMPTZ    NULL           
+
+  **created_at**          TIMESTAMPTZ    NOT NULL       
+  -----------------------------------------------------------------------------------------
+
+**11. Trade Module Domain**
+
+Trade module tables store discipline-specific data for each trade. All
+tables follow the universal schema conventions and include tenant_id for
+RLS enforcement. Only the v1.0 trade modules (General Contracting,
+Electrical, Plumbing) are fully specified here. Additional trade module
+tables follow the same patterns.
+
+**11.1 trade_phases (shared across all modules)**
+
+  ---------------------------------------------------------------------------------------
+  **Column**         **Type**       **Nullable**      **Description**
+  ------------------ -------------- ----------------- -----------------------------------
+  **TABLE:                                            
+  trade_phases**                                      
+
+  **id**             UUID           NOT NULL          Primary key
+
+  **tenant_id**      UUID           NOT NULL          FK -\> tenants(id)
+
+  **project_id**     UUID           NOT NULL          FK -\> projects(id)
+
+  **trade_module**   VARCHAR(50)    NOT NULL          electrical \| plumbing \| hvac \|
+                                                      concrete \| framing \| gc \| etc.
+
+  **phase_key**      VARCHAR(50)    NOT NULL          rough_in \| trim \| final \|
+                                                      underground \| equipment_set \|
+                                                      etc.
+
+  **phase_name**     VARCHAR(100)   NOT NULL          Display name
+
+  **status**         VARCHAR(20)    NOT NULL DEFAULT  not_started \| in_progress \|
+                                    \'not_started\'   completed \| failed \| skipped
+
+  **started_at**     TIMESTAMPTZ    NULL              
+
+  **completed_at**   TIMESTAMPTZ    NULL              
+
+  **sort_order**     INTEGER        NOT NULL DEFAULT  Phase sequence
+                                    0                 
+
+  **notes**          TEXT           NULL              
+
+  **created_at**     TIMESTAMPTZ    NOT NULL          
+
+  **updated_at**     TIMESTAMPTZ    NOT NULL          
+  ---------------------------------------------------------------------------------------
+
+**11.2 Electrical Module**
+
+**electrical_panels**
+
+  --------------------------------------------------------------------------------------------
+  **Column**                 **Type**       **Nullable**   **Description**
+  -------------------------- -------------- -------------- -----------------------------------
+  **TABLE:                                                 
+  electrical_panels**                                      
+
+  **id**                     UUID           NOT NULL       Primary key
+
+  **tenant_id**              UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**             UUID           NOT NULL       FK -\> projects(id)
+
+  **panel_name**             VARCHAR(100)   NOT NULL       E.g. \'Main Panel\', \'Sub Panel
+                                                           1\'
+
+  **location**               VARCHAR(255)   NULL           Physical location description
+
+  **amperage**               INTEGER        NULL           Panel amperage rating
+
+  **voltage**                VARCHAR(20)    NULL           120/240V \| 208/120V \| 480/277V
+
+  **phases**                 INTEGER        NULL           1 \| 3
+
+  **total_breakers**         INTEGER        NULL           
+
+  **is_main_service**        BOOLEAN        NOT NULL       
+                                            DEFAULT false  
+
+  **utility_meter_number**   VARCHAR(100)   NULL           
+
+  **status**                 VARCHAR(20)    NOT NULL       rough \| trimmed \| energized \|
+                                            DEFAULT        final
+                                            \'rough\'      
+
+  **notes**                  TEXT           NULL           
+
+  **created_at**             TIMESTAMPTZ    NOT NULL       
+
+  **updated_at**             TIMESTAMPTZ    NOT NULL       
+  --------------------------------------------------------------------------------------------
+
+**electrical_circuits**
+
+  --------------------------------------------------------------------------------------------
+  **Column**              **Type**       **Nullable**      **Description**
+  ----------------------- -------------- ----------------- -----------------------------------
+  **TABLE:                                                 
+  electrical_circuits**                                    
+
+  **id**                  UUID           NOT NULL          Primary key
+
+  **tenant_id**           UUID           NOT NULL          FK -\> tenants(id)
+
+  **project_id**          UUID           NOT NULL          FK -\> projects(id)
+
+  **panel_id**            UUID           NOT NULL          FK -\> electrical_panels(id)
+
+  **circuit_number**      VARCHAR(10)    NOT NULL          Breaker position(s) (e.g. \'1\',
+                                                           \'3-5\')
+
+  **description**         VARCHAR(255)   NOT NULL          What this circuit serves
+
+  **breaker_size_amps**   INTEGER        NULL              
+
+  **wire_gauge**          VARCHAR(10)    NULL              12 AWG \| 10 AWG \| etc.
+
+  **wire_type**           VARCHAR(20)    NULL              THHN \| Romex \| MC \| etc.
+
+  **conduit_type**        VARCHAR(30)    NULL              EMT \| PVC \| RMC \| none
+
+  **is_afci**             BOOLEAN        NOT NULL DEFAULT  Arc fault protection required
+                                         false             
+
+  **is_gfci**             BOOLEAN        NOT NULL DEFAULT  Ground fault protection required
+                                         false             
+
+  **load_amps**           DECIMAL(6,2)   NULL              Connected load in amps
+
+  **phase**               VARCHAR(5)     NULL              A \| B \| C \| AB \| BC \| ABC
+
+  **status**              VARCHAR(20)    NOT NULL DEFAULT  not_started \| rough_complete \|
+                                         \'not_started\'   trim_complete \| final
+
+  **notes**               TEXT           NULL              
+
+  **created_at**          TIMESTAMPTZ    NOT NULL          
+  --------------------------------------------------------------------------------------------
+
+**11.3 Plumbing Module**
+
+**plumbing_fixtures**
+
+  ---------------------------------------------------------------------------------------------
+  **Column**               **Type**       **Nullable**      **Description**
+  ------------------------ -------------- ----------------- -----------------------------------
+  **TABLE:                                                  
+  plumbing_fixtures**                                       
+
+  **id**                   UUID           NOT NULL          Primary key
+
+  **tenant_id**            UUID           NOT NULL          FK -\> tenants(id)
+
+  **project_id**           UUID           NOT NULL          FK -\> projects(id)
+
+  **fixture_type**         VARCHAR(50)    NOT NULL          toilet \| lavatory \| kitchen_sink
+                                                            \| tub \| shower \| water_heater \|
+                                                            dishwasher \| hose_bib \|
+                                                            floor_drain \| etc.
+
+  **location**             VARCHAR(255)   NOT NULL          Room or area
+
+  **manufacturer**         VARCHAR(100)   NULL              
+
+  **model_number**         VARCHAR(100)   NULL              
+
+  **rough_in_dimension**   VARCHAR(50)    NULL              E.g. \'12-inch rough-in\'
+
+  **status**               VARCHAR(20)    NOT NULL DEFAULT  not_started \| roughed_in \| set \|
+                                          \'not_started\'   trimmed \| final
+
+  **notes**                TEXT           NULL              
+
+  **created_at**           TIMESTAMPTZ    NOT NULL          
+
+  **updated_at**           TIMESTAMPTZ    NOT NULL          
+  ---------------------------------------------------------------------------------------------
+
+**pressure_tests**
+
+  ---------------------------------------------------------------------------------------------
+  **Column**                  **Type**       **Nullable**   **Description**
+  --------------------------- -------------- -------------- -----------------------------------
+  **TABLE: pressure_tests**                                 
+
+  **id**                      UUID           NOT NULL       Primary key
+
+  **tenant_id**               UUID           NOT NULL       FK -\> tenants(id)
+
+  **project_id**              UUID           NOT NULL       FK -\> projects(id)
+
+  **system**                  VARCHAR(30)    NOT NULL       water \| gas \| drain_waste_vent \|
+                                                            air
+
+  **test_type**               VARCHAR(30)    NOT NULL       hydrostatic \| air_pressure \|
+                                                            visual
+
+  **test_pressure_psi**       DECIMAL(6,2)   NULL           Applied test pressure
+
+  **test_duration_minutes**   INTEGER        NULL           
+
+  **tested_at**               DATE           NOT NULL       
+
+  **technician_name**         VARCHAR(200)   NULL           
+
+  **inspector_present**       BOOLEAN        NOT NULL       
+                                             DEFAULT false  
+
+  **result**                  VARCHAR(20)    NOT NULL       pass \| fail
+
+  **failure_notes**           TEXT           NULL           Description of leaks or failures if
+                                                            failed
+
+  **retest_required**         BOOLEAN        NOT NULL       
+                                             DEFAULT false  
+
+  **created_at**              TIMESTAMPTZ    NOT NULL       
+  ---------------------------------------------------------------------------------------------
+
+**11.4 Cross-Tenant Collaboration Tables (v1.1)**
+
+> **v1.1 Tables:**
+>
+> The following tables are designed now but not activated until v1.1.
+> The schema is defined here so v1.0 migrations do not conflict with
+> v1.1 additions.
+
+**tenant_connections**
+
+  -------------------------------------------------------------------------------------------
+  **Column**                 **Type**      **Nullable**   **Description**
+  -------------------------- ------------- -------------- -----------------------------------
+  **TABLE:                                                
+  tenant_connections**                                    
+
+  **id**                     UUID          NOT NULL       Primary key
+
+  **initiating_tenant_id**   UUID          NOT NULL       FK -\> tenants(id) --- the inviting
+                                                          GC or prime contractor
+
+  **receiving_tenant_id**    UUID          NOT NULL       FK -\> tenants(id) --- the invited
+                                                          sub or specialty contractor
+
+  **project_id**             UUID          NOT NULL       FK -\> projects(id) --- specific
+                                                          project being shared
+
+  **scope_description**      TEXT          NULL           Description of awarded scope
+
+  **contract_value_cents**   BIGINT        NULL           Awarded contract value
+
+  **permissions**            JSONB         NOT NULL       Governs which data types cross the
+                                           DEFAULT \'{}\' tenant boundary
+
+  **status**                 VARCHAR(20)   NOT NULL       pending \| active \| completed \|
+                                           DEFAULT        disconnected \| rejected
+                                           \'pending\'    
+
+  **initiated_at**           TIMESTAMPTZ   NOT NULL       
+                                           DEFAULT NOW()  
+
+  **accepted_at**            TIMESTAMPTZ   NULL           
+
+  **completed_at**           TIMESTAMPTZ   NULL           
+
+  **created_at**             TIMESTAMPTZ   NOT NULL       
+
+  **updated_at**             TIMESTAMPTZ   NOT NULL       
+  -------------------------------------------------------------------------------------------
+
+**12. Index Strategy**
+
+All performance-critical indexes are listed here. Every tenant-scoped
+table uses tenant_id as the leading index column. Secondary indexes
+support the most common query patterns.
+
+  ----------------------------------------------------------------------------------
+  **Table**             **Index Columns**       **Type**   **Purpose**
+  --------------------- ----------------------- ---------- -------------------------
+  tenants               slug                    UNIQUE     Tenant lookup by URL slug
+
+  tenants               stripe_customer_id      BTREE      Stripe webhook lookups
+
+  users                 tenant_id, email        UNIQUE     Login lookup --- email
+                                                           unique per tenant
+
+  users                 tenant_id, role         BTREE      Role-based user listing
+
+  sessions              jti                     UNIQUE     Token revocation check
+                                                           --- must be
+                                                           sub-millisecond
+
+  sessions              user_id, revoked_at     BTREE      Active sessions per user
+
+  projects              tenant_id               BTREE      All projects for a tenant
+
+  projects              tenant_id, status       BTREE      Active/completed project
+                                                           filtering
+
+  projects              tenant_id, client_id    BTREE      Projects by client
+
+  budget_line_items     tenant_id, project_id   BTREE      Budget per project
+
+  schedule_tasks        tenant_id, project_id   BTREE      All tasks per project
+
+  schedule_tasks        tenant_id, project_id,  BTREE      Critical path filter
+                        is_critical_path                   
+
+  task_dependencies     predecessor_task_id     BTREE      Dependency graph
+                                                           traversal
+
+  task_dependencies     successor_task_id       BTREE      Reverse dependency lookup
+
+  change_orders         tenant_id, project_id,  BTREE      Open COs per project
+                        status                             
+
+  invoices              tenant_id, project_id   BTREE      Invoices per project
+
+  invoices              quickbooks_invoice_id   BTREE      QBO sync lookups
+
+  documents             tenant_id, project_id,  BTREE      Documents by type per
+                        document_type                      project
+
+  photos                tenant_id, project_id,  BTREE      Client portal photo feed
+                        is_client_visible                  
+
+  daily_reports         tenant_id, project_id,  BTREE      Daily reports by date
+                        report_date                        
+
+  time_entries          tenant_id, project_id,  BTREE      Time per employee per
+                        employee_id                        project
+
+  inspections           tenant_id, project_id,  BTREE      Inspections by trade
+                        trade_module                       
+
+  rfis                  tenant_id, project_id,  BTREE      Open RFIs per project
+                        status                             
+
+  notifications         tenant_id, user_id,     BTREE      Unread notifications per
+                        is_read                            user
+
+  trade_phases          tenant_id, project_id,  BTREE      Phase status per trade
+                        trade_module                       per project
+
+  electrical_panels     tenant_id, project_id   BTREE      Panels per project
+
+  electrical_circuits   tenant_id, project_id,  BTREE      Circuits per panel
+                        panel_id                           
+  ----------------------------------------------------------------------------------
+
+**13. Entity Relationship Summary**
+
+The following diagram summarizes the primary relationships between core
+entities. All relationships are tenant-scoped --- foreign keys only
+reference records within the same tenant (except for cross-tenant tables
+where explicitly noted).
+
+> tenants (1)
+>
+> ├── users (many)
+>
+> │ └── time_entries (many)
+>
+> ├── projects (many)
+>
+> │ ├── project_team_members (many) ──► users
+>
+> │ ├── budget_line_items (many)
+>
+> │ ├── schedule_tasks (many)
+>
+> │ │ └── task_dependencies (many) ──► schedule_tasks
+>
+> │ ├── milestones (many)
+>
+> │ ├── change_orders (many)
+>
+> │ ├── invoices (many)
+>
+> │ ├── lien_waivers (many) ──► invoices
+>
+> │ ├── plan_sets (many)
+>
+> │ │ └── plan_revisions (many)
+>
+> │ ├── documents (many)
+>
+> │ ├── photos (many)
+>
+> │ ├── daily_reports (many)
+>
+> │ ├── time_entries (many) ──► company_employees
+>
+> │ ├── inspections (many)
+>
+> │ ├── punch_list_items (many)
+>
+> │ ├── rfis (many)
+>
+> │ ├── submittals (many)
+>
+> │ ├── trade_phases (many)
+>
+> │ ├── electrical_panels (many)
+>
+> │ │ └── electrical_circuits (many)
+>
+> │ ├── plumbing_fixtures (many)
+>
+> │ └── pressure_tests (many)
+>
+> ├── clients (many)
+>
+> │ └── projects (many) ──► clients
+>
+> ├── vendors (many)
+>
+> │ ├── change_orders (many) ──► vendors
+>
+> │ └── invoices (many) ──► vendors
+>
+> └── company_employees (many)
+>
+> ── CROSS-TENANT (v1.1) ──────────────────────────────────────────
+>
+> tenant_connections
+>
+> ├── initiating_tenant_id ──► tenants
+>
+> ├── receiving_tenant_id ──► tenants
+>
+> └── project_id ──► projects (initiating tenant\'s project)
+
+**14. Migration Strategy**
+
+**14.1 Tooling**
+
+-   Migration tool: Flyway or Liquibase --- versioned, sequential SQL
+    migration files
+
+-   Every schema change is a new migration file --- never modify
+    existing migrations
+
+-   Migrations run automatically on deployment via CI/CD pipeline
+
+-   All migrations are reversible --- every Up migration has a
+    corresponding Down migration
+
+**14.2 Migration File Naming Convention**
+
+> V001\_\_create_tenants_table.sql
+>
+> V002\_\_create_users_table.sql
+>
+> V003\_\_create_projects_table.sql
+>
+> V004\_\_add_rls_policies.sql
+>
+> V005\_\_create_scheduling_tables.sql
+>
+> \...
+>
+> V040\_\_add_electrical_module_tables.sql
+>
+> V041\_\_add_plumbing_module_tables.sql
+
+**14.3 RLS Policy Application**
+
+RLS policies are applied in a dedicated migration after each table is
+created. Policies must be re-applied after any table structural change.
+The RLS migration pattern:
+
+> \-- V004\_\_add_rls_policies.sql
+>
+> ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
+>
+> ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+>
+> ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+>
+> \-- \... all tenant-scoped tables
+>
+> CREATE POLICY tenant_isolation ON projects
+>
+> USING (tenant_id = current_setting(\'app.current_tenant_id\')::UUID)
+>
+> WITH CHECK (tenant_id =
+> current_setting(\'app.current_tenant_id\')::UUID);
+
+**14.4 updated_at Trigger**
+
+A trigger automatically updates the updated_at column on every
+modification:
+
+> CREATE OR REPLACE FUNCTION set_updated_at()
+>
+> RETURNS TRIGGER AS \$\$
+>
+> BEGIN
+>
+> NEW.updated_at = NOW();
+>
+> RETURN NEW;
+>
+> END;
+>
+> \$\$ LANGUAGE plpgsql;
+>
+> \-- Apply to every table with updated_at
+>
+> CREATE TRIGGER trg_projects_updated_at
+>
+> BEFORE UPDATE ON projects
+>
+> FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+**11. Locale & Language Schema**
+
+Locale preferences are stored at both the tenant level (company default)
+and the user level (individual preference). User preference always takes
+precedence. All string data is stored in its original language as
+entered --- the platform does not translate stored content, only the UI
+shell and system-generated text.
+
+**11.1 Schema Additions for Localization**
+
+  ------------------------------------------------------------------------------------------------
+  **Table**          **New Column**        **Type**      **Default**    **Description**
+  ------------------ --------------------- ------------- -------------- --------------------------
+  users              preferred_language    VARCHAR(10)   \'en\'         User\'s preferred UI
+                                                                        language. ISO 639-1
+                                                                        language code + optional
+                                                                        region (e.g. \'es\',
+                                                                        \'en\', \'pt-BR\',
+                                                                        \'ht\'). Overrides tenant
+                                                                        default. Set at signup via
+                                                                        device locale detection,
+                                                                        editable in Profile.
+
+  tenants            default_language      VARCHAR(10)   \'en\'         Tenant-wide default
+                                                                        language for new users and
+                                                                        portal guests. Owner sets
+                                                                        in Company Settings.
+                                                                        Affects onboarding wizard
+                                                                        language for new team
+                                                                        members.
+
+  user_invitations   preferred_language    VARCHAR(10)   NULL           Language to use for the
+                                                                        invitation email. If NULL,
+                                                                        uses
+                                                                        tenant.default_language.
+                                                                        Set by system based on
+                                                                        context.
+
+  notifications      locale                VARCHAR(10)   \'en\'         Locale used when the
+                                                                        notification was generated
+                                                                        --- stored so the
+                                                                        notification record is
+                                                                        self-descriptive even if
+                                                                        user later changes
+                                                                        language preference.
+
+  daily_reports      language_detected     VARCHAR(10)   NULL           Detected language of the
+                                                                        work_performed and issues
+                                                                        text fields --- set by
+                                                                        optional NLP pass for
+                                                                        analytics. Non-blocking,
+                                                                        best-effort.
+
+  tenants            supported_languages   TEXT\[\]      \'{\"en\"}\'   Array of language codes
+                                                                        the tenant has enabled for
+                                                                        their workers. Defaults to
+                                                                        \[\'en\'\]. When tenant
+                                                                        enables Spanish,
+                                                                        \[\'en\',\'es\'\] ---
+                                                                        controls language selector
+                                                                        options shown to users.
+  ------------------------------------------------------------------------------------------------
+
+**11.2 Locale-Aware Field Behavior**
+
+  ----------------------------------------------------------------------------------
+  **Field Type**     **Storage**            **Display**
+  ------------------ ---------------------- ----------------------------------------
+  Timestamps         Always stored as       Formatted for display using
+                     TIMESTAMPTZ (UTC) ---  Intl.DateTimeFormat in user\'s locale on
+                     locale-agnostic        the client
+
+  Currency amounts   Always stored as       Formatted with Intl.NumberFormat(locale,
+                     INTEGER (cents) ---    {style:\'currency\',currency:\'USD\'})
+                     locale-agnostic        on client
+
+  User-entered text  Stored as-is in        Displayed as stored --- platform does
+  (notes,            whatever language the  not translate user content
+  descriptions)      user typed --- no      
+                     translation or         
+                     normalization          
+
+  System-generated   Stored as canonical    Translated on the client using i18n
+  strings (status    English keys --- never keys: t(\'status.active\') → \'Active\'
+  labels, type       locale-specific        or \'Activo\'
+  values)            strings in the DB      
+
+  Document names and Stored as uploaded --- Displayed as stored --- full Unicode
+  filenames          supports Unicode fully support in all text fields
+                     (UTF-8 throughout)     
+  ----------------------------------------------------------------------------------
+
+**11.3 Migration Notes**
+
+-   Add preferred_language and supported_languages to tenants migration:
+    ALTER TABLE tenants ADD COLUMN default_language VARCHAR(10) NOT NULL
+    DEFAULT \'en\', ADD COLUMN supported_languages TEXT\[\] NOT NULL
+    DEFAULT \'{\"en\"}\'
+
+-   Add preferred_language to users migration: ALTER TABLE users ADD
+    COLUMN preferred_language VARCHAR(10) NOT NULL DEFAULT \'en\'
+
+-   All existing tenant and user records default to \'en\' --- no data
+    migration required
+
+-   Index on users.preferred_language is NOT needed --- low cardinality,
+    not used in WHERE clauses for filtering
+
+-   Language codes follow IETF BCP 47 standard: \'en\', \'es\',
+    \'pt-BR\', \'ht\', \'pl\', \'uk\', \'vi\', \'tl\', \'ar\', \'zh-CN\'

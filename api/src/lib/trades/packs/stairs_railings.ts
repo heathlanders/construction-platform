@@ -1,0 +1,247 @@
+// Trade Knowledge Pack — stairs_railings (Stairs & Railings — wood / interior stairs, balustrades,
+// interior cable rail). Wave 16 — NEW-TRADE pattern (no hand recipe, no template tasks).
+// Dossier: docs/trade-packs/dossiers/stairs_railings.md. Sources: 29 CFR 1926 Subparts X, M, I, E, D, C;
+// 2010 ADA Standards 504/505; AWC DCA 6 (stringer cutting concept); L.J. Smith + Atlantis Rail
+// published installation guides; IRC R311.7 / R312 and IBC 1011 / 1014 / 1015 / 1607.9 — reference only.
+// Steel stairs/pipe rail = misc_metals; deck rail/stairs = decks; glass rail = glazing;
+// wall handrail = finish_carpentry; stair tread flooring = flooring_wood; stair carpet = flooring_carpet.
+import { definePack, PENDING_ES } from './schema.js';
+
+const D = '2026-10-08';
+const osha = (sub: string) => ({ src: [`ecfr-1926-${sub}`], confidence: 'verified' as const, last_verified: D });
+const icc = { src: ['icc-pa'], confidence: 'verified' as const, last_verified: D };
+const ada = { src: ['plumbing-ada-2010'], confidence: 'verified' as const, last_verified: D };
+const mfr = { src: ['stairs_railings-ljsmith-install', 'stairs_railings-atlantis-install'], confidence: 'derived' as const, last_verified: D, note: 'Common to the published stair-part and cable-rail installation guides — follow the instructions for the product installed.' };
+const awc = { src: ['awc-dca6'], confidence: 'derived' as const, last_verified: D, note: 'DCA 6 stair-stringer guidance (written for exterior deck stairs) applied to the same cut-stringer concept indoors.' };
+const est = (note: string) => ({ src: ['platform-baseline'], confidence: 'estimate' as const, last_verified: D, note });
+
+export default definePack({
+  key: 'stairs_railings',
+  schema_version: 1,
+  pack_version: '1.0.0',
+  status: 'draft',
+  identity: {
+    summary: 'Builds wood and interior finish stairs — site-cut or prefabricated stringers, treads and risers — and installs the balustrade: newel posts, handrails, guards, balusters and interior cable-rail kits, from rise/run layout and headroom checks through temporary rails during construction to the final guard and handrail inspection.',
+    summary_es: 'Construye escaleras de madera e interiores — zancas cortadas en obra o prefabricadas, huellas y contrahuellas — e instala postes de arranque, pasamanos, barandales, balaustres y kits de cable, desde el trazo y el espacio libre superior hasta la inspección final de barandales.',
+    glossary: [
+      { term: 'Rise / run', term_es: 'Altura / huella', def: 'Rise is the height of one step; run is the depth of one step front to back.', def_es: 'La altura es lo que sube cada escalón; la huella es la profundidad del escalón de frente a fondo.' },
+      { term: 'Stringer', term_es: 'Zanca', def: 'Sloped board, cut in a saw-tooth pattern, that carries the treads and risers.', def_es: 'Tabla inclinada, cortada en forma de dientes de sierra, que soporta huellas y contrahuellas.' },
+      { term: 'Tread', term_es: 'Huella (peldaño)', def: 'The horizontal board you step on.', def_es: 'La tabla horizontal donde se pisa.' },
+      { term: 'Riser', term_es: 'Contrahuella', def: 'The vertical board between two treads.', def_es: 'La tabla vertical entre dos huellas.' },
+      { term: 'Nosing', term_es: 'Nariz del peldaño', def: 'The front edge of a tread that sticks out past the riser below.', def_es: 'El borde frontal de la huella que sobresale de la contrahuella de abajo.' },
+      { term: 'Headroom', term_es: 'Espacio libre superior', def: 'Clear height from the line of the stair nosings up to the ceiling or beam above.', def_es: 'Altura libre desde la línea de narices de los peldaños hasta el techo o viga de arriba.' },
+      { term: 'Newel post', term_es: 'Poste de arranque', def: 'The heavy post at the bottom, top or turn of a stair that anchors the handrail.', def_es: 'El poste grueso al inicio, final o vuelta de la escalera que ancla el pasamanos.' },
+      { term: 'Baluster', term_es: 'Balaustre', def: 'One of the vertical pickets between the handrail and the tread or floor.', def_es: 'Cada uno de los barrotes verticales entre el pasamanos y la huella o el piso.' },
+      { term: 'Guard', term_es: 'Barandal de protección', def: 'Rail system along an open side of a stair or landing that keeps people from falling off.', def_es: 'Sistema de barandal en el lado abierto de una escalera o descanso que evita caídas.' },
+      { term: 'Handrail', term_es: 'Pasamanos', def: 'The rail you hold while walking the stair; it must be easy to grip and continuous.', def_es: 'El riel que se sujeta al usar la escalera; debe ser fácil de agarrar y continuo.' },
+    ],
+  },
+  est_bucket: 'building',
+  recipes: [
+    {
+      id: 'wood_stair_flight',
+      example_title: 'Build interior stairs and install railings',
+      when: { title_re: '\\bstairs?\\b|stairway|stringers?|\\btreads?\\b|\\brisers?\\b' },
+      priority: 5,
+      steps: [
+        {
+          title: 'Lay out the rise and run',
+          instruction: 'Measure total rise from finished floor to finished floor, including the flooring still to come on both levels. Divide it into equal risers that stay within the adopted code limits, then set the tread depth from the available run. Check that the plan width and landing sizes fit before cutting anything.',
+          detail: 'Riser heights and tread depths must match within the code tolerance across the whole flight — the first and last steps are where uneven flooring usually throws it off.',
+          tools: ['tape measure', 'laser level', 'framing square with stair gauges', 'calculator'],
+          materials: [],
+          safety_ids: ['stairwell_hole', 'housekeeping'],
+          qa_ids: ['riser_tread_uniform'],
+          code_refs: [{ section: 'R311.7.5', code_type: 'IRC', note: 'Stair treads and risers — dwelling dimension and uniformity limits' }, { section: '1011.5', code_type: 'IBC', note: 'Stair treads and risers — dimensions and uniformity' }],
+        },
+        {
+          title: 'Cut and set the stringers; check headroom and width',
+          instruction: 'Cut stringers from straight, sound stock (or set the prefabricated stringer set per its instructions). Leave enough solid wood below the notches; do not over-cut the corners. Hang the stringers on the header with the specified hangers or blocking, plumb and level, spaced for the tread material. Check headroom along the whole flight and the clear width before calling for the framing inspection.',
+          tools: ['circular saw', 'handsaw', 'framing square', 'level', 'framing nailer'],
+          materials: ['stringer stock or prefab stringer set', 'hangers / blocking', 'structural fasteners'],
+          safety_ids: ['saw_guard', 'nailer', 'eye_flying', 'stairwell_hole', 'open_side_fall'],
+          qa_ids: ['stringer_throat', 'stringers_level_plumb', 'headroom_clear', 'width_clear'],
+          gating_inspection_type: 'framing',
+          code_refs: [{ section: 'R311.7.2', code_type: 'IRC', note: 'Headroom over dwelling stairways' }, { section: 'R311.7.1', code_type: 'IRC', note: 'Stairway clear width' }, { section: '1011.3', code_type: 'IBC', note: 'Stairway headroom' }],
+        },
+        {
+          title: 'Put up temporary rails for construction use',
+          instruction: 'If the crew will use the stair before the finished balustrade goes in, put a temporary stair rail on each open side and a handrail now. Guard the open edges of landings and the stairwell opening on the floor above. Keep rough treads on — no walking on bare stringers.',
+          detail: 'OSHA: stairways with four or more risers or more than 30 in. of rise need at least one handrail and a stair rail on each unprotected side; a stair rail top is at least 36 in. above the tread nosing line, with intermediate members no more than 19 in. apart, and the top rail holds 200 lb.',
+          tools: ['circular saw', 'drill/driver', 'level'],
+          materials: ['2x lumber for temporary rails', 'screws'],
+          safety_ids: ['open_side_fall', 'landing_edge', 'stairwell_hole', 'temp_rail_removal'],
+          qa_ids: ['temp_rails_in_place'],
+        },
+        {
+          title: 'Install risers and treads',
+          instruction: 'Fit risers first, then treads, gluing and fastening each to the stringers so nothing squeaks. Keep the nosing projection the same on every step and the tread tops level side to side. Fill or set every fastener head; no protruding nails or splinters.',
+          tools: ['miter saw', 'finish nailer', 'caulk gun', 'level'],
+          materials: ['riser stock', 'tread stock', 'construction adhesive', 'finish fasteners'],
+          safety_ids: ['saw_guard', 'nailer', 'eye_flying', 'noise', 'housekeeping'],
+          qa_ids: ['treads_glued_no_squeak', 'nosing_uniform', 'riser_tread_uniform'],
+          code_refs: [{ section: 'R311.7.5.3', code_type: 'IRC', note: 'Nosings — projection and uniformity on dwelling stairs' }],
+        },
+        {
+          title: 'Install guards and handrails, then check for final',
+          instruction: 'Set newels and posts into solid framing, then install the guard on every open side and landing and the handrail along the flight at the code height, continuous from the bottom riser to the top, ends returned or terminated in a post. Fasten wall-rail brackets into blocking. Replace the temporary rails only as the permanent ones are fastened.',
+          tools: ['level', 'drill/driver', 'miter saw', 'tape measure'],
+          materials: ['newels and posts with mounting hardware', 'handrail and fittings', 'balusters or infill', 'rail brackets'],
+          safety_ids: ['temp_rail_removal', 'open_side_fall', 'saw_guard'],
+          qa_ids: ['newel_rigid', 'handrail_height_grip', 'guard_height_openings', 'bracket_blocking'],
+          gating_inspection_type: 'final',
+          code_refs: [
+            { section: 'R312.1', code_type: 'IRC', note: 'Guards — where required, height and opening limits' },
+            { section: 'R311.7.8', code_type: 'IRC', note: 'Handrails — height, continuity, grip size, returns' },
+            { section: '1014', code_type: 'IBC', note: 'Handrails — height, continuity, extensions, graspability' },
+            { section: '1015', code_type: 'IBC', note: 'Guards — where required, height and opening limits' },
+            { section: '505', code_type: 'ADA 2010', note: 'Handrails on accessible stairs — height, clearance, extensions' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'balustrade',
+      example_title: 'Install oak handrail, newels and balusters',
+      when: { title_re: 'railings?|balusters?|newels?|handrails?|guard ?rails?|balustrade|cable rail' },
+      priority: 3,
+      steps: [
+        {
+          title: 'Lay out posts and confirm backing',
+          instruction: 'Mark newel and post locations at the bottom, top, turns and landing guards, and the baluster spacing along each run. Confirm solid blocking or framing is in place under every newel and behind every wall-rail bracket before the drywall and flooring hide it.',
+          tools: ['tape measure', 'laser level', 'stud finder'],
+          materials: ['blocking stock'],
+          safety_ids: ['open_side_fall', 'housekeeping'],
+          qa_ids: ['bracket_blocking'],
+          gating_inspection_type: 'framing',
+          code_refs: [{ section: 'R312.1', code_type: 'IRC', note: 'Guards — required at open sides of stairs and landings' }],
+        },
+        {
+          title: 'Set the newels',
+          instruction: 'Fasten each newel to the framing with the mounting kit or through-bolts the maker specifies, plumb in both directions. Shake-test each one — a newel that moves will make the whole rail move.',
+          tools: ['drill/driver', 'level', 'socket set', 'forstner bits'],
+          materials: ['newel posts', 'newel mounting kits or through-bolts'],
+          safety_ids: ['open_side_fall', 'eye_flying'],
+          qa_ids: ['newel_rigid'],
+        },
+        {
+          title: 'Fit and fasten the handrail',
+          instruction: 'Cut the rail to the rake angle, fit the easings, goosenecks and caps, and join them with rail bolts and glue. Keep the rail height the same along the flight and at landings; return or terminate both ends so nothing catches a sleeve.',
+          tools: ['miter saw', 'rail bolt wrench', 'drill', 'clamps'],
+          materials: ['handrail stock', 'rail fittings', 'rail bolts', 'wood glue'],
+          safety_ids: ['saw_guard', 'eye_flying'],
+          qa_ids: ['handrail_height_grip'],
+        },
+        {
+          title: 'Install balusters or cable infill',
+          instruction: 'Set balusters into the treads or shoe rail and the handrail at the laid-out spacing, glued and pinned. For a cable kit, drill end and intermediate posts square, run the cable through, and tension it with the kit fittings in the order the maker gives — then check deflection with the maker’s test. Check the opening size everywhere, including the triangle under the bottom rail.',
+          tools: ['drill', 'finish nailer', 'cable crimper / swager', 'tension wrench', 'eye protection'],
+          materials: ['balusters', 'shoe rail and fillets', 'cable kit with fittings', 'glue and pins'],
+          safety_ids: ['cable_tension', 'nailer', 'eye_flying'],
+          qa_ids: ['guard_height_openings', 'cable_tension_deflection'],
+        },
+        {
+          title: 'Finish and walk the stair for final',
+          instruction: 'Sand smooth, fill pin holes and apply the specified finish. Walk the stair with the rail in hand, checking grip, continuity, height and that nothing projects. Leave the area clean and the stair protected until the inspector signs off.',
+          tools: ['random-orbit sander', 'brushes', 'HEPA vacuum'],
+          materials: ['wood filler', 'stain / finish per schedule'],
+          safety_ids: ['noise', 'housekeeping'],
+          qa_ids: ['finish_smooth', 'handrail_height_grip', 'guard_height_openings'],
+          gating_inspection_type: 'final',
+          code_refs: [{ section: 'R311.7.8', code_type: 'IRC', note: 'Handrails — height, continuity, grip size, returns' }, { section: 'R312.1.3', code_type: 'IRC', note: 'Guard opening limitations' }],
+        },
+      ],
+    },
+  ],
+  code_refs: {
+    framing: [
+      { section: 'R311.7.1', code_type: 'IRC', note: 'Stairway clear width', prov: icc },
+      { section: 'R311.7.2', code_type: 'IRC', note: 'Headroom over dwelling stairways', prov: icc },
+      { section: 'R311.7.5', code_type: 'IRC', note: 'Stair treads and risers — dimension and uniformity limits', prov: icc },
+      { section: '1011.3', code_type: 'IBC', note: 'Stairway headroom', prov: icc },
+      { section: '1011.5', code_type: 'IBC', note: 'Stair treads and risers — dimensions and uniformity', prov: icc },
+    ],
+    final: [
+      { section: 'R311.7.8', code_type: 'IRC', note: 'Handrails — height, continuity, grip size, returns', prov: icc },
+      { section: 'R312.1', code_type: 'IRC', note: 'Guards — where required, height and opening limits', prov: icc },
+      { section: '1014', code_type: 'IBC', note: 'Handrails — height, continuity, extensions, graspability', prov: icc },
+      { section: '1015', code_type: 'IBC', note: 'Guards — where required, height and opening limits', prov: icc },
+      { section: '1607.9', code_type: 'IBC', note: 'Structural loads on handrails and guards', prov: icc },
+      { section: '504', code_type: 'ADA 2010', note: 'Accessible stairways — risers, treads, nosings', prov: ada },
+      { section: '505', code_type: 'ADA 2010', note: 'Handrails on accessible routes — height, clearance, extensions', prov: ada },
+    ],
+  },
+  equipment: [
+    { when: { title_re: 'stair|rail|baluster|newel|tread|riser' }, type: 'air_compressor', reason: 'Pneumatic framing and finish nailers for stringers, treads and balusters', optional: true },
+  ],
+  hazards: [
+    { id: 'open_side_fall', hazard: 'Fall off the open side of a stair that has no rail yet', hazard_es: PENDING_ES, controls: ['Stairways with four or more risers or over 30 in. of rise get a handrail and a stair rail on each unprotected side', 'Stair-rail top at least 36 in. above the tread nosing line, intermediate members no more than 19 in. apart'], controls_es: PENDING_ES, osha_ref: '1926.1052(c)(1)', severity: 4, prov: osha('x') },
+    { id: 'landing_edge', hazard: 'Fall from the unprotected edge of a stair landing', hazard_es: PENDING_ES, controls: ['Guardrail the open sides and edges of every landing until the permanent guard is in'], controls_es: PENDING_ES, osha_ref: '1926.1052(c)(12)', severity: 4, prov: osha('x') },
+    { id: 'stairwell_hole', hazard: 'Fall through the stairwell opening on the floor above', hazard_es: PENDING_ES, controls: ['Guard or cover the stairwell opening on every upper floor', 'Mark covers and secure them against displacement'], controls_es: PENDING_ES, osha_ref: '1926.501(b)(4)(i)', severity: 4, ppe: ['harness when guarding is not feasible'], prov: osha('m') },
+    { id: 'temp_rail_removal', hazard: 'Fall while temporary rails are off and the permanent guard is not yet fastened', hazard_es: PENDING_ES, controls: ['Remove one temporary rail section at a time and fasten the permanent section before moving on', 'Keep others off the stair while rails are swapped'], controls_es: PENDING_ES, osha_ref: '1926.1052(c)(1)', severity: 4, prov: osha('x') },
+    { id: 'saw_guard', hazard: 'Cut or amputation from circular or miter saw', hazard_es: PENDING_ES, controls: ['Use saws only with their guards in place and working', 'Clamp stringer stock; never freehand short pieces'], controls_es: PENDING_ES, osha_ref: '1926.300(b)(1)', severity: 3, ppe: ['safety glasses'], prov: osha('i') },
+    { id: 'nailer', hazard: 'Nail-gun puncture from double-fire or bump-fire', hazard_es: PENDING_ES, controls: ['Keep the nailer’s safety device working', 'Use sequential trigger near hands and on narrow stair parts'], controls_es: PENDING_ES, osha_ref: '1926.302(b)(3)', severity: 3, prov: osha('i') },
+    { id: 'eye_flying', hazard: 'Eye injury from chips, nails or a snapped cable end', hazard_es: PENDING_ES, controls: ['Safety glasses with side protection for cutting, nailing, drilling and tensioning'], controls_es: PENDING_ES, osha_ref: '1926.102(a)(1)', severity: 2, ppe: ['safety glasses with side shields'], prov: osha('e') },
+    { id: 'noise', hazard: 'Hearing damage from saws, nailers and sanders in an enclosed stairwell', hazard_es: PENDING_ES, controls: ['Hearing protection when noise exceeds the permissible exposure', 'Cut outside the stairwell where possible'], controls_es: PENDING_ES, osha_ref: '1926.52(d)(1)', severity: 2, ppe: ['ear plugs or muffs'], prov: osha('d') },
+    { id: 'housekeeping', hazard: 'Trip on scrap or step on protruding nails on the stair', hazard_es: PENDING_ES, controls: ['Keep treads and landings clear of scrap', 'Remove or bend over protruding nails; no projections on any stair part'], controls_es: PENDING_ES, osha_ref: '1926.1052(a)(6)', severity: 2, prov: osha('x') },
+    { id: 'cable_tension', hazard: 'Struck by a cable or fitting that slips or snaps while being tensioned', hazard_es: PENDING_ES, controls: ['Tension in the order and to the amount the kit specifies', 'Keep face and hands out of line with the cable end', 'Wear eye protection and gloves'], controls_es: PENDING_ES, osha_ref: '1926.95(a)', severity: 2, ppe: ['safety glasses', 'gloves'], prov: osha('e') },
+  ],
+  qa_checklist: [
+    { id: 'riser_tread_uniform', phase: 'framing', item: 'Riser heights and tread depths uniform across the flight within the code tolerance, measured with finish flooring accounted for at top and bottom.', item_es: PENDING_ES, safety: true, prov: icc },
+    { id: 'stringer_throat', phase: 'framing', item: 'Cut stringers keep enough solid wood below the notches; no over-cut notch corners or cracked stringers.', item_es: { status: 'translated', text: 'Las zancas cortadas conservan suficiente madera sólida bajo los cortes; sin esquinas sobrecortadas ni zancas rajadas.' }, prov: awc },
+    { id: 'stringers_level_plumb', phase: 'framing', item: 'Stringers hung on hangers or blocking, plumb, level side to side and spaced for the tread material.', item_es: { status: 'translated', text: 'Zancas colgadas en herrajes o bloques, aplomadas, niveladas de lado a lado y espaciadas según el material de la huella.' }, prov: awc },
+    { id: 'headroom_clear', phase: 'framing', item: 'Headroom clear along the full flight measured from the nosing line — no beam or soffit intrudes.', item_es: PENDING_ES, safety: true, prov: icc },
+    { id: 'width_clear', phase: 'framing', item: 'Clear width between finished walls or rails matches the approved plans.', item_es: { status: 'translated', text: 'El ancho libre entre muros o barandales terminados coincide con los planos aprobados.' }, prov: icc },
+    { id: 'temp_rails_in_place', item: 'Temporary stair rails, handrail and landing guards in place while the stair is used during construction.', item_es: PENDING_ES, safety: true, prov: osha('x') },
+    { id: 'treads_glued_no_squeak', phase: 'finishes_interior', item: 'Treads and risers glued and fastened to every stringer; no movement or squeak when walked.', item_es: { status: 'translated', text: 'Huellas y contrahuellas pegadas y fijadas a cada zanca; sin movimiento ni rechinido al pisar.' }, prov: mfr },
+    { id: 'nosing_uniform', phase: 'finishes_interior', item: 'Nosing projection the same on every tread; tread tops level side to side.', item_es: { status: 'translated', text: 'Saliente de la nariz igual en todas las huellas; superficie de la huella nivelada de lado a lado.' }, prov: icc },
+    { id: 'newel_rigid', phase: 'finishes_interior', item: 'Every newel and post fastened to framing per the mounting instructions and rigid under a hard shake.', item_es: PENDING_ES, safety: true, prov: mfr },
+    { id: 'handrail_height_grip', phase: 'finishes_interior', item: 'Handrail at the code height along the whole flight, continuous, graspable, and ends returned or terminated in a post.', item_es: PENDING_ES, safety: true, prov: icc },
+    { id: 'guard_height_openings', phase: 'finishes_interior', item: 'Guards on every open side and landing at the code height with no opening larger than the code limit, including the triangle at the tread.', item_es: PENDING_ES, safety: true, prov: icc },
+    { id: 'cable_tension_deflection', phase: 'finishes_interior', item: 'Cable infill tensioned per the kit and passes the maker’s deflection / opening check between every pair of cables.', item_es: PENDING_ES, safety: true, prov: mfr },
+    { id: 'bracket_blocking', item: 'Solid blocking behind every wall-rail bracket and under every newel before drywall and flooring cover it.', item_es: { status: 'translated', text: 'Bloques sólidos detrás de cada soporte de pasamanos de muro y bajo cada poste de arranque antes de cubrirlos con tablaroca y piso.' }, prov: mfr },
+    { id: 'finish_smooth', phase: 'finishes_interior', item: 'Rails, balusters and treads sanded smooth with no splinters, and finished per the schedule.', item_es: { status: 'translated', text: 'Pasamanos, balaustres y huellas lijados sin astillas y con el acabado indicado en el programa.' }, prov: mfr },
+  ],
+  inspection_checklists: {
+    framing: [
+      { item: 'Stringers supported, plumb and level; notches not over-cut', item_es: PENDING_ES },
+      { item: 'Headroom and clear width meet the approved plans', item_es: PENDING_ES, ref: 'R311.7.2' },
+      { item: 'Riser and tread layout uniform for the finished floor heights', item_es: PENDING_ES, ref: 'R311.7.5' },
+      { item: 'Blocking in place for newels and wall-rail brackets', item_es: PENDING_ES },
+    ],
+    final: [
+      { item: 'Handrail height, continuity, grip and returns', item_es: PENDING_ES, ref: 'R311.7.8' },
+      { item: 'Guards on open sides and landings — height and opening size', item_es: PENDING_ES, ref: 'R312.1' },
+      { item: 'Newels and posts rigid; no projections or splinters', item_es: PENDING_ES },
+      { item: 'Accessible (commercial) stairs: nosings and handrail extensions per the plans', item_es: PENDING_ES, ref: '505' },
+    ],
+  },
+  assemblies: [
+    { code: 'B-STR-WOOD-FLIGHT-EA', name: 'Site-built straight wood stair flight (~13 risers, 3 cut stringers, rough treads/risers), each', name_es: 'Tramo recto de escalera de madera hecho en obra (~13 contrahuellas, 3 zancas, peldaños en bruto), c/u', unit: 'EA', csi: '06 43 13',
+      description: 'Rough stair only — finish treads are G-WD-STAIR-TREAD-EA (wood) or G-CPT-STAIR-EA (carpet); balustrade is B-STR-RAIL-WOOD-LF.',
+      material_cost_cents: { v: 45000, prov: est('3 × 2x12 stringers, rough tread/riser stock, hangers, adhesive, fasteners — national baseline 2026') }, labor_hours_per_unit: { v: 10, prov: est('two-carpenter crew lay out, cut, hang, fit treads/risers') },
+      equipment_cost_cents: { v: 0, prov: est('hand and power tools only') }, waste_pct: { v: 12, prov: est('stringer layout and tread offcuts') } },
+    { code: 'B-STR-PREFAB-STRINGER-EA', name: 'Prefabricated / precut stair stringer set installed, per flight', name_es: 'Juego de zancas prefabricadas / precortadas instalado, por tramo', unit: 'EA', csi: '06 43 13',
+      material_cost_cents: { v: 35000, prov: est('factory-cut stringer set with hangers, national baseline 2026') }, labor_hours_per_unit: { v: 4, prov: est('set, shim, fasten and check a delivered set') },
+      equipment_cost_cents: { v: 0, prov: est('tools only') }, waste_pct: { v: 0, prov: est('ordered to size') } },
+    { code: 'B-STR-RAIL-WOOD-LF', name: 'Interior wood balustrade — handrail, shoe/fillet and balusters, per LF', name_es: 'Barandal interior de madera — pasamanos, zócalo y balaustres, por pie lineal', unit: 'LF', csi: '06 43 16',
+      description: 'Newels priced separately (B-STR-NEWEL-EA). Wall-mounted handrail only = G-FC-HANDRAIL-LF.',
+      material_cost_cents: { v: 4500, prov: est('paint-grade/oak rail + shoe + ~3 balusters per LF + glue/fittings, 2026') }, labor_hours_per_unit: { v: 0.8, prov: est('cut rake, fit fittings, set balusters') },
+      equipment_cost_cents: { v: 0, prov: est('tools only') }, waste_pct: { v: 10, prov: est('rail and baluster cut-offs') } },
+    { code: 'B-STR-NEWEL-EA', name: 'Wood newel post with mounting kit, installed, each', name_es: 'Poste de arranque de madera con kit de montaje, instalado, c/u', unit: 'EA', csi: '06 43 16',
+      material_cost_cents: { v: 18000, prov: est('box or turned newel + mounting kit, national baseline 2026') }, labor_hours_per_unit: { v: 1.5, prov: est('lay out, bore, bolt and plumb') },
+      equipment_cost_cents: { v: 0, prov: est('tools only') }, waste_pct: { v: 0, prov: est('unit item') } },
+    { code: 'B-STR-CABLE-RAIL-LF', name: 'Interior cable-rail infill kit with posts and top rail, per LF', name_es: 'Kit de barandal de cable interior con postes y pasamanos superior, por pie lineal', unit: 'LF', csi: '05 73 00',
+      material_cost_cents: { v: 9000, prov: est('stainless cable kit + posts + top rail per LF, national baseline 2026') }, labor_hours_per_unit: { v: 1.2, prov: est('drill posts, run, swage and tension cable') },
+      equipment_cost_cents: { v: 0, prov: est('kit tensioning tools') }, waste_pct: { v: 5, prov: est('cable tails') } },
+  ],
+  quantity_rules: [
+    { code: 'B-STR-WOOD-FLIGHT-EA', assumption: 'Two-story dwelling — assume one interior stair flight until the plan stair count is confirmed', when: { building_types: ['residential_sf'] }, qty: { basis: 'const' } },
+    { code: 'B-STR-NEWEL-EA', assumption: 'Assume a newel at the bottom and top of one open-sided flight — confirm on plans', when: { building_types: ['residential_sf'] }, qty: { basis: 'const', mul: 2 } },
+    { code: 'B-STR-RAIL-WOOD-LF', assumption: 'Assume ~14 LF of balustrade on one open-sided flight plus landing — confirm on plans', when: { building_types: ['residential_sf'] }, qty: { basis: 'const', mul: 14 } },
+  ],
+  dependency_hints: [
+    { after_trades: ['framing'], before_phase: 'insulation', note: 'Stair stringers and blocking go in with framing so the framing inspection can check headroom and layout before walls close.' },
+    { after_trades: ['drywall', 'flooring_wood'], note: 'The finished balustrade goes in after drywall and stair-tread finish so it is not damaged.' },
+  ],
+});

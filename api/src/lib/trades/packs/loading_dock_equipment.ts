@@ -1,0 +1,218 @@
+// Trade Knowledge Pack — loading_dock_equipment (Loading Dock Equipment — pit/edge levelers, vehicle restraints,
+// dock seals and shelters, bumpers, dock lights and interlocks). Wave 17, NEW-TRADE pattern (no hand recipe).
+// Dossier: docs/trade-packs/dossiers/loading_dock_equipment.md.
+// Sources: 29 CFR 1926 (C, E, F, H, J, K, M, X, Z), 1926.417 (tags on controls), 1926.351 (arc welding),
+// LEMA / Rite-Hite / Blue Giant (general reference — manuals not read line by line), ANSI MH30.1 (reference only).
+// Overhead dock DOORS belong to overhead_doors — not duplicated here.
+import { definePack, PENDING_ES } from './schema.js';
+
+const D = '2026-10-08';
+const osha = (sub: string) => ({ src: [`ecfr-1926-${sub}`], confidence: 'verified' as const, last_verified: D });
+const est = (note: string) => ({ src: ['platform-baseline'], confidence: 'estimate' as const, last_verified: D, note });
+const icc = { src: ['icc-pa'], confidence: 'verified' as const, last_verified: D };
+const gen = (note: string) => ({ src: ['loading_dock_equipment-lema', 'loading_dock_equipment-ritehite', 'loading_dock_equipment-bluegiant'], confidence: 'derived' as const, last_verified: D, note });
+const mfr = gen('General sequence common to dock-equipment makers; the maker’s installation drawing for the exact model always governs.');
+const tr = (text: string) => ({ status: 'translated' as const, text });
+
+export default definePack({
+  key: 'loading_dock_equipment',
+  schema_version: 1,
+  pack_version: '1.0.0',
+  status: 'draft',
+  identity: {
+    summary: 'Loading dock equipment — pit and edge levelers, vehicle restraints, dock seals and shelters, bumpers, lights and interlocks: pit forms and curb-angle embeds, setting and welding the leveler, hydraulic and electrical hookup, restraint and light interlocks, bumper and seal mounting, then testing and operator training. Dock doors belong to overhead doors.',
+    summary_es: 'Equipo de andén de carga — niveladores de foso y de borde, retenedores, sellos y cubiertas, topes, luces e interbloqueos: encofrado del foso y ángulos embebidos, colocación y soldadura del nivelador, conexión hidráulica y eléctrica, interbloqueos, montaje de topes y sellos, pruebas y capacitación. Las puertas de andén van en puertas levadizas.',
+    glossary: [
+      { term: 'Dock leveler', term_es: 'Nivelador de andén', def: 'Hinged steel platform that bridges the gap between the dock floor and a truck bed and adjusts to different truck heights.', def_es: 'Plataforma de acero con bisagra que cubre el hueco entre el piso del andén y la caja del camión y se ajusta a distintas alturas.' },
+      { term: 'Pit leveler', term_es: 'Nivelador de foso', def: 'Leveler whose frame sits in a concrete pit cast into the dock floor so the deck is flush with the floor.', def_es: 'Nivelador cuyo marco queda en un foso de concreto en el piso del andén para que la plataforma quede al ras.' },
+      { term: 'Edge-of-dock leveler', term_es: 'Nivelador de borde de andén', def: 'Smaller leveler bolted to the dock face with no pit; used for low-volume or retrofit docks.', def_es: 'Nivelador más pequeño atornillado al frente del andén sin foso; para andenes de bajo volumen o remodelación.' },
+      { term: 'Curb angle', term_es: 'Ángulo de borde', def: 'Steel angle cast into the pit edge that the leveler frame is welded or fastened to.', def_es: 'Ángulo de acero colado en el borde del foso al que se suelda o fija el marco del nivelador.' },
+      { term: 'Lip', term_es: 'Labio', def: 'Hinged steel flap at the front of the leveler deck that rests on the truck bed.', def_es: 'Solapa de acero con bisagra al frente de la plataforma que descansa sobre la caja del camión.' },
+      { term: 'Vehicle restraint', term_es: 'Retenedor de vehículo', def: 'Device that hooks the trailer’s rear impact guard to keep the truck from pulling away while it is loaded.', def_es: 'Dispositivo que engancha la barra de impacto trasera del remolque para que el camión no se aleje mientras se carga.' },
+      { term: 'Dock seal', term_es: 'Sello de andén', def: 'Compressible foam pads around the dock door that the trailer backs into to seal out weather.', def_es: 'Almohadillas de espuma comprimible alrededor de la puerta del andén contra las que retrocede el remolque para sellar la intemperie.' },
+      { term: 'Dock shelter', term_es: 'Cubierta de andén', def: 'Fabric and frame cover around the dock opening that wraps the trailer sides and top.', def_es: 'Cubierta de tela y marco alrededor de la abertura del andén que envuelve los lados y el techo del remolque.' },
+      { term: 'Dock bumper', term_es: 'Tope de andén', def: 'Laminated rubber block anchored to the dock face that absorbs the trailer’s impact.', def_es: 'Bloque de hule laminado anclado al frente del andén que absorbe el impacto del remolque.' },
+      { term: 'Interlock', term_es: 'Interbloqueo', def: 'Control wiring that ties the restraint, door and lights together so the signals match what is safe.', def_es: 'Cableado de control que enlaza el retenedor, la puerta y las luces para que las señales indiquen lo seguro.' },
+    ],
+  },
+  est_bucket: 'building',
+  recipes: [
+    {
+      id: 'dock_pit_embeds',
+      example_title: 'Form dock leveler pit and set curb angles',
+      priority: 10,
+      when: { title_re: 'leveler pit|pit (?:curb|frame|angle)|curb angles?' },
+      steps: [
+        {
+          title: 'Verify pit layout against the leveler drawing',
+          instruction: 'Compare the pit width, length and depth on the structural drawing with the maker’s pit drawing for the exact leveler model. Check dock-floor elevation, door centerline and the truck-bed height range. Send any mismatch back to the engineer before forming.',
+          tools: ['tape measure', 'laser level', 'chalk line'],
+          materials: ['maker’s pit drawing', 'structural drawing'],
+          safety_ids: ['pit_fall', 'housekeeping'],
+          qa_ids: ['pit_dims_match'],
+        },
+        {
+          title: 'Form the pit and set the curb angles',
+          instruction: 'Build and brace the pit forms, set rebar, and hold the curb angles to line and grade with their anchors tied in. Add pit drains or a sump if the plans call for it. Check diagonals and elevation of the angles before the pour; once cast they cannot be adjusted.',
+          detail: 'Coordinate with the concrete crew: the angles, any conduit sleeve for the hydraulic power pack and the drain must be in place before the inspection and the pour.',
+          tools: ['laser level', 'string line', 'drill/driver', 'tie wire pliers'],
+          materials: ['curb angles with anchors', 'form lumber / form panels', 'rebar', 'conduit sleeve', 'pit drain if shown'],
+          safety_ids: ['pit_fall', 'heavy_lift', 'eye_flying', 'concrete_burn'],
+          qa_ids: ['angles_line_grade', 'conduit_sleeve', 'pit_drain'],
+          gating_inspection_type: 'foundation',
+          code_refs: [{ section: '1705.3', code_type: 'IBC', note: 'Special inspection of concrete and cast-in anchors where required' }],
+        },
+        {
+          title: 'Strip, clean and re-check the pit',
+          instruction: 'After the concrete has gained strength, strip the forms, clean debris from the pit and re-check the pit dimensions, angle level and diagonals. Cover or barricade the open pit until the leveler is set.',
+          tools: ['tape measure', 'level', 'pry bar', 'shop vacuum'],
+          materials: ['pit covers or barricades'],
+          safety_ids: ['pit_fall', 'housekeeping'],
+          qa_ids: ['pit_recheck', 'pit_covered'],
+        },
+      ],
+    },
+    {
+      id: 'dock_equipment_install',
+      example_title: 'Install dock leveler, vehicle restraint, seals and bumpers',
+      when: { title_re: 'dock level|loading dock|vehicle restraint|dock seal|dock shelter|dock bumper|dock light' },
+      steps: [
+        {
+          title: 'Set the leveler in the pit and weld or anchor the frame',
+          instruction: 'Lift the leveler into the pit with a forklift or telehandler and rigging rated for its weight. Center it in the pit, shim it so the deck is flush with the dock floor and the lip clears, then weld the frame to the curb angles or fasten it as the maker’s drawing shows. Weld with the work grounded and fire protection ready.',
+          detail: 'Edge-of-dock levelers: anchor to the dock face with the maker’s anchors into sound concrete instead of welding to curb angles.',
+          tools: ['arc welder', 'level', 'pry bar', 'rigging slings', 'drill/driver'],
+          materials: ['dock leveler per schedule', 'weld rod', 'shims', 'anchors'],
+          safety_ids: ['heavy_lift', 'crush_under_deck', 'pit_fall', 'weld_fire', 'eye_flying'],
+          qa_ids: ['leveler_flush', 'frame_secured', 'welds_complete'],
+        },
+        {
+          title: 'Connect hydraulic or air power and electrical',
+          instruction: 'Mount the power pack or air bag controls where the drawing shows, run hydraulic hose or air line as the maker specifies, and wire the control box to the power the electrician left. De-energize and tag the circuit before connecting; hang a tag on the disconnect and keep the key with the person working. Fill the reservoir with the specified fluid.',
+          tools: ['wrench set', 'multimeter', 'screwdriver set', 'lockout tags'],
+          materials: ['hydraulic hose and fittings', 'hydraulic fluid per maker', 'tags and locks', 'control box'],
+          safety_ids: ['stored_energy', 'shock', 'fluid_injection'],
+          qa_ids: ['no_leaks', 'disconnect_tagged', 'ground_check'],
+        },
+        {
+          title: 'Mount vehicle restraints, lights and bumpers',
+          instruction: 'Anchor the vehicle restraint to the approach with the maker’s anchors, then mount the inside and outside signal lights and the control interlocks between the restraint, leveler and door. Anchor bumper pairs to the dock face at the spacing on the drawing, with the specified projection from the face. Check that the light signals match the restraint status.',
+          tools: ['rotary hammer', 'drill/driver', 'torque wrench', 'level', 'multimeter'],
+          materials: ['vehicle restraint', 'signal light kit', 'bumpers', 'concrete anchors', 'conduit and wire'],
+          safety_ids: ['silica', 'ladder', 'aerial_lift', 'shock', 'eye_flying'],
+          qa_ids: ['restraint_anchored', 'bumper_spacing', 'light_interlock'],
+        },
+        {
+          title: 'Mount dock seals or shelters',
+          instruction: 'Fasten the seal or shelter frame to the wall around the door opening, level and square to the opening, using the maker’s fasteners into solid backing. Seal behind the frame against weather, hang the head curtain and side pads, and check that the sealing surfaces compress evenly against a trailer.',
+          tools: ['drill/driver', 'level', 'caulk gun', 'step ladder'],
+          materials: ['seal or shelter kit', 'fasteners', 'backer boards', 'sealant'],
+          safety_ids: ['ladder', 'aerial_lift', 'eye_flying'],
+          qa_ids: ['seal_frame_plumb', 'seal_weathertight'],
+        },
+        {
+          title: 'Function-test every unit and train the operator',
+          instruction: 'Cycle the leveler up, down and onto a test trailer; test the lip, toe guards and breakaway or free-fall protection the maker provides, the restraint hook and release, and the light interlocks with the door. Mark the leveler capacity label, remove the tags, give the owner the maker’s manual and run a hand-over with operators. Leave the area clean for the inspector.',
+          tools: ['test trailer or truck', 'multimeter', 'camera'],
+          materials: ['capacity and warning labels', 'owner manual'],
+          safety_ids: ['stored_energy', 'crush_under_deck', 'trailer_creep'],
+          qa_ids: ['cycle_test', 'safety_devices_work', 'capacity_label', 'owner_training'],
+          gating_inspection_type: 'final',
+        },
+      ],
+    },
+  ],
+  equipment: [
+    { when: { title_re: 'dock level|loading dock' }, step_re: 'Set the leveler', type: 'forklift', reason: 'Lift and set the leveler assembly in the pit', optional: true },
+    { when: { title_re: 'dock level|loading dock' }, step_re: 'Set the leveler', type: 'welder', reason: 'Weld the leveler frame to the curb angles' },
+    { when: { title_re: 'dock level|loading dock|dock shelter|dock seal' }, step_re: 'restraints, lights|seals or shelters', type: 'scissor_lift', reason: 'Reach the head of the opening for lights and seal or shelter frames', optional: true },
+  ],
+  hazards: [
+    { id: 'pit_fall', hazard: 'Falling into or tripping at the open leveler pit', hazard_es: PENDING_ES, controls: ['Cover, guardrail or barricade the pit whenever it is open', 'Keep forms, rebar and debris out of walking paths'], controls_es: PENDING_ES, osha_ref: '1926.501(b)(4)', severity: 3, prov: osha('m') },
+    { id: 'crush_under_deck', hazard: 'Crushing by the leveler deck or lip while working in the pit or testing', hazard_es: PENDING_ES, controls: ['Prop the deck with the maker’s maintenance prop before anyone goes under it', 'Keep hands and feet clear of the lip hinge and toe guards during tests'], controls_es: PENDING_ES, osha_ref: '1926.20(b)', severity: 4, ppe: ['hard hat', 'safety shoes'], prov: osha('c') },
+    { id: 'stored_energy', hazard: 'Unexpected movement of the deck from hydraulic pressure or live controls while connecting or testing', hazard_es: PENDING_ES, controls: ['De-energize and tag the controls and circuit before connecting or servicing', 'Release pressure and lock the prop as the maker directs before opening any hydraulic line'], controls_es: PENDING_ES, osha_ref: '1926.417', severity: 4, ppe: ['safety glasses'], prov: { src: ['loading_dock_equipment-ecfr-1926-417'], confidence: 'verified', last_verified: D, note: 'Section covers tagging of controls and circuits; the hydraulic-pressure release steps come from the maker’s instructions.' } },
+    { id: 'fluid_injection', hazard: 'High-pressure hydraulic fluid injection or skin burns from a leaking line', hazard_es: PENDING_ES, controls: ['Never check a leak with a hand — use cardboard and wear gloves', 'Seek medical care at once for any fluid injected under the skin'], controls_es: PENDING_ES, osha_ref: '1926.95(a)', severity: 3, ppe: ['gloves', 'safety glasses'], prov: osha('e') },
+    { id: 'weld_fire', hazard: 'Burns, arc flash and fire while welding the leveler frame', hazard_es: PENDING_ES, controls: ['Wear a welding helmet, gloves and flame-resistant clothing; clear combustibles from the area', 'Keep an extinguisher at the pit and watch for fire after welding stops'], controls_es: PENDING_ES, osha_ref: '1926.352', severity: 3, ppe: ['welding helmet', 'welding gloves', 'FR clothing'], prov: osha('f') },
+    { id: 'shock', hazard: 'Electric shock wiring the controls, power pack and lights', hazard_es: PENDING_ES, controls: ['Test circuits dead before touching; use GFCI protection on temporary power and tools', 'Keep tags on the disconnect until the electrician releases it'], controls_es: PENDING_ES, osha_ref: '1926.404(b)(1)', severity: 4, prov: osha('k') },
+    { id: 'heavy_lift', hazard: 'Dropping or swinging a multi-ton leveler or restraint while setting it', hazard_es: PENDING_ES, controls: ['Use slings and equipment rated for the leveler weight; inspect rigging each shift', 'Keep everyone out from under and beside the load while it is being set'], controls_es: PENDING_ES, osha_ref: '1926.251(a)', severity: 4, ppe: ['hard hat', 'safety shoes'], prov: osha('h') },
+    { id: 'silica', hazard: 'Respirable silica dust drilling anchors in the dock face and approach slab', hazard_es: PENDING_ES, controls: ['Use dust-capture drilling (vacuum shroud) or wet methods', 'Wear a respirator when the exposure plan calls for it'], controls_es: PENDING_ES, osha_ref: '1926.1153', severity: 3, ppe: ['respirator as required', 'safety glasses'], prov: osha('z') },
+    { id: 'aerial_lift', hazard: 'Thrown or falling from a lift while mounting seals, shelters or lights at the head of the door', hazard_es: PENDING_ES, controls: ['Wear a harness tied to the lift where required; stay on the platform floor', 'Level the lift on firm ground before raising'], controls_es: PENDING_ES, osha_ref: '1926.453(b)(2)(v)', severity: 4, ppe: ['harness + lanyard'], prov: osha('l') },
+    { id: 'ladder', hazard: 'Ladder slip or overreach while mounting door-opening components', hazard_es: PENDING_ES, controls: ['Set the ladder on firm footing and keep three points of contact', 'Extend it 3 ft above the landing it reaches'], controls_es: PENDING_ES, osha_ref: '1926.1053(b)(1)', severity: 3, prov: osha('x') },
+    { id: 'trailer_creep', hazard: 'Test trailer or truck moving while a leveler lip or restraint is being tested', hazard_es: PENDING_ES, controls: ['Chock the test trailer wheels and set its brakes before the lip is placed', 'Keep people out of the gap between the trailer and the dock'], controls_es: PENDING_ES, osha_ref: '1926.20(b)', severity: 4, prov: osha('c') },
+    { id: 'eye_flying', hazard: 'Eye injury from anchor drilling, grinding and weld spatter', hazard_es: PENDING_ES, controls: ['Wear safety glasses with side shields for drilling, grinding and welding'], controls_es: PENDING_ES, osha_ref: '1926.102(a)(1)', severity: 2, ppe: ['safety glasses'], prov: osha('e') },
+    { id: 'concrete_burn', hazard: 'Skin burns from wet concrete contact while setting pit angles', hazard_es: PENDING_ES, controls: ['Wear waterproof gloves and boots; wash off wet concrete promptly'], controls_es: PENDING_ES, osha_ref: '1926.95(a)', severity: 2, ppe: ['waterproof gloves', 'boots'], prov: osha('e') },
+    { id: 'housekeeping', hazard: 'Slips and trips on forms, hoses and cords around the dock', hazard_es: PENDING_ES, controls: ['Keep walkways clear of forms, hoses and cords', 'Coil cords and hoses at the end of each shift'], controls_es: PENDING_ES, osha_ref: '1926.25(a)', severity: 2, prov: osha('c') },
+  ],
+  qa_checklist: [
+    { id: 'pit_dims_match', item: 'Pit width, length and depth match the maker’s pit drawing for the exact leveler model and the dock floor elevation on the plans.', item_es: tr('Ancho, largo y profundidad del foso coinciden con el plano del fabricante para el modelo exacto y con la elevación del piso del andén en los planos.'), prov: mfr },
+    { id: 'angles_line_grade', item: 'Curb angles are held to line and grade, tied to the rebar and square by equal diagonals before the pour.', item_es: tr('Ángulos de borde en línea y nivel, amarrados a la varilla y a escuadra con diagonales iguales antes del colado.'), prov: mfr },
+    { id: 'conduit_sleeve', item: 'Conduit sleeve for the power-pack feed is cast in at the location the electrical drawing shows.', item_es: tr('Manga de conduit para la alimentación del equipo hidráulico colada en la ubicación del plano eléctrico.'), prov: est('Coordination item between concrete and electrical; location from the drawings') },
+    { id: 'pit_drain', item: 'Pit drain or sump is installed and clear where shown on the plans.', item_es: tr('Drenaje o sumidero del foso instalado y libre donde lo indican los planos.'), prov: est('Common on exterior-exposed docks; confirm on plans') },
+    { id: 'pit_recheck', item: 'After stripping, pit dimensions, angle level and diagonals re-measured and recorded.', item_es: tr('Después del desencofrado, dimensiones del foso, nivel de ángulos y diagonales vueltos a medir y registrados.'), prov: est('Field check before the leveler is set') },
+    { id: 'leveler_flush', item: 'Leveler deck sits flush with the dock floor, centered in the pit with even side gaps and the lip clearing the pit front.', item_es: tr('Plataforma del nivelador al ras del piso, centrada en el foso con holguras laterales iguales y el labio libre al frente.'), prov: mfr },
+    { id: 'frame_secured', item: 'Frame welded to the curb angles (or anchored) exactly as the maker’s drawing shows; welds complete, no skip welds.', item_es: tr('Marco soldado a los ángulos de borde (o anclado) tal como lo indica el plano del fabricante; soldaduras completas, sin saltos.'), prov: mfr },
+    { id: 'welds_complete', item: 'Welds cleaned, inspected for cracks and touched up with paint or galvanizing compound where coating was burned off.', item_es: tr('Soldaduras limpias, sin fisuras y retocadas con pintura o compuesto galvanizante donde se quemó el recubrimiento.'), prov: est('Standard coating-repair practice after field welding') },
+    { id: 'no_leaks', item: 'Hydraulic lines and fittings dry after cycling; reservoir filled to the maker’s level with the specified fluid.', item_es: tr('Líneas y conexiones hidráulicas secas después de ciclar; depósito lleno al nivel del fabricante con el fluido especificado.'), prov: mfr },
+    { id: 'ground_check', item: 'Control box and power-pack equipment grounding verified with a meter; voltage matches the nameplate.', item_es: tr('Puesta a tierra de la caja de control y del equipo verificada con medidor; voltaje coincide con la placa.'), prov: osha('k') },
+    { id: 'restraint_anchored', item: 'Vehicle restraint anchored with the maker’s anchors into sound concrete at the approach location shown; fully engages and releases.', item_es: tr('Retenedor de vehículo anclado con los anclajes del fabricante en concreto firme en la ubicación indicada; engancha y libera completamente.'), prov: mfr },
+    { id: 'bumper_spacing', item: 'Bumpers anchored at the spacing and projection on the drawing; anchors tight with no cracked concrete at the dock face.', item_es: tr('Topes anclados con la separación y proyección del plano; anclajes firmes y sin concreto fisurado en el frente.'), prov: mfr },
+    { id: 'light_interlock', item: 'Inside and outside signal lights match restraint status and the door interlock, tested in every state.', item_es: tr('Luces de señal interior y exterior coinciden con el estado del retenedor y el interbloqueo de la puerta, probadas en cada estado.'), prov: mfr },
+    { id: 'seal_frame_plumb', item: 'Seal or shelter frame is level, plumb and square to the opening and fastened into solid backing.', item_es: tr('Marco del sello o cubierta nivelado, a plomo y a escuadra con la abertura y fijado en respaldo sólido.'), prov: mfr },
+    { id: 'seal_weathertight', item: 'Sealant behind the seal or shelter frame is continuous; pads compress evenly against a trailer.', item_es: tr('Sellador detrás del marco continuo; las almohadillas se comprimen parejo contra un remolque.'), prov: est('Weather seal check; no source number') },
+    { id: 'cycle_test', item: 'Leveler cycled full up, down and onto a test trailer with the lip engaging the bed with no binding.', item_es: tr('Nivelador ciclado completo hacia arriba, abajo y sobre un remolque de prueba con el labio asentando sin atorarse.'), prov: mfr },
+    { id: 'capacity_label', item: 'Capacity and warning labels are mounted and legible; the owner has the maker’s manual.', item_es: tr('Etiquetas de capacidad y advertencia colocadas y legibles; el propietario tiene el manual del fabricante.'), prov: mfr },
+    { id: 'owner_training', item: 'Operators trained on use and the stored-energy prop; training sign-off recorded.', item_es: tr('Operadores capacitados en el uso y en el soporte de energía almacenada; capacitación registrada.'), prov: est('Hand-over practice; training content from the maker’s manual') },
+    { id: 'pit_covered', item: 'Open pit is covered or barricaded until the leveler is set.', item_es: PENDING_ES, safety: true, prov: osha('m') },
+    { id: 'disconnect_tagged', item: 'Power and control circuits are de-energized and tagged before hydraulic or electrical connection or servicing; tags stay until the work is complete.', item_es: PENDING_ES, safety: true, prov: { src: ['loading_dock_equipment-ecfr-1926-417'], confidence: 'verified', last_verified: D } },
+    { id: 'safety_devices_work', item: 'Maintenance prop, toe guards and the maker’s fall-protection (breakaway / free-fall) device work as designed before the leveler goes into service.', item_es: PENDING_ES, safety: true, prov: mfr },
+  ],
+  inspection_checklists: {
+    foundation: [
+      { item: 'Pit forms, rebar and curb angles match the structural drawing and the leveler maker’s pit drawing', item_es: PENDING_ES },
+      { item: 'Special inspection of concrete and cast-in anchors where required', item_es: PENDING_ES, ref: '1705.3' },
+    ],
+    final: [
+      { item: 'Leveler cycles, lip engages and safety devices operate; capacity label mounted', item_es: PENDING_ES },
+      { item: 'Restraint and light interlocks tested in every state', item_es: PENDING_ES },
+      { item: 'Electrical connections and equipment grounding complete', item_es: PENDING_ES },
+    ],
+  },
+  code_refs: {
+    foundation: [
+      { section: '1705.3', code_type: 'IBC', note: 'Special inspection of concrete and cast-in anchors where required', prov: icc },
+    ],
+  },
+  assemblies: [
+    { code: 'B-LDE-LEVELER-EA', name: 'Hydraulic pit dock leveler 6x8 ft, supply + set + connect', name_es: 'Nivelador hidráulico de foso 6x8 pies, suministro, colocación y conexión', unit: 'EA', csi: '41 22 00',
+      description: 'Typical 25,000-lb class pit leveler; pit concrete and power feed by others.',
+      material_cost_cents: { v: 650000, prov: est('mid-range hydraulic pit leveler, national baseline 2026') },
+      labor_hours_per_unit: { v: 24, prov: est('set, shim, weld, plumb hydraulic, test per dock — two-person crew') },
+      equipment_cost_cents: { v: 35000, prov: est('forklift or telehandler day share plus welder') }, waste_pct: { v: 0, prov: est('unit is ordered to size') } },
+    { code: 'B-LDE-RESTRAINT-EA', name: 'Vehicle restraint with signal lights, supply + install per dock', name_es: 'Retenedor de vehículo con luces, suministro e instalación por andén', unit: 'EA', csi: '41 22 00',
+      material_cost_cents: { v: 420000, prov: est('vehicle restraint + signal light pair, 2026') },
+      labor_hours_per_unit: { v: 8, prov: est('anchor, wire, interlock, test') },
+      equipment_cost_cents: { v: 0, prov: est('tools only') }, waste_pct: { v: 0, prov: est('unit is ordered to size') } },
+    { code: 'B-LDE-SEAL-EA', name: 'Foam dock seal or shelter per door, supply + install', name_es: 'Sello de espuma o cubierta de andén por puerta, suministro e instalación', unit: 'EA', csi: '41 22 00',
+      material_cost_cents: { v: 180000, prov: est('foam dock seal set with head pad, 2026') },
+      labor_hours_per_unit: { v: 6, prov: est('frame, backing, seal, head curtain') },
+      equipment_cost_cents: { v: 10000, prov: est('scissor lift day share') }, waste_pct: { v: 0, prov: est('unit is ordered to size') } },
+    { code: 'B-LDE-BUMPER-EA', name: 'Laminated dock bumpers, pair per door, anchored', name_es: 'Topes laminados de andén, par por puerta, anclados', unit: 'EA', csi: '41 22 00',
+      material_cost_cents: { v: 18000, prov: est('pair of 4.5x10x14-in laminated bumpers + anchors, 2026') },
+      labor_hours_per_unit: { v: 1.5, prov: est('drill four anchors per bumper') },
+      equipment_cost_cents: { v: 0, prov: est('tools only') }, waste_pct: { v: 0, prov: est('count-based') } },
+    { code: 'B-LDE-CURB-LF', name: 'Pit curb angle with anchors, set before pour', name_es: 'Ángulo de borde de foso con anclajes, colocado antes del colado', unit: 'LF', csi: '05 50 00',
+      material_cost_cents: { v: 3500, prov: est('3x3x1/4 steel angle with welded anchors, 2026') },
+      labor_hours_per_unit: { v: 0.2, prov: est('set to line and grade, tie, check') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools') }, waste_pct: { v: 5, prov: est('cut-offs') } },
+  ],
+  quantity_rules: [
+    { code: 'B-LDE-LEVELER-EA', assumption: 'Two dock levelers on an industrial building until the dock schedule is read', when: { building_types: ['industrial'] }, qty: { basis: 'const', mul: 2 } },
+    { code: 'B-LDE-RESTRAINT-EA', assumption: 'One vehicle restraint per assumed dock', when: { building_types: ['industrial'] }, qty: { basis: 'const', mul: 2 } },
+    { code: 'B-LDE-SEAL-EA', assumption: 'One dock seal or shelter per assumed dock', when: { building_types: ['industrial'] }, qty: { basis: 'const', mul: 2 } },
+    { code: 'B-LDE-BUMPER-EA', assumption: 'One bumper pair per assumed dock', when: { building_types: ['industrial'] }, qty: { basis: 'const', mul: 2 } },
+    { code: 'B-LDE-CURB-LF', assumption: 'About 24 LF of pit curb angle per assumed dock', when: { building_types: ['industrial'] }, qty: { basis: 'const', mul: 48 } },
+  ],
+  dependency_hints: [
+    { after_trades: ['concrete', 'electrical'], before_phase: 'punch', note: 'Pit and curb angles are set during the foundation / slab work; the leveler goes in after the slab is cured and the power feed is roughed in; test before final.' },
+  ],
+});

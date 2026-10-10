@@ -1,0 +1,317 @@
+// Trade Knowledge Pack — boilers_hydronic (Boilers / Hydronic heating — hot-water boilers, near-boiler
+// piping, radiant floor tubing, fin-tube baseboard). Wave 14 — NEW-TRADE pattern (no hand recipe, no
+// template tasks; only the generic mechanical phase recipe applied before). Dossier:
+// docs/trade-packs/dossiers/boilers_hydronic.md.
+// Sources: UFGS 23 52 00 (Heating Boilers) + 23 52 43.00 20 (Low Pressure Water Heating Boilers),
+// Wis. Admin. Code ch. SPS 341, DOE BASC combustion appliances, 29 CFR 1926 (C, D, E, H, J, K, M, X, Z),
+// IMC Ch. 10/12, IRC M2001–M2103, IFGC 304/406/503 (reference only). Steam boilers + chillers out of scope.
+import { definePack, PENDING_ES } from './schema.js';
+
+const D = '2026-10-08';
+const ufgs = { src: ['boilers_hydronic-ufgs-23-52-00'], confidence: 'verified' as const, last_verified: D };
+const ufgsLp = { src: ['boilers_hydronic-ufgs-23-52-43'], confidence: 'verified' as const, last_verified: D };
+const sps = { src: ['boilers_hydronic-wi-sps341'], confidence: 'verified' as const, last_verified: D };
+const basc = { src: ['hvac-basc-combustion'], confidence: 'verified' as const, last_verified: D };
+const icc = { src: ['icc-pa'], confidence: 'derived' as const, last_verified: D, note: 'IMC/IRC/IFGC 2021 section topics from the public-access TOC (JS-rendered, not machine-checked); no code text or values stored.' };
+const osha = (sub: string, note?: string) => ({ src: [`ecfr-1926-${sub}`], confidence: 'verified' as const, last_verified: D, ...(note ? { note } : {}) });
+const est = (note: string) => ({ src: ['platform-baseline'], confidence: 'estimate' as const, last_verified: D, note });
+const tr = (text: string) => ({ status: 'translated' as const, text });
+
+const BOILER = '\\bboilers?\\b|hydronic|indirect\\s*(?:water\\s*heater|tank)';
+const RADIANT = 'radiant\\s*(?:floor|heat|slab|tubing)|in-?\\s*floor\\s*heat|heated\\s*(?:slab|floor)';
+const BASEBOARD = 'baseboard\\s*heat|fin-?\\s*tube|hydronic\\s*baseboard|panel\\s*radiators?';
+
+export default definePack({
+  key: 'boilers_hydronic',
+  schema_version: 1,
+  pack_version: '1.0.0',
+  status: 'draft',
+  identity: {
+    summary: 'Installs hot-water heating: sets and vents the boiler, pipes the near-boiler loop with the relief valve, expansion tank and air separator, runs radiant floor tubing or fin-tube baseboard to the zones, pressure-tests the piping before it is covered, connects and tests the gas, then fills, purges, starts up and checks combustion.',
+    summary_es: 'Instala la calefacción por agua caliente: coloca y ventila la caldera, hace la tubería cercana a la caldera con válvula de alivio, tanque de expansión y separador de aire, tiende tubería radiante en piso o zócalos de aletas a las zonas, prueba la tubería a presión antes de cubrirla, conecta y prueba el gas, y luego llena, purga, arranca y revisa la combustión.',
+    glossary: [
+      { term: 'Condensing boiler', term_es: 'Caldera de condensación', def: 'High-efficiency boiler that cools its exhaust until water condenses out; needs plastic or stainless vent and a condensate drain.', def_es: 'Caldera de alta eficiencia que enfría sus gases hasta que el agua se condensa; necesita ventila de plástico o acero inoxidable y un drenaje de condensado.' },
+      { term: 'Primary/secondary piping', term_es: 'Tubería primaria/secundaria', def: 'Boiler loop and system loop joined by two tees close together so each pump only moves its own loop.', def_es: 'El circuito de la caldera y el del sistema se unen con dos tes muy juntas para que cada bomba mueva solo su propio circuito.' },
+      { term: 'Expansion tank', term_es: 'Tanque de expansión', def: 'Tank with an air cushion that takes up the water that swells as the system heats, so pressure does not climb to the relief setting.', def_es: 'Tanque con colchón de aire que recibe el agua que se dilata al calentarse, para que la presión no suba hasta la válvula de alivio.' },
+      { term: 'Relief valve', term_es: 'Válvula de alivio', def: 'Pressure (and on some boilers temperature) safety valve on the boiler; its discharge pipe runs down to a safe spot near the floor or a drain.', def_es: 'Válvula de seguridad por presión (y en algunas calderas por temperatura); su tubo de descarga baja a un punto seguro cerca del piso o a un drenaje.' },
+      { term: 'Air separator', term_es: 'Separador de aire', def: 'Fitting on the supply pipe that pulls air bubbles out of the water and vents them.', def_es: 'Accesorio en la tubería de suministro que saca las burbujas de aire del agua y las ventila.' },
+      { term: 'Manifold', term_es: 'Colector (manifold)', def: 'Supply and return header where each radiant tubing loop connects, with valves to shut off and balance each loop.', def_es: 'Cabezal de suministro y retorno donde se conecta cada circuito de tubería radiante, con válvulas para cerrar y balancear cada circuito.' },
+      { term: 'Oxygen-barrier PEX', term_es: 'PEX con barrera de oxígeno', def: 'Heating tubing with a coating that keeps oxygen from soaking in and rusting the boiler and pumps.', def_es: 'Tubería de calefacción con una capa que impide que el oxígeno entre y oxide la caldera y las bombas.' },
+      { term: 'Low-water cutoff', term_es: 'Corte por bajo nivel de agua', def: 'Safety device that shuts the burner off if the boiler water drops too low.', def_es: 'Dispositivo de seguridad que apaga el quemador si baja demasiado el agua de la caldera.' },
+      { term: 'Combustion analysis', term_es: 'Análisis de combustión', def: 'Reading the flue gas with an analyzer at startup (O2/CO2, CO, temperature) and adjusting the burner to the maker\'s range.', def_es: 'Lectura de los gases con un analizador al arrancar (O2/CO2, CO, temperatura) y ajuste del quemador al rango del fabricante.' },
+    ],
+  },
+  est_bucket: 'mechanical',
+  recipes: [
+    {
+      id: 'boiler_install',
+      example_title: 'Install gas condensing boiler & near-boiler piping',
+      when: { title_re: BOILER },
+      steps: [
+        {
+          title: 'Check the boiler room, clearances and vent route',
+          instruction: 'Compare the boiler model, the manufacturer\'s installation manual and the drawings with the room. Mark the service clearances on every side, the floor or wall it mounts to, the combustion air source and the vent route to its termination. Confirm the floor drain or condensate pump location and that the gas line and power are coming to the right spot.',
+          detail: 'The installation manual is the rule book for vent material, vent length and termination clearances — read it before ordering vent pipe.',
+          code_refs: [{ section: '1004', note: 'Boilers — installation per listing and working clearances' }, { section: '304', note: 'Combustion, ventilation and dilution air', code_type: 'IFGC' }],
+          tools: ['tape measure', 'level', 'marker', 'installation manual'],
+          materials: [],
+          safety_ids: ['ladder'],
+          qa_ids: ['clearances'],
+        },
+        {
+          title: 'Set and secure the boiler',
+          instruction: 'Move the boiler on a dolly or with a lift — never carry a heavy unit up stairs without enough people and straps. Mount a wall-hung boiler to solid backing or the manufacturer\'s bracket; set a floor boiler level on its pad. Keep the service clearances you marked and leave the front clear for the burner and controls.',
+          code_refs: [{ section: '1004', note: 'Boiler mounting, floors and working clearance' }, { section: 'M2001', note: 'Boilers — installation per manufacturer and listing', code_type: 'IRC' }],
+          tools: ['appliance dolly', 'level', 'drill/driver', 'anchors and lag tools'],
+          materials: ['boiler', 'wall bracket or equipment pad', 'anchors'],
+          safety_ids: ['rigging_lift', 'ladder'],
+          qa_ids: ['clearances'],
+          gating_inspection_type: 'equipment_set',
+        },
+        {
+          title: 'Install the vent, intake and condensate drain',
+          instruction: 'Run the vent and combustion-air pipe in the material and size the manual lists — PVC, CPVC, polypropylene or stainless — with every joint made the way the vent maker says. Slope the vent back toward the boiler so condensate drains, support it at the listed spacing, and keep the terminations the listed distance from windows, doors, air intakes, grade and snow line. Pipe the condensate through a neutralizer to a drain or pump.',
+          detail: 'Core-drilling a masonry or concrete wall for the vent makes silica dust — use a wet core drill or one with a dust collector.',
+          code_refs: [{ section: '503', note: 'Venting of appliances — listed vent, termination clearances', code_type: 'IFGC' }, { section: '304', note: 'Combustion air for direct-vent and room-air appliances', code_type: 'IFGC' }],
+          tools: ['PVC saw or cutter', 'core drill (wet or with dust collection)', 'level', 'primer and cement or vent locking tool'],
+          materials: ['listed vent and intake pipe and fittings', 'termination kit', 'vent supports', 'condensate neutralizer', 'condensate tubing or pump'],
+          safety_ids: ['silica_core', 'ladder', 'fall_exterior'],
+          qa_ids: ['vent_listed'],
+          gating_inspection_type: 'equipment_set',
+        },
+        {
+          title: 'Pipe the near-boiler loop and safety devices',
+          instruction: 'Pipe the boiler loop and system loop as the manual and drawings show — closely spaced tees or a hydraulic separator for primary/secondary, pump direction marked, isolation valves for service. Install the air separator on the supply, the expansion tank on the pump suction side, the fill valve with backflow protection on the cold water feed, and the relief valve on the boiler with its discharge pipe full size, no valve, ending low near the floor or a drain. Cap open pipe ends while you work.',
+          detail: 'Never put a shutoff valve between the boiler and its relief valve or its high-limit control.',
+          code_refs: [{ section: '1005', note: 'Boiler connections — valves and backflow on the water feed' }, { section: '1006', note: 'Safety and pressure relief valves, discharge piping' }, { section: '1009', note: 'Hot water boiler expansion tank' }, { section: 'M2002', note: 'Boiler operating and safety controls, relief valve', code_type: 'IRC' }, { section: 'M2003', note: 'Expansion tanks', code_type: 'IRC' }],
+          tools: ['pipe cutter', 'torch or press tool', 'pipe wrenches', 'level'],
+          materials: ['copper, steel or PEX supply and return pipe', 'circulators', 'air separator', 'expansion tank', 'fill valve and backflow preventer', 'relief valve discharge pipe', 'isolation and purge valves', 'dielectric unions'],
+          safety_ids: ['torch_fire', 'cylinder', 'ladder'],
+          qa_ids: ['relief_discharge', 'no_valve_relief', 'expansion_tank', 'backflow_fill'],
+          gating_inspection_type: 'rough_in',
+        },
+        {
+          title: 'Pressure-test the hydronic piping before it is covered',
+          instruction: 'Isolate anything rated below the test pressure — the boiler relief valve, expansion tank, some controls — or blank it off. Fill the piping, bring it to the test pressure on the drawings or the code, and hold it while you walk every joint, valve and fitting. Fix leaks, retest, and have the inspector see it before insulation, drywall or concrete covers the pipe. Record the pressure and time.',
+          code_refs: [{ section: '1208', note: 'Hydronic piping tests before concealment' }, { section: 'M2101', note: 'Hydronic piping installation and testing', code_type: 'IRC' }],
+          tools: ['test pump', 'pressure gauge', 'test cap and plugs', 'marker'],
+          materials: ['test report form'],
+          safety_ids: ['scald_pressure'],
+          qa_ids: ['hydro_test'],
+          gating_inspection_type: 'rough_in',
+        },
+        {
+          title: 'Connect and test the gas',
+          instruction: 'Have the gas line brought to the boiler with an accessible shutoff, a sediment trap and a union or listed connector. Pressure-test the new gas piping, then leak-check every joint with solution or an electronic detector at operating pressure before the burner is lit. Record the test.',
+          code_refs: [{ section: '406', note: 'Gas piping inspection, testing and purging', code_type: 'IFGC' }],
+          tools: ['manometer or test gauge', 'leak detection solution', 'electronic gas detector', 'pipe wrenches'],
+          materials: ['gas shutoff valve', 'sediment trap fittings', 'listed connector'],
+          safety_ids: ['gas_leak'],
+          qa_ids: ['gas_tested'],
+          gating_inspection_type: 'gas_refrigerant_test',
+        },
+        {
+          title: 'Fill, purge, start up and check combustion',
+          instruction: 'Flush the system clean, then fill (with inhibitor or glycol if specified) and purge air zone by zone until the water runs solid. Set the cold fill pressure and the expansion tank pre-charge per the manual. Start the boiler, run it at high and low fire, measure the flue gas with a combustion analyzer and adjust to the maker\'s range, check CO in the room, and test the high limit, the low-water cutoff and the flame safeguard. Clean the strainers, label zones, and leave the manual and startup sheet on site.',
+          detail: 'Wisconsin: a boiler outside a 1–2 family dwelling is registered with DSPS and inspected by a certified inspector before it runs; in a dwelling the municipal or UDC inspector does it.',
+          code_refs: [{ section: '1011', note: 'Boiler tests — operating test after installation' }, { section: '1007', note: 'Boiler low-water cutoff' }, { section: '341.16', note: 'Installation inspection before operation', code_type: 'WI SPS' }, { section: '341.29', note: 'Operating and high-limit controls', code_type: 'WI SPS' }],
+          tools: ['combustion analyzer', 'CO meter', 'purge hose', 'manometer', 'multimeter'],
+          materials: ['system cleaner', 'inhibitor or glycol as specified', 'startup report form', 'zone labels'],
+          safety_ids: ['carbon_monoxide', 'scald_pressure', 'lockout'],
+          qa_ids: ['purged', 'combustion_test', 'safety_controls', 'co_check', 'wi_registration'],
+          gating_inspection_type: 'final',
+        },
+      ],
+    },
+    {
+      id: 'radiant_floor',
+      example_title: 'Radiant floor heat tubing in basement slab',
+      when: { title_re: RADIANT },
+      priority: 10,
+      steps: [
+        {
+          title: 'Check the base before tubing goes down',
+          instruction: 'Confirm the under-slab insulation, edge insulation and vapor retarder are in place as drawn and not torn. Get the loop layout from the design — loop lengths, spacing and which loop serves which room — and mark the manifold spot, control joints, toilet flanges and any area to be cut or drilled later.',
+          tools: ['tape measure', 'marker or paint', 'loop layout drawing'],
+          materials: [],
+          safety_ids: ['trip_tubing'],
+                  },
+        {
+          title: 'Lay and fasten the tubing loops',
+          instruction: 'Uncoil oxygen-barrier tubing without kinking it and keep both ends plugged. Lay each loop to the layout, fasten it to the mesh, rebar or rails at the maker\'s spacing, and keep it away from toilet flanges and planned cuts. Run tubing under slab joints, sleeve it where it crosses a joint or leaves the slab, and make no joints in tubing that will be buried. Reject any tubing with deep gouges in the barrier.',
+          code_refs: [{ section: '1209', note: 'Embedded piping — continuous, tested before embedment' }, { section: 'M2103', note: 'Floor heating systems — tubing, joints, testing', code_type: 'IRC' }],
+          tools: ['tubing uncoiler', 'tube cutter', 'rebar tie tool or staple gun', 'tape measure'],
+          materials: ['oxygen-barrier PEX or PEX-AL-PEX', 'tube ties or clips', 'bend supports', 'sleeves at joints'],
+          safety_ids: ['trip_tubing'],
+          qa_ids: ['no_buried_joints'],
+          gating_inspection_type: 'rough_in',
+        },
+        {
+          title: 'Set the manifold, label loops and pressure-test',
+          instruction: 'Connect every loop to the manifold with isolation valves on its supply and return, and tag each loop with its room. Pressure-test the tubing with air or water as the tubing maker and inspector allow, hold it, and fix any loss. Leave the tubing under pressure with a gauge on it through the concrete pour so damage shows right away.',
+          code_refs: [{ section: '1208', note: 'Hydronic piping tests' }, { section: 'M2103', note: 'Floor heating tubing tested before covering', code_type: 'IRC' }],
+          tools: ['press or crimp tool', 'test gauge kit', 'air compressor or test pump', 'tags'],
+          materials: ['radiant manifold with isolation valves', 'loop fittings', 'manifold cabinet or bracket'],
+          safety_ids: ['scald_pressure', 'trip_tubing'],
+          qa_ids: ['radiant_test'],
+          gating_inspection_type: 'rough_in',
+        },
+        {
+          title: 'Watch the pour, then fill, purge and balance',
+          instruction: 'Stay for the pour and watch the gauge; stop the crew if pressure drops and find the hit. After the slab cures, fill and purge each loop one at a time until no air comes out, set the loop flows on the manifold per design, then bring the floor up to temperature slowly — no hot startup on new concrete.',
+          detail: 'A slow warm-up protects new concrete; follow the slab and tubing makers\' warm-up schedule.',
+          tools: ['test gauge', 'purge hose and bucket', 'infrared thermometer'],
+          materials: ['inhibitor or glycol as specified'],
+          safety_ids: ['scald_pressure'],
+          qa_ids: ['purged'],
+          gating_inspection_type: 'final',
+        },
+      ],
+    },
+    {
+      id: 'hydronic_baseboard',
+      example_title: 'Install hydronic baseboard heat',
+      when: { title_re: BASEBOARD },
+      priority: 5,
+      steps: [
+        {
+          title: 'Lay out the baseboard and pipe runs',
+          instruction: 'Mark each baseboard length from the heat-loss layout, usually under windows and along outside walls. Plan the pipe route between units so it can grow and shrink — sleeves where it passes through floors and wall plates, and room to slide at the ends. Mark the zone valves or circulators and the high points that need air vents.',
+          tools: ['tape measure', 'level', 'marker'],
+          materials: [],
+          safety_ids: ['ladder'],
+                  },
+        {
+          title: 'Hang the baseboard and pipe it',
+          instruction: 'Fasten the back plates and hangers level, set the fin-tube on its slides so it can move, and connect the runs. Install an air vent at each high point and drain valves at low points, and keep plastic or foam away from the fins. Leave the covers off until the piping is tested.',
+          code_refs: [{ section: '1206', note: 'Hydronic piping installation — supports, expansion' }, { section: 'M2101', note: 'Hydronic piping installation', code_type: 'IRC' }],
+          tools: ['torch or press tool', 'pipe cutter', 'drill/driver', 'level'],
+          materials: ['fin-tube baseboard element and covers', 'hangers and slides', 'copper or PEX pipe', 'air vents', 'drain valves', 'pipe sleeves'],
+          safety_ids: ['torch_fire', 'cylinder'],
+                    gating_inspection_type: 'rough_in',
+        },
+        {
+          title: 'Test, cover and balance the zones',
+          instruction: 'Pressure-test the baseboard piping with the rest of the system before walls or floors close it in. After startup, purge each zone, confirm every unit heats along its whole length, set balancing valves, and snap the covers and end caps on.',
+          code_refs: [{ section: '1208', note: 'Hydronic piping tests' }],
+          tools: ['test gauge', 'purge hose', 'infrared thermometer'],
+          materials: ['covers and end caps'],
+          safety_ids: ['scald_pressure'],
+          qa_ids: ['hydro_test', 'purged'],
+          gating_inspection_type: 'final',
+        },
+      ],
+    },
+  ],
+  code_refs: {
+    rough_in: [
+      { section: '1005', note: 'Boiler connections — valves, backflow on the water feed', prov: icc },
+      { section: '1006', note: 'Safety and pressure relief valves and discharge', prov: icc },
+      { section: '1009', note: 'Hot water boiler expansion tank', prov: icc },
+      { section: '1208', note: 'Hydronic piping tests', prov: icc },
+      { section: '1209', note: 'Embedded hydronic piping', prov: icc },
+      { section: 'M2101', note: 'Hydronic piping installation and testing', code_type: 'IRC', prov: icc },
+      { section: 'M2103', note: 'Floor heating systems', code_type: 'IRC', prov: icc },
+    ],
+    equipment_set: [
+      { section: '1004', note: 'Boilers — installation, mounting, working clearance', prov: icc },
+      { section: 'M2001', note: 'Boilers — installation and clearances', code_type: 'IRC', prov: icc },
+      { section: '503', note: 'Venting of appliances', code_type: 'IFGC', prov: icc },
+      { section: '304', note: 'Combustion, ventilation and dilution air', code_type: 'IFGC', prov: icc },
+    ],
+    gas_refrigerant_test: [
+      { section: '406', note: 'Gas piping inspection, testing and purging', code_type: 'IFGC', prov: icc },
+    ],
+    final: [
+      { section: '1011', note: 'Boiler operating test after installation', prov: icc },
+      { section: '1007', note: 'Boiler low-water cutoff', prov: icc },
+      { section: 'M2002', note: 'Boiler operating and safety controls', code_type: 'IRC', prov: icc },
+      { section: '341.16', note: 'Boiler installation inspection before operation', code_type: 'WI SPS', prov: sps },
+      { section: '341.41', note: 'Boiler installation registration with DSPS', code_type: 'WI SPS', prov: sps },
+    ],
+  },
+  equipment: [
+    { when: { title_re: BOILER, building_types: ['commercial', 'industrial', 'residential_mf'] }, type: 'telehandler', reason: 'Move and set a commercial floor boiler or packaged boiler skid into the mechanical room', optional: true },
+    { when: { title_re: BOILER, building_types: ['commercial', 'industrial'] }, type: 'forklift', reason: 'Unload boilers, tanks and pipe bundles at the site', optional: true },
+  ],
+  hazards: [
+    { id: 'rigging_lift', hazard: 'Crushed or strained moving a heavy boiler, tank or cast-iron sections', hazard_es: PENDING_ES, controls: ['Inspect straps, slings and dollies before each use; use enough people or a lift for the weight', 'Keep hands and feet out from under the unit while it is set'], controls_es: PENDING_ES, osha_ref: '1926.251(a)(1)', severity: 3, ppe: ['gloves', 'safety-toe boots'], prov: osha('h') },
+    { id: 'torch_fire', hazard: 'Fire from soldering or brazing torches near framing, insulation and finished walls', hazard_es: PENDING_ES, controls: ['Shield combustibles with a flame cloth and wet down nearby wood where allowed', 'Keep an extinguisher at the joint and check the area after the last joint cools'], controls_es: PENDING_ES, osha_ref: '1926.352(d)', severity: 3, ppe: ['safety glasses', 'leather gloves'], prov: osha('j') },
+    { id: 'cylinder', hazard: 'Torch fuel or oxygen cylinder tipping, leaking or being damaged', hazard_es: PENDING_ES, controls: ['Keep cylinders upright and secured in a cart or chained', 'Close valves and cap cylinders when not in use'], controls_es: PENDING_ES, osha_ref: '1926.350(a)(9)', severity: 3, prov: osha('j') },
+    { id: 'carbon_monoxide', hazard: 'Carbon monoxide from a boiler with a bad vent joint, blocked intake or out-of-tune burner at startup', hazard_es: PENDING_ES, controls: ['Check every vent joint and termination before firing; wear a personal CO monitor during startup', 'Measure flue gas and room CO; shut down and fix if CO is high'], controls_es: PENDING_ES, osha_ref: '1926.55(a)', severity: 4, ppe: ['personal CO monitor'], prov: { src: ['ecfr-1926-d', 'hvac-basc-combustion'], confidence: 'verified', last_verified: D } },
+    { id: 'gas_leak', hazard: 'Gas leak, fire or explosion at the boiler gas connection', hazard_es: PENDING_ES, controls: ['Pressure-test and leak-check the gas piping before lighting the burner', 'No torches or sparks near an open gas line; keep the shutoff reachable'], controls_es: PENDING_ES, osha_ref: '1926.21(b)(2)', severity: 4, prov: osha('c', 'General hazard-training duty; no construction-specific gas-piping test rule in 1926.') },
+    { id: 'lockout', hazard: 'Shock or burner start while wiring or servicing the boiler, pumps and controls', hazard_es: PENDING_ES, controls: ['Switch off, lock and tag the boiler service switch before opening the cabinet', 'Test for dead before touching wiring'], controls_es: PENDING_ES, osha_ref: '1926.417(b)', severity: 4, prov: osha('k') },
+    { id: 'scald_pressure', hazard: 'Burns or eye injury from hot water, steam or a pipe or fitting blowing off under test pressure', hazard_es: PENDING_ES, controls: ['Raise test pressure slowly and stand clear of caps and plugs', 'Drain and cool the system before opening it; aim purge hoses at a drain'], controls_es: PENDING_ES, osha_ref: '1926.95(a)', severity: 3, ppe: ['safety glasses', 'gloves'], prov: osha('e') },
+    { id: 'silica_core', hazard: 'Breathing silica dust when core-drilling concrete or masonry for vents and pipes', hazard_es: PENDING_ES, controls: ['Core-drill with water feed or a dust collector shroud', 'Follow the Table 1 controls for handheld core drills'], controls_es: PENDING_ES, osha_ref: '1926.1153(c)(1)', severity: 3, prov: osha('z') },
+    { id: 'fall_exterior', hazard: 'Fall while installing vent terminations high on an outside wall or roof', hazard_es: PENDING_ES, controls: ['Use guardrails or personal fall arrest when working 6 ft or more above a lower level', 'Use a lift instead of a ladder for high terminations where possible'], controls_es: PENDING_ES, osha_ref: '1926.501(b)(13)', severity: 4, ppe: ['harness + lanyard where required'], prov: osha('m') },
+    { id: 'ladder', hazard: 'Ladder fall while running pipe and vent overhead', hazard_es: PENDING_ES, controls: ['Extend the ladder 3 ft above any landing it is used to reach', 'Keep three points of contact; do not overreach'], controls_es: PENDING_ES, osha_ref: '1926.1053(b)(1)', severity: 3, prov: osha('x') },
+    { id: 'trip_tubing', hazard: 'Trips and falls over radiant tubing, mesh and coils on the slab base', hazard_es: PENDING_ES, controls: ['Keep walkways clear; store coils and scraps off the work area', 'Walk on planks over fastened tubing and mesh'], controls_es: PENDING_ES, osha_ref: '1926.25(a)', severity: 2, prov: osha('c') },
+  ],
+  qa_checklist: [
+    { id: 'clearances', item: 'Boiler set level with the service clearances in the manual; burner, controls and relief valve reachable.', item_es: tr('Caldera colocada a nivel con las distancias de servicio del manual; quemador, controles y válvula de alivio accesibles.'), prov: ufgsLp },
+    { id: 'vent_listed', phase: 'rough_in', item: 'Vent and intake in the material, size and length the manual allows; joints made per the vent maker; sloped back to the boiler; terminations at listed clearances.', item_es: PENDING_ES, safety: true, prov: { src: ['boilers_hydronic-ufgs-23-52-00', 'icc-pa'], confidence: 'derived', last_verified: D, note: 'UFGS 23 52 00 3.3.24 (direct vent per NFPA 54 + mfr, sloped to condensate) + IFGC 503 topic.' } },
+    { id: 'relief_discharge', phase: 'rough_in', item: 'Relief valve discharge pipe full size, no valve or cap, ending low near the floor or at a drain where it cannot scald anyone.', item_es: PENDING_ES, safety: true, prov: icc },
+    { id: 'no_valve_relief', phase: 'rough_in', item: 'No shutoff valve between the boiler and its relief valve or its high-temperature limit control.', item_es: PENDING_ES, safety: true, prov: { src: ['boilers_hydronic-wi-sps341', 'icc-pa'], confidence: 'verified', last_verified: D, note: 'SPS 341.29(2)(b)2.e (no valve to the high limit); relief-valve rule per IMC 1006 topic.' } },
+    { id: 'expansion_tank', item: 'Expansion tank installed, sized per design, pre-charge set to the fill pressure before filling.', item_es: tr('Tanque de expansión instalado, del tamaño de diseño, con precarga ajustada a la presión de llenado antes de llenar.'), prov: icc },
+    { id: 'backflow_fill', item: 'Cold water fill has a backflow preventer and a fill/pressure-reducing valve with isolation valves.', item_es: tr('El llenado de agua fría tiene preventor de contraflujo y válvula de llenado/reductora con válvulas de aislamiento.'), prov: icc },
+    { id: 'hydro_test', phase: 'inspections', item: 'Hydronic piping held at test pressure with low-rated items blanked; every joint inspected, no loss; test recorded before anything is covered.', item_es: tr('Tubería hidrónica mantenida a presión de prueba con elementos de baja presión aislados; cada unión revisada, sin pérdida; prueba registrada antes de cubrir.'), prov: ufgs },
+    { id: 'no_buried_joints', phase: 'rough_in', item: 'No joints in tubing that will be embedded; tubing runs under slab joints and is sleeved where it crosses one.', item_es: tr('Sin uniones en la tubería que quedará embebida; la tubería pasa por debajo de las juntas de la losa y lleva funda al cruzarlas.'), prov: ufgs },
+    { id: 'radiant_test', phase: 'inspections', item: 'Radiant tubing pressure-tested before and kept pressurized with a gauge during the concrete pour.', item_es: tr('Tubería radiante probada a presión antes del vaciado y mantenida presurizada con manómetro durante el vaciado del concreto.'), prov: ufgs },
+    { id: 'gas_tested', item: 'Gas piping to the boiler has a shutoff and sediment trap, pressure-tested and leak-checked before firing; record kept.', item_es: PENDING_ES, safety: true, prov: icc },
+    { id: 'purged', phase: 'commissioning', item: 'System flushed, filled and purged zone by zone; no air noise; strainers cleaned after first run.', item_es: tr('Sistema lavado, llenado y purgado zona por zona; sin ruido de aire; filtros limpiados después del primer arranque.'), prov: ufgsLp },
+    { id: 'combustion_test', phase: 'commissioning', item: 'Combustion analysis at high and low fire within the maker\'s range; readings on the startup sheet.', item_es: PENDING_ES, safety: true, prov: { src: ['boilers_hydronic-ufgs-23-52-43', 'hvac-basc-combustion'], confidence: 'derived', last_verified: D, note: 'UFGS 23 52 43 3.4.1 (demonstrate combustion control) + BASC combustion appliances.' } },
+    { id: 'safety_controls', phase: 'commissioning', item: 'High limit, low-water cutoff and flame safeguard each tested and shut the burner off.', item_es: PENDING_ES, safety: true, prov: { src: ['boilers_hydronic-wi-sps341', 'boilers_hydronic-ufgs-23-52-43'], confidence: 'verified', last_verified: D } },
+    { id: 'co_check', phase: 'commissioning', item: 'Room CO checked during startup with the boiler at high fire; no CO in the space.', item_es: PENDING_ES, safety: true, prov: basc },
+    { id: 'wi_registration', item: 'WI: boiler outside a 1–2 family dwelling registered with DSPS and inspected before operation; CSD-1 manuals, reports and checklist left on site.', item_es: tr('WI: caldera fuera de vivienda de 1–2 familias registrada ante DSPS e inspeccionada antes de operar; manuales, reportes y lista CSD-1 dejados en sitio.'), prov: sps },
+  ],
+  inspection_checklists: {
+    rough_in: [
+      { item: 'Relief valve installed with full-size discharge to a safe point; no valve in the relief or high-limit line', item_es: PENDING_ES, ref: 'IMC 1006' },
+      { item: 'Expansion tank, air separator and backflow-protected fill installed', item_es: PENDING_ES, ref: 'IMC 1009' },
+      { item: 'Hydronic piping and embedded tubing under test pressure, no loss, before concealment', item_es: PENDING_ES, ref: 'IMC 1208 / 1209' },
+    ],
+    equipment_set: [
+      { item: 'Boiler secured with listed clearances; combustion air provided', item_es: PENDING_ES, ref: 'IMC 1004' },
+      { item: 'Vent material, slope, supports and termination clearances per listing', item_es: PENDING_ES, ref: 'IFGC 503' },
+    ],
+    gas_refrigerant_test: [
+      { item: 'Gas piping to the boiler pressure-tested; shutoff and sediment trap at the appliance', item_es: PENDING_ES, ref: 'IFGC 406' },
+    ],
+    final: [
+      { item: 'Operating test done: high limit, low-water cutoff and flame safeguard shut the burner off', item_es: PENDING_ES, ref: 'IMC 1011' },
+      { item: 'Combustion analysis and room CO readings on the startup sheet', item_es: PENDING_ES },
+      { item: 'WI: DSPS registration and certified-inspector installation inspection (not 1–2 family dwellings)', item_es: PENDING_ES, ref: 'WI SPS 341.16 / 341.41' },
+    ],
+  },
+  assemblies: [
+    { code: 'M-HYD-BOILER-RES-EA', name: 'Gas condensing boiler ≈100–150 MBH, wall-hung, with vent kit, near-boiler trim and startup', name_es: 'Caldera de condensación a gas ≈100–150 MBH, de pared, con kit de ventila, accesorios cercanos y arranque', unit: 'EA', csi: '23 52 16',
+      description: 'Near-boiler trim = expansion tank, air separator, relief valve, fill and isolation valves. Distribution (radiant, baseboard), gas piping and power by separate lines.',
+      material_cost_cents: { v: 550000, prov: est('condensing boiler + vent kit + near-boiler trim, national baseline 2026') }, labor_hours_per_unit: { v: 16, prov: est('set, vent, pipe near-boiler, fill, purge, startup + combustion test') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools; analyzer owned') }, waste_pct: { v: 0, prov: est('factory unit + kit') } },
+    { code: 'M-HYD-RADIANT-SF', name: 'Radiant floor tubing, oxygen-barrier PEX ≈9 in. o.c., fastened in slab or on subfloor, tested', name_es: 'Tubería radiante de piso, PEX con barrera de oxígeno ≈9 pulg. entre ejes, fijada en losa o sobre contrapiso, probada', unit: 'SF', csi: '23 83 16',
+      description: 'Tubing and fasteners only; under-slab insulation, manifold and concrete priced separately.',
+      material_cost_cents: { v: 120, prov: est('PEX tubing ≈1.3 LF/SF + ties, national baseline 2026') }, labor_hours_per_unit: { v: 0.02, prov: est('layout, uncoil, fasten, test') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools') }, waste_pct: { v: 5, prov: est('loop tails and offcuts') } },
+    { code: 'M-HYD-MANIFOLD-EA', name: 'Radiant manifold, up to 6 loops, with isolation and balancing valves, connected and labeled', name_es: 'Colector radiante, hasta 6 circuitos, con válvulas de aislamiento y balanceo, conectado y etiquetado', unit: 'EA', csi: '23 83 16',
+      material_cost_cents: { v: 45000, prov: est('manifold set + loop fittings + bracket, national baseline 2026') }, labor_hours_per_unit: { v: 4, prov: est('mount, connect loops, test, label') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools') }, waste_pct: { v: 0, prov: est('kit') } },
+    { code: 'M-HYD-BASEBOARD-LF', name: 'Hydronic fin-tube baseboard with cover, hung and piped', name_es: 'Zócalo hidrónico de aletas con cubierta, colgado y conectado', unit: 'LF', csi: '23 82 33',
+      material_cost_cents: { v: 1800, prov: est('residential fin-tube element + cover + hangers, national baseline 2026') }, labor_hours_per_unit: { v: 0.35, prov: est('hang, pipe, vent, cover') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools') }, waste_pct: { v: 5, prov: est('cut lengths') } },
+    { code: 'M-HYD-ZONE-EA', name: 'Heating zone: circulator or zone valve with thermostat wiring, installed', name_es: 'Zona de calefacción: bomba circuladora o válvula de zona con cableado de termostato, instalada', unit: 'EA', csi: '23 21 23',
+      material_cost_cents: { v: 30000, prov: est('zone circulator or valve + flanges + relay share, national baseline 2026') }, labor_hours_per_unit: { v: 3, prov: est('pipe in, wire to control, test') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools') }, waste_pct: { v: 0, prov: est('factory part') } },
+    { code: 'M-HYD-INDIRECT-WH-EA', name: 'Indirect-fired water heater ≈40–50 gal on a boiler zone, installed', name_es: 'Calentador de agua indirecto ≈40–50 gal en una zona de la caldera, instalado', unit: 'EA', csi: '22 33 00',
+      material_cost_cents: { v: 140000, prov: est('indirect tank + zone fittings + T&P, national baseline 2026') }, labor_hours_per_unit: { v: 6, prov: est('set, pipe boiler side and domestic side, relief discharge, test') },
+      equipment_cost_cents: { v: 0, prov: est('hand tools') }, waste_pct: { v: 0, prov: est('factory unit') } },
+  ],
+  quantity_rules: [
+    { code: 'M-HYD-BOILER-RES-EA', assumption: 'One boiler for a single-family hydronic heating job — replace with the boiler schedule', when: { building_types: ['residential_sf'] }, qty: { basis: 'const', mul: 1 } },
+    { code: 'M-HYD-BASEBOARD-LF', assumption: '≈10 LF of baseboard per room — delete if the house is heated by radiant floor', when: { building_types: ['residential_sf'] }, qty: { basis: 'rooms', mul: 10 } },
+    { code: 'M-HYD-ZONE-EA', assumption: 'Two heating zones for a single-family house — replace with the zoning plan', when: { building_types: ['residential_sf'] }, qty: { basis: 'const', mul: 2 } },
+  ],
+  dependency_hints: [
+    { after_trades: ['framing', 'concrete'], note: 'Boiler backing, mechanical room and slab base ready before the boiler is set and radiant tubing is laid.' },
+    { before_phase: 'insulation', note: 'Hydronic piping and radiant tubing pressure-tested and inspected before insulation, drywall or concrete covers them.' },
+  ],
+});

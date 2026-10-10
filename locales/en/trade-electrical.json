@@ -1,0 +1,19 @@
+{
+  "panels": {
+    "title": "Electrical Panels",
+    "add": "Add Panel",
+    "name": "Panel Name",
+    "amperage": "Amperage (A)",
+    "voltage": "Voltage (V)",
+    "location": "Location",
+    "circuits": "Circuits"
+  },
+  "circuits": {
+    "title": "Circuits",
+    "add": "Add Circuit",
+    "number": "Circuit #",
+    "description": "Description",
+    "amperage": "Amperage (A)",
+    "status": "Status"
+  }
+}

@@ -1,0 +1,40 @@
+# Root-level .dockerignore — used when build context is the project root
+# (api and migrate services use context: . in docker-compose.yml)
+
+# Never send secrets
+.env
+.env.*
+
+# Skip large directories that aren't needed in the api image
+node_modules
+web/node_modules
+billing/node_modules
+mobile/node_modules
+
+# Skip web and mobile build outputs
+web/.next
+web/out
+mobile/.expo
+mobile/dist
+
+# Skip docs and tooling
+docs/
+.claude/
+*.docx
+*.pdf
+
+# Skip test output
+coverage
+.nyc_output
+
+# Skip git
+.git
+.gitignore
+
+# Skip logs
+*.log
+npm-debug.log*
+
+# Skip other build artifacts
+api/dist
+billing/dist

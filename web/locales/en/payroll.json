@@ -1,0 +1,67 @@
+{
+  "payroll": {
+    "title": "Payroll & Integrations",
+    "export": {
+      "title": "Export for Payroll",
+      "week_label": "Pay Week",
+      "button": "Export Payroll CSV",
+      "exporting": "Queuing export…",
+      "success": "Export queued — you'll receive an email when it's ready.",
+      "error_no_timecards": "No approved timecards found for this week.",
+      "error_not_monday": "Please select a Monday as the week start.",
+      "history": "Export History",
+      "no_exports": "No exports yet.",
+      "download": "Download"
+    },
+    "settings": {
+      "title": "Employee Payroll Settings",
+      "employee": "Employee",
+      "role": "Role",
+      "type": "Employment Type",
+      "rate": "Default Rate",
+      "frequency": "Pay Frequency",
+      "ot_multiplier": "OT Multiplier",
+      "gusto_id": "Gusto ID",
+      "adp_aoid": "ADP AOID",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "no_settings": "Not configured",
+      "type_w2": "W-2",
+      "type_1099": "1099 Contractor",
+      "freq_weekly": "Weekly",
+      "freq_biweekly": "Bi-weekly",
+      "freq_semimonthly": "Semi-monthly",
+      "freq_monthly": "Monthly"
+    },
+    "integrations": {
+      "title": "Connected Payroll Systems",
+      "sync_employees": "Sync Employees",
+      "sync_workers": "Sync Workers",
+      "syncing": "Syncing…",
+      "sync_success": "Synced {{matched}} employee(s). {{unmatched}} unmatched.",
+      "sync_error": "Sync failed. Please try again.",
+      "quickbooks": {
+        "title": "QuickBooks",
+        "desc": "Sync approved timecards to QuickBooks Time.",
+        "connected": "QuickBooks Connected",
+        "connect": "Connect QuickBooks",
+        "disconnect": "Disconnect"
+      },
+      "gusto": {
+        "title": "Gusto",
+        "desc": "Push approved hours to Gusto payroll runs automatically.",
+        "connected": "Gusto Connected",
+        "connect": "Connect Gusto",
+        "disconnect": "Disconnect"
+      },
+      "adp": {
+        "title": "ADP Workforce Now",
+        "desc": "Post time cards to ADP Workforce Now after timecard approval.",
+        "connected": "ADP Connected",
+        "connect": "Connect ADP",
+        "disconnect": "Disconnect"
+      }
+    }
+  }
+}

@@ -1,0 +1,279 @@
+version: '3.9'
+
+# Construction Platform — Full local stack
+# Provides: PostgreSQL 15, PgBouncer (transaction mode), Redis, API, Web
+#
+# Usage:
+#   docker compose up -d              # start everything
+#   docker compose up --build -d      # rebuild images and start
+#   docker compose down               # stop containers (data preserved)
+#   docker compose down -v            # stop + destroy volumes (full reset)
+#   docker compose logs api -f        # tail API logs
+#   docker compose logs web -f        # tail web logs
+
+services:
+
+  # ── Infrastructure ────────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: platform_postgres
+    restart: unless-stopped
+    environment:
+      # postgres is the superuser used by migrations (Prisma) only.
+      # platform_user is a non-superuser created in init.sql — used by the app
+      # at runtime via PgBouncer so that RLS policies are enforced (T-52).
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: platform_dev
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    ports:
+      - "127.0.0.1:15432:5432"    # loopback-only — never exposed beyond host (public-exposure hardening)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d platform_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgbouncer:
+    image: edoburu/pgbouncer@sha256:4c1ca296ef525f108f5d3552cc337c0c09587cf8dae7f0067fd93349e47dc1cd  # pinned — matches CI (.github/workflows/ci.yml)
+    container_name: platform_pgbouncer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgres://platform_user:changeme@postgres:5432/platform_dev"
+      POOL_MODE: transaction          # CRITICAL — session mode breaks RLS SET LOCAL
+      MAX_CLIENT_CONN: 100
+      DEFAULT_POOL_SIZE: 10
+      SERVER_RESET_QUERY: "DISCARD ALL"   # T-49 — clears stale session state
+      AUTH_TYPE: scram-sha-256
+    ports:
+      - "127.0.0.1:15433:5432"    # loopback-only — never exposed beyond host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: platform_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "127.0.0.1:16379:6379"    # loopback-only — never exposed beyond host
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Object storage (MinIO — S3-compatible, local stand-in for DO Spaces) ───────
+  # storage.ts uses the AWS S3 SDK; forcePathStyle (env-gated) makes it talk to MinIO
+  # with zero code change. minio-init creates the quarantine + live buckets on boot.
+
+  minio:
+    image: minio/minio:latest
+    container_name: platform_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "127.0.0.1:19000:9000"    # S3 API  — loopback-only
+      - "127.0.0.1:19001:9001"    # console — loopback-only
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: platform_minio_init
+    depends_on:
+      - minio
+    # Wait for minio to accept the alias (server image has no mc/healthcheck of its own),
+    # then create both buckets idempotently. Exits 0.
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do
+        echo 'minio-init: waiting for minio...'; sleep 2;
+      done &&
+      mc mb --ignore-existing local/platform-quarantine-dev &&
+      mc mb --ignore-existing local/platform-live-dev &&
+      echo 'minio-init: buckets ready'
+      "
+    restart: "no"
+
+  # ── Database migrations (one-shot) ────────────────────────────────────────────
+  # Runs prisma migrate deploy then exits (0). api/web wait for this to complete.
+
+  migrate:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+      target: builder     # builder stage has prisma CLI — no need for full production image
+    working_dir: /app/api
+    # Use the locally installed prisma CLI (v5) — not npx which downloads latest (v7, breaking)
+    command: ./node_modules/.bin/prisma migrate deploy --schema ../prisma/schema.prisma
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/platform_dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  # ── Application services ───────────────────────────────────────────────────────
+
+  api:
+    build:
+      context: .            # project root — prisma/ is here
+      dockerfile: api/Dockerfile
+    container_name: platform_api
+    env_file: .env          # source of truth for secrets (Stripe, QB, SendGrid, etc.)
+    environment:
+      # Override the localhost-based URLs from .env with Docker service names
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/platform_dev
+      DATABASE_POOL_URL: postgresql://platform_user:changeme@pgbouncer:5432/platform_dev
+      REDIS_URL: redis://redis:6379
+      PORT: "3000"
+      # Object storage → MinIO. These are the names storage.ts actually reads
+      # (.env uses the wrong STORAGE_ACCESS_KEY/STORAGE_SECRET_KEY names — overridden here).
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_REGION: us-east-1
+      STORAGE_ACCESS_KEY_ID: minioadmin
+      STORAGE_SECRET_ACCESS_KEY: minioadmin
+      STORAGE_FORCE_PATH_STYLE: "true"     # required for MinIO path-style URLs
+      # Presigned URLs are opened by the browser — sign them for a host it can reach (minio:9000 is
+      # Docker-internal). Default = the loopback-bound MinIO port (works on this machine). For remote
+      # testers via the tunnel, route a hostname to minio:9000 and set this in .env to it.
+      STORAGE_PUBLIC_ENDPOINT: "${STORAGE_PUBLIC_ENDPOINT:-http://localhost:19000}"
+      STORAGE_QUARANTINE_BUCKET: platform-quarantine-dev
+      STORAGE_LIVE_BUCKET: platform-live-dev
+      # .env ships a placeholder Cloudmersive key (non-empty) → the scan worker would
+      # attempt a real, failing AV call and never promote quarantine→live. Empty = skip
+      # scan in dev (T-26 dev path) so files reach live storage. Never empty in prod.
+      CLOUDMERSIVE_API_KEY: ""
+      RATE_LIMIT_MAX: "5000"   # dev headroom — e2e harness fires many requests/min
+      OCR_PAGE_DPI: "200"      # 300→200 ≈2× faster OCR on large scans; keeps jobs well under expiry
+      # Local vision-model augmentation (blueprint-pdf/vision.ts). Ollama runs on the HOST
+      # (needs the GPU) — the container reaches it via the host gateway mapping below.
+      # Opt-in: set BLUEPRINT_VISION_ENABLED=1 in .env.
+      BLUEPRINT_VISION_ENABLED: "${BLUEPRINT_VISION_ENABLED:-}"
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_VISION_MODEL: "${OLLAMA_VISION_MODEL:-qwen2.5vl:7b}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Linux: expose the host for the Ollama vision server
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-13000}:3000"   # loopback; cloudflared uses the docker network
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web:
+    build:
+      context: web
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* vars are baked into the bundle at build time.
+        # NEXT_PUBLIC_API_URL is unused in web/src (browser is server-side proxied via
+        # Next.js API routes; API_URL=http://api:3000) — kept for build compatibility.
+        # NEXT_PUBLIC_PUSHER_* ARE used: use-tenant-channel.ts (realtime, env-gated no-op
+        # when the key is empty). Sourced from the same .env PUSHER_* creds as the api.
+        NEXT_PUBLIC_API_URL: https://api.thejobsite.app
+        NEXT_PUBLIC_PUSHER_KEY: ${PUSHER_KEY}
+        NEXT_PUBLIC_PUSHER_CLUSTER: ${PUSHER_CLUSTER}
+    container_name: platform_web
+    environment:
+      # API_URL is used by Next.js server-side routes (API route proxies).
+      # Inside Docker, the web container reaches api by service name.
+      API_URL: http://api:3000
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_SECURE: "true"     # .app is HSTS-preloaded → HTTPS-only → cookie must be Secure
+      NODE_ENV: production
+      PORT: "3001"
+    ports:
+      - "127.0.0.1:${WEB_HOST_PORT:-13001}:3001"   # loopback; cloudflared uses the docker network
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── APK distribution (static nginx — public, ungated) ─────────────────────────
+  # Serves the Android APK + a download page at get.thejobsite.app.
+  # Drop a fresh build into ./infra/apk/html/thejobsite.apk → live instantly
+  # (volume-mounted, no rebuild). Ungated like the api origin.
+
+  apk:
+    image: nginx:alpine
+    container_name: platform_apk
+    restart: unless-stopped
+    volumes:
+      - ./infra/apk/html:/usr/share/nginx/html:ro
+      - ./infra/apk/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+  # ── Cloudflare Tunnel (public exposure — outbound only, no port-forward) ───────
+  # Connects web:3001 (browsers) and api:3000 (mobile) to the public internet via
+  # Cloudflare edge. Token defines the tunnel + its public hostname routes (set in
+  # the Cloudflare Zero Trust dashboard). Reaches api/web by service name on this
+  # compose network — no host ports needed.
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: platform_cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - web
+      - api
+      - apk
+
+  # ── Billing service (commented out — billing/src/ not yet implemented) ─────────
+  # Uncomment when billing service is built out.
+  #
+  # billing:
+  #   build:
+  #     context: billing
+  #     dockerfile: Dockerfile
+  #   container_name: platform_billing
+  #   env_file: .env
+  #   environment:
+  #     DATABASE_URL: postgresql://postgres:postgres@postgres:5432/platform_dev
+  #     DATABASE_POOL_URL: postgresql://platform_user:changeme@pgbouncer:5432/platform_dev
+  #     REDIS_URL: redis://redis:6379
+  #   ports:
+  #     - "3002:3000"   # billing Fastify runs on 3000 internally, exposed as 3002
+  #   depends_on:
+  #     migrate:
+  #       condition: service_completed_successfully
+  #     pgbouncer:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
