@@ -1,6 +1,18 @@
 # Pricing Tier Enforcement Matrix
 **Locked decisions: PR-01 through PR-08, P-03**
 
+> ⛔ **Superseded by PR-09 / PR-10 (ADR-0001, accepted 2026-10-18).** Business software becomes free; revenue comes from payments and from success fees on platform-sourced work, never per lead.
+> **This doc still describes what the code enforces today.** The `assertTier`, `assertCanAddUser`, `assertCanCreateProject` and `assertHasAddon` calls are unchanged until the pricing migration ships.
+>
+> **Target state:**
+> - Seat, project and trade-module limits are removed.
+> - Storage quotas stay as **fair-use** caps, with the numbers to be re-set (ADR-0001 open question).
+> - AI usage caps stay (`ai_usage_events`).
+> - `assertHasAddon('cross_tenant')` is removed from GC discovery search (PR-10).
+> - T-55 (permit milestones) and T-56 (assets Business+) are under review.
+>
+> Update this doc in the same PR as that code change.
+
 > This document defines WHERE and HOW tier limits are enforced in code.
 > All enforcement happens server-side — never trust client-side tier checks.
 

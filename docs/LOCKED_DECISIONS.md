@@ -35,9 +35,9 @@
 |---|---|---|---|
 | P-01 | **3 trade modules at v1.0 launch: GC, Electrical, Plumbing** | Sufficient for ICP. Adds scope significantly for each additional module. | Doc 02 |
 | P-02 | **Cross-tenant collaboration deferred to v1.1** | Schema and architecture built in v1.0. Feature not user-accessible until v1.1. **v1.1 bridge SHIPPED 2026-07-18 (PR #27, migration 0039)** — lifecycle UI, Doc 07 §6 sub-project instantiation, map layer, env-gated realtime. **Spec-gap follow-up SHIPPED 2026-07-18 (migration 0040)** — §5 permissions JSONB + re-consent (enforced in `publishIfActive`, layered ON the payload whitelist), §8 closeout (`completed` + reason codes → mirror disposition), sub→GC location publishing. **§5.1 event-family depth SHIPPED 2026-07-18 (migration 0041)** — invoice workflow (sub-side link, `invoice.submitted/approved/paid`), lien waivers (event-ledger-only + closeout gate), `message.sent`; Pusher realtime live end-to-end. **§5 final families SHIPPED 2026-07-18** (daily-report auto-mirror + fail-closed nightly labor summaries — §5 fully gated). **§3.3 fuzzy discovery SHIPPED 2026-07-19 (PR #33, migration 0042)** — opt-in no-RLS `tenant_discovery_profiles` directory (flag defaults OFF), addon-gated capped search, T-64 trade keys; sub-portal + client-portal i18n EN+ES (PR #34). Only the mobile surface remains deferred (see `CrossTenant_v1_1_Session_Plan.md`). | Doc 02, 07 |
-| P-03 | **Starter and Professional tiers only at v1.0** | Business tier (v1.1), Enterprise (v2.0). Reduces complexity at launch. | Doc 02, 11 |
+| P-03 | **Starter and Professional tiers only at v1.0** | Business tier (v1.1), Enterprise (v2.0). Reduces complexity at launch. **⛔ SUPERSEDED 2026-10-18 by PR-09 (ADR-0001)**: kept for history; the code still enforces it until the pricing migration ships. | Doc 02, 11 |
 | P-04 | **Free Sub Portal for non-tenant subs** | Primary acquisition engine — GC invites subs free, subs convert to paid. | Doc 02 |
-| P-05 | **14-day free trial — full Professional tier access** | Users experience the full product. Credit card required at signup. | Doc 11 |
+| P-05 | **14-day free trial — full Professional tier access** | Users experience the full product. Credit card required at signup. **⛔ SUPERSEDED 2026-10-18 by PR-09 (ADR-0001)**: kept for history; the code still enforces it until the pricing migration ships. | Doc 11 |
 | P-06 | **Self-serve signup — no sales required for Starter/Professional** | Low-friction acquisition. High-touch assist available for $500+/mo potential. | Doc 12 |
 | P-07 | **7 user roles** | Owner, PM, Estimator, Foreman, Field Tech, Accountant, Safety Officer + Client (portal) + Sub Portal. | Doc 06 |
 | P-08 | **Three-tier platform model: Enterprise → Project → Trade** | Reflects how construction companies actually operate. | Doc 01 |
@@ -51,14 +51,16 @@
 
 | # | Decision | Rationale | Doc |
 |---|---|---|---|
-| PR-01 | **Starter: $149/mo — 5 users, 5 projects, 1 trade module** | Entry-level accessible price. Covers solo/small operator. | Doc 11 |
-| PR-02 | **Professional: $349/mo — 20 users, 20 projects, 2 trade modules** | Main volume tier for v1.0. | Doc 11 |
-| PR-03 | **Business: $749/mo — 50 users, unlimited projects, 5 modules** | v1.1. Unlocks cross-tenant collaboration. | Doc 11 |
-| PR-04 | **Enterprise: $1,499+/mo — unlimited everything** | v2.0. Includes API access, all modules, dedicated CSM. | Doc 11 |
-| PR-05 | **Annual discount: 17% off (roughly 2 months free)** | Standard SaaS annual incentive. | Doc 11 |
-| PR-06 | **GC Module add-on: $99/mo** | Optional on Professional. Included in Business+. | Doc 11 |
-| PR-07 | **Additional users: $25/user/mo** | Per-seat expansion beyond tier limit. | Doc 11 |
-| PR-08 | **Cross-tenant collaboration add-on: $149/mo** | For Professional-tier subs connecting before reaching Business. v1.1. | Doc 11 |
+| PR-01 | **Starter: $149/mo — 5 users, 5 projects, 1 trade module** | Entry-level accessible price. Covers solo/small operator. **⛔ SUPERSEDED 2026-10-18 by PR-09 (ADR-0001)**: kept for history; the code still enforces it until the pricing migration ships. | Doc 11 |
+| PR-02 | **Professional: $349/mo — 20 users, 20 projects, 2 trade modules** | Main volume tier for v1.0. **⛔ SUPERSEDED 2026-10-18 by PR-09 (ADR-0001)**: kept for history; the code still enforces it until the pricing migration ships. | Doc 11 |
+| PR-03 | **Business: $749/mo — 50 users, unlimited projects, 5 modules** | v1.1. Unlocks cross-tenant collaboration. **⛔ SUPERSEDED 2026-10-18 by PR-09 (ADR-0001)**: kept for history; the code still enforces it until the pricing migration ships. | Doc 11 |
+| PR-04 | **Enterprise: $1,499+/mo — unlimited everything** | v2.0. Includes API access, all modules, dedicated CSM. **⛔ SUPERSEDED 2026-10-18 by PR-09 (ADR-0001)**: kept for history; the code still enforces it until the pricing migration ships. | Doc 11 |
+| PR-05 | **Annual discount: 17% off (roughly 2 months free)** | Standard SaaS annual incentive. **⛔ SUPERSEDED 2026-10-18 by PR-09 (ADR-0001)**: kept for history; the code still enforces it until the pricing migration ships. | Doc 11 |
+| PR-06 | **GC Module add-on: $99/mo** | Optional on Professional. Included in Business+. **⛔ SUPERSEDED 2026-10-18 by PR-09 (ADR-0001)**: kept for history; the code still enforces it until the pricing migration ships. | Doc 11 |
+| PR-07 | **Additional users: $25/user/mo** | Per-seat expansion beyond tier limit. **⛔ SUPERSEDED 2026-10-18 by PR-09 (ADR-0001)**: kept for history; the code still enforces it until the pricing migration ships. | Doc 11 |
+| PR-08 | **Cross-tenant collaboration add-on: $149/mo** | For Professional-tier subs connecting before reaching Business. v1.1. **⛔ SUPERSEDED 2026-10-18 by PR-09 (ADR-0001)**: kept for history; the code still enforces it until the pricing migration ships. | Doc 11 |
+| PR-09 | **Business software is free; revenue comes from paid work, never per lead** (ADR-0001, accepted 2026-10-18) | Owner: "finding work is the most difficult part of the trades … should be basically free. Gotta be able to find jobs and get paid, otherwise what's the point." Operations software is free on every account, with fair-use caps only where marginal cost is real (storage, AI renders and assists). Revenue: (a) a fee on customer payments processed through the platform (Stripe Connect); (b) a success fee only on paid jobs the platform sourced; (c) an optional upgrade that never paywalls the base work feed. **No per-lead charges, ever.** Supersedes PR-01..PR-08, P-03, P-05. T-55 and T-56 tier gates are under review (not yet changed). | docs/decisions/0001-free-software-paid-work.md, docs/proposals/01-find-work-network.md |
+| PR-10 | **GC search of the sub discovery directory is free** (no cross-tenant add-on gate) | The directory is the network growth engine for sourcing work. Replaces the addon gate on `GET /connections/discovery` (Doc 07 §3.3); code change pending. | ADR-0001 |
 
 ---
 
@@ -133,4 +135,4 @@
 
 ---
 
-*Last updated: July 17, 2026*
+*Last updated: October 18, 2026 (PR-09/PR-10, ADR-0001)*
